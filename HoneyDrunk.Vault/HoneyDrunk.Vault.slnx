@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Docs/">
+    <File Path="../README.md" />
+  </Folder>
+  <Project Path="HoneyDrunk.Vault.Providers.AzureKeyVault/HoneyDrunk.Vault.Providers.AzureKeyVault.csproj" Id="9b1a636f-63cc-415d-b568-77217cb13573" />
+  <Project Path="HoneyDrunk.Vault.Providers.Configuration/HoneyDrunk.Vault.Providers.Configuration.csproj" Id="4be0d3da-4d23-420a-b013-d8db47bf7604" />
+  <Project Path="HoneyDrunk.Vault.Providers.InMemory/HoneyDrunk.Vault.Providers.InMemory.csproj" Id="f5761d27-cad7-4836-bd50-2520bdadcd0e" />
+  <Project Path="HoneyDrunk.Vault.Tests/HoneyDrunk.Vault.Tests.csproj" Id="89dc0203-7889-492d-ab74-8e2848b45639" />
+  <Project Path="HoneyDrunk.Vault/HoneyDrunk.Vault.csproj" Id="6b1a6a4c-f0af-4985-8bcb-59109c847cba" />
+</Solution>

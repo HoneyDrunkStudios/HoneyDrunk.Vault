@@ -5,6 +5,25 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
+
+    <!-- Package Metadata -->
+    <PackageId>HoneyDrunk.Vault.Providers.Configuration</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>HoneyDrunk Studios</Authors>
+    <Description>.NET Configuration provider for HoneyDrunk.Vault. Enables reading secrets and configuration from standard .NET configuration sources (appsettings.json, environment variables, user secrets).</Description>
+    <PackageReleaseNotes>v0.1.0: Initial release with IConfiguration integration, environment variable support, and configuration binding. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageTags>vault;provider;configuration;secrets;appsettings;environment-variables;user-secrets;dotnet-config</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</PackageProjectUrl>
+
+    <!-- Symbol Package Configuration -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +41,11 @@
 
   <ItemGroup>
     <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="CHANGELOG.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

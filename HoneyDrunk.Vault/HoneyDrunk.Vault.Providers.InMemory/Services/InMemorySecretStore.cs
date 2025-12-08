@@ -10,10 +10,17 @@ namespace HoneyDrunk.Vault.Providers.InMemory.Services;
 /// <summary>
 /// In-memory implementation of the secret store for testing and development.
 /// </summary>
-public sealed class InMemorySecretStore : ISecretStore
+/// <remarks>
+/// Initializes a new instance of the <see cref="InMemorySecretStore"/> class with initial secrets.
+/// </remarks>
+/// <param name="secrets">The initial secrets dictionary.</param>
+/// <param name="logger">The logger.</param>
+public sealed class InMemorySecretStore(
+    ConcurrentDictionary<string, string> secrets,
+    ILogger<InMemorySecretStore> logger) : ISecretStore, ISecretProvider
 {
-    private readonly ConcurrentDictionary<string, string> _secrets;
-    private readonly ILogger<InMemorySecretStore> _logger;
+    private readonly ConcurrentDictionary<string, string> _secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
+    private readonly ILogger<InMemorySecretStore> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InMemorySecretStore"/> class.
@@ -24,18 +31,11 @@ public sealed class InMemorySecretStore : ISecretStore
     {
     }
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="InMemorySecretStore"/> class with initial secrets.
-    /// </summary>
-    /// <param name="secrets">The initial secrets dictionary.</param>
-    /// <param name="logger">The logger.</param>
-    public InMemorySecretStore(
-        ConcurrentDictionary<string, string> secrets,
-        ILogger<InMemorySecretStore> logger)
-    {
-        _secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    /// <inheritdoc/>
+    public string ProviderName => "in-memory";
+
+    /// <inheritdoc/>
+    public bool IsAvailable => true;
 
     /// <inheritdoc/>
     public Task<SecretValue> GetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
@@ -46,12 +46,11 @@ public sealed class InMemorySecretStore : ISecretStore
     /// </summary>
     /// <param name="identifier">The secret identifier.</param>
     /// <param name="context">The optional grid context for correlation and tracing.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The secret value.</returns>
     public Task<SecretValue> GetSecretAsync(
         SecretIdentifier identifier,
         IGridContext? context,
-        CancellationToken cancellationToken = default)
+        CancellationToken _ = default)
     {
         ArgumentNullException.ThrowIfNull(identifier);
 
@@ -119,12 +118,11 @@ public sealed class InMemorySecretStore : ISecretStore
     /// </summary>
     /// <param name="secretName">The name of the secret.</param>
     /// <param name="context">The optional grid context for correlation and tracing.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A collection of secret versions.</returns>
     public Task<IReadOnlyList<SecretVersion>> ListSecretVersionsAsync(
         string secretName,
         IGridContext? context,
-        CancellationToken cancellationToken = default)
+        CancellationToken _ = default)
     {
         if (string.IsNullOrWhiteSpace(secretName))
         {
@@ -144,7 +142,7 @@ public sealed class InMemorySecretStore : ISecretStore
         // In-memory store only supports a single version
         var versions = new List<SecretVersion>
         {
-            new SecretVersion("latest", DateTimeOffset.UtcNow),
+            new("latest", DateTimeOffset.UtcNow),
         };
 
         _logger.LogDebug("Listed {Count} version for secret '{SecretName}'", versions.Count, secretName);
@@ -198,6 +196,31 @@ public sealed class InMemorySecretStore : ISecretStore
     {
         _secrets.Clear();
         _logger.LogDebug("All secrets cleared from in-memory store");
+    }
+
+    /// <inheritdoc/>
+    public Task<SecretValue> FetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
+    {
+        return GetSecretAsync(new SecretIdentifier(key, version), cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<VaultResult<SecretValue>> TryFetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
+    {
+        return await TryGetSecretAsync(new SecretIdentifier(key, version), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<SecretVersion>> ListVersionsAsync(string key, CancellationToken cancellationToken = default)
+    {
+        return ListSecretVersionsAsync(key, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        // In-memory store is always healthy
+        return Task.FromResult(true);
     }
 
     private IDisposable? CreateLogScope(IGridContext? context)

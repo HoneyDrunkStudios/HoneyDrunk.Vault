@@ -9,23 +9,17 @@ namespace HoneyDrunk.Vault.Providers.Configuration.Services;
 /// <summary>
 /// Configuration-based implementation of the secret store.
 /// </summary>
-public sealed class ConfigurationSecretStore : ISecretStore
+/// <remarks>
+/// Initializes a new instance of the <see cref="ConfigurationSecretStore"/> class.
+/// </remarks>
+/// <param name="configuration">The configuration.</param>
+/// <param name="logger">The logger.</param>
+public sealed class ConfigurationSecretStore(
+    IConfiguration configuration,
+    ILogger<ConfigurationSecretStore> logger) : ISecretStore
 {
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<ConfigurationSecretStore> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigurationSecretStore"/> class.
-    /// </summary>
-    /// <param name="configuration">The configuration.</param>
-    /// <param name="logger">The logger.</param>
-    public ConfigurationSecretStore(
-        IConfiguration configuration,
-        ILogger<ConfigurationSecretStore> logger)
-    {
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+    private readonly ILogger<ConfigurationSecretStore> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public Task<SecretValue> GetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
@@ -95,7 +89,7 @@ public sealed class ConfigurationSecretStore : ISecretStore
 
         var versions = new List<SecretVersion>
         {
-            new SecretVersion("latest", DateTimeOffset.UtcNow),
+            new("latest", DateTimeOffset.UtcNow),
         };
 
         _logger.LogDebug("Listed {Count} version for secret '{SecretName}'", versions.Count, secretName);

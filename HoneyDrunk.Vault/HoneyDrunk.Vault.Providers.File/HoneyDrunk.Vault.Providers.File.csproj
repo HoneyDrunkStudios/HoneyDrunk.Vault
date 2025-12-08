@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -9,12 +9,12 @@
     <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
 
     <!-- Package Metadata -->
-    <PackageId>HoneyDrunk.Vault</PackageId>
+    <PackageId>HoneyDrunk.Vault.Providers.File</PackageId>
     <Version>0.1.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
-    <Description>Secrets and configuration management library for .NET. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel for lifecycle management, health reporting, and distributed telemetry.</Description>
-    <PackageReleaseNotes>v0.1.0: Initial release with multi-provider support, caching, resilience policies, health checks, and telemetry integration. See CHANGELOG.md for details.</PackageReleaseNotes>
-    <PackageTags>vault;secrets;configuration;provider;cache;resilience;circuit-breaker;retry;azure-keyvault;aws;kernel;grid;distributed-tracing</PackageTags>
+    <Description>File-based secrets and configuration provider for HoneyDrunk.Vault. Ideal for local development and testing with support for file watching and optional encryption.</Description>
+    <PackageReleaseNotes>v0.1.0: Initial release with file-based secret storage, file watching, and configuration management. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageTags>vault;provider;secrets;configuration;file;development;testing;file-watcher</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</RepositoryUrl>
@@ -27,14 +27,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HoneyDrunk.Kernel" Version="0.3.0" />
     <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.3.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.6">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HoneyDrunk.Vault\HoneyDrunk.Vault.csproj" />
   </ItemGroup>
 
   <ItemGroup>

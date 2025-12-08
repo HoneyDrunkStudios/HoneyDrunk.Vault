@@ -10,23 +10,23 @@ namespace HoneyDrunk.Vault.Providers.AzureKeyVault.Services;
 /// <summary>
 /// Azure Key Vault implementation of the secret store.
 /// </summary>
-public sealed class AzureKeyVaultSecretStore : ISecretStore
+/// <remarks>
+/// Initializes a new instance of the <see cref="AzureKeyVaultSecretStore"/> class.
+/// </remarks>
+/// <param name="secretClient">The Azure Key Vault secret client.</param>
+/// <param name="logger">The logger.</param>
+public sealed class AzureKeyVaultSecretStore(
+    SecretClient secretClient,
+    ILogger<AzureKeyVaultSecretStore> logger) : ISecretStore, ISecretProvider
 {
-    private readonly SecretClient _secretClient;
-    private readonly ILogger<AzureKeyVaultSecretStore> _logger;
+    private readonly SecretClient _secretClient = secretClient ?? throw new ArgumentNullException(nameof(secretClient));
+    private readonly ILogger<AzureKeyVaultSecretStore> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AzureKeyVaultSecretStore"/> class.
-    /// </summary>
-    /// <param name="secretClient">The Azure Key Vault secret client.</param>
-    /// <param name="logger">The logger.</param>
-    public AzureKeyVaultSecretStore(
-        SecretClient secretClient,
-        ILogger<AzureKeyVaultSecretStore> logger)
-    {
-        _secretClient = secretClient ?? throw new ArgumentNullException(nameof(secretClient));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    /// <inheritdoc/>
+    public string ProviderName => "azure-key-vault";
+
+    /// <inheritdoc/>
+    public bool IsAvailable => true;
 
     /// <inheritdoc/>
     public async Task<SecretValue> GetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
@@ -37,16 +37,9 @@ public sealed class AzureKeyVaultSecretStore : ISecretStore
 
         try
         {
-            KeyVaultSecret secret;
-            if (!string.IsNullOrWhiteSpace(identifier.Version))
-            {
-                secret = await _secretClient.GetSecretAsync(identifier.Name, identifier.Version, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                secret = await _secretClient.GetSecretAsync(identifier.Name, cancellationToken: cancellationToken).ConfigureAwait(false);
-            }
-
+            KeyVaultSecret secret = !string.IsNullOrWhiteSpace(identifier.Version)
+                ? (KeyVaultSecret)await _secretClient.GetSecretAsync(identifier.Name, identifier.Version, cancellationToken).ConfigureAwait(false)
+                : (KeyVaultSecret)await _secretClient.GetSecretAsync(identifier.Name, cancellationToken: cancellationToken).ConfigureAwait(false);
             var secretValue = new SecretValue(
                 identifier,
                 secret.Value,
@@ -139,6 +132,45 @@ public sealed class AzureKeyVaultSecretStore : ISecretStore
         {
             _logger.LogError(ex, "Unexpected error listing versions for secret '{SecretName}' from Azure Key Vault", secretName);
             throw new VaultOperationException($"Failed to list versions for secret '{secretName}' from Azure Key Vault", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public Task<SecretValue> FetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
+    {
+        return GetSecretAsync(new SecretIdentifier(key, version), cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<VaultResult<SecretValue>> TryFetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
+    {
+        return await TryGetSecretAsync(new SecretIdentifier(key, version), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
+    public Task<IReadOnlyList<SecretVersion>> ListVersionsAsync(string key, CancellationToken cancellationToken = default)
+    {
+        return ListSecretVersionsAsync(key, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Try to list secrets (with very limited results) to verify connectivity
+            await foreach (var property in _secretClient.GetPropertiesOfSecretsAsync(cancellationToken).ConfigureAwait(false))
+            {
+                // Just need to verify we can connect
+                break;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Azure Key Vault health check failed");
+            return false;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -9,12 +9,12 @@
     <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
 
     <!-- Package Metadata -->
-    <PackageId>HoneyDrunk.Vault</PackageId>
+    <PackageId>HoneyDrunk.Vault.Providers.Aws</PackageId>
     <Version>0.1.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
-    <Description>Secrets and configuration management library for .NET. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel for lifecycle management, health reporting, and distributed telemetry.</Description>
-    <PackageReleaseNotes>v0.1.0: Initial release with multi-provider support, caching, resilience policies, health checks, and telemetry integration. See CHANGELOG.md for details.</PackageReleaseNotes>
-    <PackageTags>vault;secrets;configuration;provider;cache;resilience;circuit-breaker;retry;azure-keyvault;aws;kernel;grid;distributed-tracing</PackageTags>
+    <Description>AWS Secrets Manager provider for HoneyDrunk.Vault. Provides secure secret management using AWS Secrets Manager with support for IAM roles, access keys, and EC2 instance profiles.</Description>
+    <PackageReleaseNotes>v0.1.0: Initial release with IAM role, access key, and EC2 instance profile authentication, secret versioning, and health checks. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageTags>vault;provider;secrets;aws;secrets-manager;iam;access-keys;instance-profile;ec2;authentication</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</RepositoryUrl>
@@ -27,14 +27,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HoneyDrunk.Kernel" Version="0.3.0" />
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.3.2" />
+    <PackageReference Include="AWSSDK.SSO" Version="4.0.2.6" />
+    <PackageReference Include="AWSSDK.SSOOIDC" Version="4.0.3.7" />
     <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.3.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.6">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HoneyDrunk.Vault\HoneyDrunk.Vault.csproj" />
   </ItemGroup>
 
   <ItemGroup>

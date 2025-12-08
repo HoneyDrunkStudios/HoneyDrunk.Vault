@@ -8,23 +8,17 @@ namespace HoneyDrunk.Vault.Providers.Configuration.Services;
 /// <summary>
 /// Configuration-based implementation of the configuration source.
 /// </summary>
-public sealed class ConfigurationConfigSource : IConfigSource
+/// <remarks>
+/// Initializes a new instance of the <see cref="ConfigurationConfigSource"/> class.
+/// </remarks>
+/// <param name="configuration">The configuration.</param>
+/// <param name="logger">The logger.</param>
+public sealed class ConfigurationConfigSource(
+    IConfiguration configuration,
+    ILogger<ConfigurationConfigSource> logger) : IConfigSource
 {
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<ConfigurationConfigSource> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigurationConfigSource"/> class.
-    /// </summary>
-    /// <param name="configuration">The configuration.</param>
-    /// <param name="logger">The logger.</param>
-    public ConfigurationConfigSource(
-        IConfiguration configuration,
-        ILogger<ConfigurationConfigSource> logger)
-    {
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+    private readonly ILogger<ConfigurationConfigSource> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default)

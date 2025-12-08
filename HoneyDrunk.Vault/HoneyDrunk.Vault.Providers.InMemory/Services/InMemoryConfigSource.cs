@@ -9,10 +9,17 @@ namespace HoneyDrunk.Vault.Providers.InMemory.Services;
 /// <summary>
 /// In-memory implementation of the configuration source for testing and development.
 /// </summary>
-public sealed class InMemoryConfigSource : IConfigSource
+/// <remarks>
+/// Initializes a new instance of the <see cref="InMemoryConfigSource"/> class with initial values.
+/// </remarks>
+/// <param name="configValues">The initial configuration values dictionary.</param>
+/// <param name="logger">The logger.</param>
+public sealed class InMemoryConfigSource(
+    ConcurrentDictionary<string, string> configValues,
+    ILogger<InMemoryConfigSource> logger) : IConfigSource
 {
-    private readonly ConcurrentDictionary<string, string> _configValues;
-    private readonly ILogger<InMemoryConfigSource> _logger;
+    private readonly ConcurrentDictionary<string, string> _configValues = configValues ?? throw new ArgumentNullException(nameof(configValues));
+    private readonly ILogger<InMemoryConfigSource> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InMemoryConfigSource"/> class.
@@ -21,19 +28,6 @@ public sealed class InMemoryConfigSource : IConfigSource
     public InMemoryConfigSource(ILogger<InMemoryConfigSource> logger)
         : this(new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase), logger)
     {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="InMemoryConfigSource"/> class with initial values.
-    /// </summary>
-    /// <param name="configValues">The initial configuration values dictionary.</param>
-    /// <param name="logger">The logger.</param>
-    public InMemoryConfigSource(
-        ConcurrentDictionary<string, string> configValues,
-        ILogger<InMemoryConfigSource> logger)
-    {
-        _configValues = configValues ?? throw new ArgumentNullException(nameof(configValues));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc/>
@@ -45,12 +39,11 @@ public sealed class InMemoryConfigSource : IConfigSource
     /// </summary>
     /// <param name="key">The configuration key.</param>
     /// <param name="context">The optional grid context for correlation and tracing.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The configuration value.</returns>
     public Task<string> GetConfigValueAsync(
         string key,
         IGridContext? context,
-        CancellationToken cancellationToken = default)
+        CancellationToken _ = default)
     {
         if (string.IsNullOrWhiteSpace(key))
         {
@@ -81,12 +74,11 @@ public sealed class InMemoryConfigSource : IConfigSource
     /// </summary>
     /// <param name="key">The configuration key.</param>
     /// <param name="context">The optional grid context for correlation and tracing.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The configuration value if found, otherwise null.</returns>
     public Task<string?> TryGetConfigValueAsync(
         string key,
         IGridContext? context,
-        CancellationToken cancellationToken = default)
+        CancellationToken _ = default)
     {
         if (string.IsNullOrWhiteSpace(key))
         {

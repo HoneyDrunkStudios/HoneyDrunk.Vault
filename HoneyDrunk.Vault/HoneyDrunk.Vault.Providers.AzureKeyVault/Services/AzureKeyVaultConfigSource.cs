@@ -9,23 +9,17 @@ namespace HoneyDrunk.Vault.Providers.AzureKeyVault.Services;
 /// Azure Key Vault implementation of the configuration source.
 /// This implementation uses the secret store to retrieve configuration values stored as secrets.
 /// </summary>
-public sealed class AzureKeyVaultConfigSource : IConfigSource
+/// <remarks>
+/// Initializes a new instance of the <see cref="AzureKeyVaultConfigSource"/> class.
+/// </remarks>
+/// <param name="secretStore">The secret store.</param>
+/// <param name="logger">The logger.</param>
+public sealed class AzureKeyVaultConfigSource(
+    ISecretStore secretStore,
+    ILogger<AzureKeyVaultConfigSource> logger) : IConfigSource
 {
-    private readonly ISecretStore _secretStore;
-    private readonly ILogger<AzureKeyVaultConfigSource> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AzureKeyVaultConfigSource"/> class.
-    /// </summary>
-    /// <param name="secretStore">The secret store.</param>
-    /// <param name="logger">The logger.</param>
-    public AzureKeyVaultConfigSource(
-        ISecretStore secretStore,
-        ILogger<AzureKeyVaultConfigSource> logger)
-    {
-        _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly ISecretStore _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
+    private readonly ILogger<AzureKeyVaultConfigSource> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public async Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default)

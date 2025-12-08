@@ -8,27 +8,20 @@ namespace HoneyDrunk.Vault.Services;
 /// <summary>
 /// Central orchestrator for vault operations, implementing the resolution pipeline.
 /// </summary>
-public sealed class VaultClient : IVaultClient
+/// <remarks>
+/// Initializes a new instance of the <see cref="VaultClient"/> class.
+/// </remarks>
+/// <param name="secretStore">The secret store provider.</param>
+/// <param name="configSource">The configuration source provider.</param>
+/// <param name="logger">The logger.</param>
+public sealed class VaultClient(
+    ISecretStore secretStore,
+    IConfigSource configSource,
+    ILogger<VaultClient> logger) : IVaultClient
 {
-    private readonly ISecretStore _secretStore;
-    private readonly IConfigSource _configSource;
-    private readonly ILogger<VaultClient> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="VaultClient"/> class.
-    /// </summary>
-    /// <param name="secretStore">The secret store provider.</param>
-    /// <param name="configSource">The configuration source provider.</param>
-    /// <param name="logger">The logger.</param>
-    public VaultClient(
-        ISecretStore secretStore,
-        IConfigSource configSource,
-        ILogger<VaultClient> logger)
-    {
-        _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
-        _configSource = configSource ?? throw new ArgumentNullException(nameof(configSource));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly ISecretStore _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
+    private readonly IConfigSource _configSource = configSource ?? throw new ArgumentNullException(nameof(configSource));
+    private readonly ILogger<VaultClient> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public async Task<SecretValue> GetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)

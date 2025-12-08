@@ -19,6 +19,10 @@ Custom exception types for vault operations. These exceptions provide structured
 
 **Location:** `HoneyDrunk.Vault/Exceptions/`
 
+**Design Philosophy:** Vault does not define a common `VaultException` base type. This is intentional to avoid overly broad catch patterns and encourage precise error handling.
+
+**Security:** Vault never includes secret values in exceptions. Only metadata (key names, provider names, and generic error messages) are surfaced to prevent accidental leakage.
+
 ---
 
 ## SecretNotFoundException.cs
@@ -45,7 +49,11 @@ public sealed class SecretNotFoundException : Exception
 }
 ```
 
+**Provider Selection:** `SecretNotFoundException` indicates that the selected provider did not contain the requested secret. It does not imply that no other provider contains the secret. Vault queries the active provider based on provider priority and availability, not all providers simultaneously.
+
 ### Usage Example
+
+**Note:** The examples below simplify provider resolution for clarity. In reality, `VaultClient` performs provider selection (priority order, `IsAvailable` checks, fallback chain) before invoking the backend provider.
 
 ```csharp
 // Throwing the exception
@@ -84,10 +92,10 @@ catch (SecretNotFoundException ex)
 ### When to Use
 
 | Scenario | Exception |
-|----------|-----------|
+|----------|-----------||
 | Secret does not exist | `SecretNotFoundException` |
 | Secret was deleted | `SecretNotFoundException` |
-| Wrong secret name | `SecretNotFoundException` |
+| Wrong secret name | `SecretNotFoundException` (providers normalize "invalid name" errors) |
 | Version does not exist | `SecretNotFoundException` |
 
 [↑ Back to top](#table-of-contents)
@@ -117,6 +125,8 @@ public sealed class ConfigurationNotFoundException : Exception
     public string Key { get; }
 }
 ```
+
+**Contract Scope:** Thrown only when using the `Get*` methods on `IConfigProvider` (exported contract). `Try*` methods never throw. `IConfigSource` is internal and does not guarantee this exception type.
 
 ### Usage Example
 
@@ -183,6 +193,10 @@ public sealed class VaultOperationException : Exception
 }
 ```
 
+**Scope:** `VaultOperationException` represents operational failures in provider access (network, IAM, authentication, service unavailability). It does not represent missing secrets or config keys—use `SecretNotFoundException` or `ConfigurationNotFoundException` for those cases.
+
+**Provider Rule:** Providers must convert backend "not found" responses (e.g., HTTP 404) into `SecretNotFoundException`, not `VaultOperationException`. `VaultOperationException` is reserved for operational failures.
+
 ### Usage Example
 
 ```csharp
@@ -238,9 +252,32 @@ catch (VaultOperationException ex)
 
 ---
 
+## 🔗 How Exceptions Drive Kernel Health
+
+Vault exceptions directly influence Kernel health and readiness:
+
+| Exception | Warmup (Startup) | Health Check | Readiness Check |
+|-----------|------------------|--------------|------------------|
+| `SecretNotFoundException` | **Readiness failure** (warmup key missing) | No impact | **Readiness failure** |
+| `VaultOperationException` | **Startup failure** (provider unreachable) | **Liveness failure** | **Readiness failure** |
+| `ConfigurationNotFoundException` | No impact (unless explicitly configured) | No impact | No impact |
+
+**Integration Points:**
+- **`VaultStartupHook`**: Warms cache using `WarmupKeys`. `SecretNotFoundException` → readiness failure.
+- **`VaultHealthContributor`**: Checks provider connectivity. `VaultOperationException` → liveness failure.
+- **`VaultReadinessContributor`**: Validates providers are available. Exceptions → readiness failure.
+
+See [Lifecycle.md](Lifecycle.md) and [Health.md](Health.md) for details.
+
+[↑ Back to top](#table-of-contents)
+
+---
+
 ## Exception Handling Patterns
 
 ### Try Pattern (Recommended)
+
+**Philosophy:** Vault follows a "use exceptions for exceptional conditions" philosophy. Missing secrets or config keys are not exceptional when using `Try*` methods, so use `Try*` for optional or user-dependent values.
 
 ```csharp
 // Use Try* methods to avoid exceptions for expected cases
@@ -294,6 +331,8 @@ catch (VaultOperationException ex)
 ```
 
 ### Global Exception Handler
+
+**Security Note:** Vault never includes secret values in exceptions. Only metadata (key names, provider names, error types) should be exposed. Do not log entire exception objects that might contain sensitive inner exception details.
 
 ```csharp
 // In ASP.NET Core middleware
@@ -359,7 +398,9 @@ Exception hierarchy for vault operations:
 2. Use `Get*` methods when value is required
 3. Catch specific exceptions, not `Exception`
 4. Log with structured data (key names, not values)
-5. Don't expose internal exception details to clients
+5. **Never expose secret values in exception messages or logs**
+6. Providers: Convert 404/not-found → `SecretNotFoundException`, everything else → `VaultOperationException`
+7. Don't expose internal exception details to clients
 
 ---
 

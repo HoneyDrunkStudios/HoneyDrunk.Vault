@@ -77,6 +77,8 @@ public class PaymentServiceTests
 
 ### Testing Configuration Access
 
+**Contract Boundary:** Application code should depend on `IConfigProvider` (exported contract), not `IConfigSource` (internal plumbing). Tests use `InMemoryConfigSource` + `ConfigSourceAdapter` or a test implementation of `IConfigProvider`.
+
 ```csharp
 public class FeatureServiceTests
 {
@@ -86,9 +88,10 @@ public class FeatureServiceTests
         // Arrange
         var configSource = new InMemoryConfigSource(
             NullLogger<InMemoryConfigSource>.Instance);
-        configSource.SetConfig("feature:new-ui", "true");
+        configSource.SetConfigValue("feature:new-ui", "true");
 
-        var service = new FeatureService(configSource);
+        var configProvider = new ConfigSourceAdapter(configSource);
+        var service = new FeatureService(configProvider);
 
         // Act
         var isEnabled = await service.IsFeatureEnabledAsync(
@@ -107,7 +110,8 @@ public class FeatureServiceTests
             NullLogger<InMemoryConfigSource>.Instance);
         // No config set
 
-        var service = new FeatureService(configSource);
+        var configProvider = new ConfigSourceAdapter(configSource);
+        var service = new FeatureService(configProvider);
 
         // Act
         var timeout = await service.GetTimeoutAsync(CancellationToken.None);
@@ -123,6 +127,8 @@ public class FeatureServiceTests
 ## Integration Testing
 
 ### WebApplicationFactory Setup
+
+**Full Pipeline Integration:** Integration tests should typically use `AddVaultInMemory` so that `VaultClient`, caching, telemetry, health, and lifecycle hooks all participate as they do in production. This ensures you're testing the real Vault orchestration pipeline, not just provider behavior.
 
 ```csharp
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -148,11 +154,11 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
                 }
 
                 // Add test vault
-                services.AddVaultWithInMemory(options =>
+                services.AddVaultInMemory(options =>
                 {
-                    options.SetSecret("api-key", "test-api-key");
-                    options.SetSecret("db-connection", "Server=test;...");
-                    options.SetConfig("timeout", "5");
+                    options.AddSecret("api-key", "test-api-key");
+                    options.AddSecret("db-connection", "Server=test;...");
+                    options.AddConfigValue("timeout", "5");
                 });
             });
         });
@@ -188,7 +194,9 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 }
 ```
 
-### Custom WebApplicationFactory
+### Custom WebApplicationFactory (Partial Integration)
+
+**Partial Pipeline:** This pattern bypasses `VaultClient`, `SecretCache`, resilience policies, telemetry, and Kernel lifecycle integration. Use this when you only care about HTTP behavior and service logic, not Vault's internal caching/resilience. For full pipeline testing, use `AddVaultInMemory` as shown above.
 
 ```csharp
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
@@ -245,6 +253,11 @@ public class MyTests : IClassFixture<TestWebApplicationFactory>
 ---
 
 ## Mocking Strategies
+
+**Mocking Guidance:**
+- **Prefer mocking for interaction/behavior verification**, not basic success cases
+- **Do not mock provider implementations** like `AzureKeyVaultSecretStore` or `FileSecretStore`. Treat them as internal infrastructure. Mock against `ISecretStore` and `IConfigProvider` instead.
+- **If you don't need to verify calls** or simulate very specific failures, use `InMemorySecretStore` instead of mocks
 
 ### Using Moq
 
@@ -397,7 +410,7 @@ public class VaultFixture : IDisposable
         // Setup common test data
         SecretStore.SetSecret("api-key", "test-api-key");
         SecretStore.SetSecret("db-connection", "Server=localhost;");
-        ConfigSource.SetConfig("timeout", "30");
+        ConfigSource.SetConfigValue("timeout", "30");
     }
 
     public void Reset()
@@ -411,6 +424,8 @@ public class VaultFixture : IDisposable
         Reset();
     }
 }
+
+**Reset Behavior:** Resetting between tests is optional if each test sets up its own secrets explicitly. The `Reset()` call in the test constructor ensures clean state when reusing fixtures across test classes. For single-class fixtures, you can skip `Reset()` and let each test configure secrets as needed.
 
 // Usage with xUnit collection
 [CollectionDefinition("Vault")]
@@ -435,6 +450,8 @@ public class MyServiceTests
     }
 }
 ```
+
+**Reset Behavior:** Resetting between tests is optional if each test sets up its own secrets explicitly. The `Reset()` call in the test constructor ensures clean state when reusing fixtures across test classes. For single-class fixtures, you can skip `Reset()` and let each test configure secrets as needed.
 
 ---
 
@@ -522,6 +539,70 @@ public async Task MyService_UsesSecretCorrectly()
     var result = await service.ProcessAsync(ct);
     
     Assert.Contains("processed-value", result);
+}
+```
+
+### 5. Testing VaultClient
+
+If your service depends on `IVaultClient` instead of `ISecretStore`/`IConfigProvider`, you can still use InMemory providers—`VaultClient` will sit on top of them as usual:
+
+```csharp
+var services = new ServiceCollection();
+services.AddVaultCore();
+services.AddVaultInMemory(options =>
+{
+    options.AddSecret("api-key", "test-key");
+});
+
+var provider = services.BuildServiceProvider();
+var vaultClient = provider.GetRequiredService<IVaultClient>();
+var service = new MyService(vaultClient);
+```
+
+### 6. Testing Health and Lifecycle
+
+Vault's health and lifecycle hooks can be tested by registering `VaultHealthContributor`, `VaultReadinessContributor`, and `VaultStartupHook` in a test host and asserting their behavior under different provider setups:
+
+```csharp
+[Fact]
+public async Task VaultHealth_WithNoProviders_ReturnsUnhealthy()
+{
+    var services = new ServiceCollection();
+    services.AddVaultCore(); // No providers
+    services.AddSingleton<VaultHealthContributor>();
+
+    var provider = services.BuildServiceProvider();
+    var healthContributor = provider.GetRequiredService<VaultHealthContributor>();
+
+    var (status, message) = await healthContributor.CheckHealthAsync(CancellationToken.None);
+
+    Assert.Equal(HealthStatus.Unhealthy, status);
+    Assert.Contains("No vault providers", message);
+}
+
+[Fact]
+public async Task VaultReadiness_AfterWarmup_ReturnsReady()
+{
+    var services = new ServiceCollection();
+    services.AddVaultCore();
+    services.AddVaultInMemory(options =>
+    {
+        options.AddSecret("warmup-key", "warmup-value");
+    });
+    services.AddSingleton<VaultStartupHook>();
+    services.AddSingleton<VaultReadinessContributor>();
+
+    var provider = services.BuildServiceProvider();
+    var startupHook = provider.GetRequiredService<VaultStartupHook>();
+    var readinessContributor = provider.GetRequiredService<VaultReadinessContributor>();
+
+    // Execute warmup
+    await startupHook.ExecuteAsync(CancellationToken.None);
+
+    // Check readiness
+    var (isReady, message) = await readinessContributor.CheckReadinessAsync(CancellationToken.None);
+
+    Assert.True(isReady);
 }
 ```
 

@@ -29,21 +29,25 @@ public static class VaultServiceCollectionExtensions
 {
     /// <summary>
     /// Adds core vault services to the service collection.
-    /// This registers the VaultClient orchestrator but not provider implementations.
+    /// This registers the VaultClient orchestrator and ISecretStore/IConfigProvider contracts.
+    /// Does not register provider implementations - use AddVaultWithX methods.
     /// </summary>
     public static IServiceCollection AddVaultCore(this IServiceCollection services);
 }
 ```
 
+**Provider Requirement:** `AddVaultCore()` does not register any providers. At least one provider must be registered using `AddVaultWithX()` (File, AzureKeyVault, AWS, InMemory, Configuration). If no providers are registered, provider resolution will fail at runtime.
+
 ### Usage Example
 
 ```csharp
-// Basic registration (no providers)
+// Basic registration (no providers yet - must add at least one)
 builder.Services.AddVaultCore();
 
 // Core services registered:
-// - IVaultClient -> VaultClient
-// - IConfigProvider -> ConfigSourceAdapter (wraps IConfigSource)
+// - ISecretStore -> VaultClient (exported contract)
+// - IVaultClient -> VaultClient (internal orchestrator)
+// - IConfigProvider -> ConfigSourceAdapter (wraps IConfigSource if available)
 ```
 
 ### What Gets Registered
@@ -53,10 +57,12 @@ public static IServiceCollection AddVaultCore(this IServiceCollection services)
 {
     ArgumentNullException.ThrowIfNull(services);
 
-    // Register the central orchestrator
+    // Register the central orchestrator as both ISecretStore and IVaultClient
     services.TryAddSingleton<IVaultClient, VaultClient>();
+    services.TryAddSingleton<ISecretStore>(sp => sp.GetRequiredService<IVaultClient>());
 
     // Register IConfigProvider as a wrapper around IConfigSource
+    // Only provides configuration if a provider registers IConfigSource
     services.TryAddSingleton<IConfigProvider>(sp =>
     {
         var configSource = sp.GetService<IConfigSource>();
@@ -67,15 +73,20 @@ public static IServiceCollection AddVaultCore(this IServiceCollection services)
             return provider;
         }
 
-        // Otherwise wrap in adapter
+        // Otherwise wrap in adapter (if available)
+        // If no IConfigSource, configuration access will not be available
         return configSource != null
             ? new ConfigSourceAdapter(configSource)
-            : throw new InvalidOperationException("No IConfigSource registered");
+            : new NullConfigProvider(); // Returns defaults/empty
     });
 
     return services;
 }
 ```
+
+**Configuration Availability:** `IConfigProvider` is registered only if a provider registers an `IConfigSource`. If no provider supplies configuration, Vault will not offer configuration via `IConfigProvider`. Vault does not guarantee configuration availability unless at least one config-capable provider is registered (File, InMemory, Configuration).
+
+**Provider Resolution:** Providers registered via `AddVaultWithX()` populate `VaultOptions.Providers`. `VaultClient` consumes this registry to perform provider selection (default provider, fallback chain, `IsAvailable` checks, health integration).
 
 [↑ Back to top](#table-of-contents)
 
@@ -103,10 +114,13 @@ public static class HoneyDrunkBuilderExtensions
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
-    .AddHoneyDrunk(options =>
+    .AddHoneyDrunkGrid(grid =>
     {
-        options.NodeId = "order-service";
-        options.StudioId = "my-studio";
+        grid.StudioId = "my-studio";
+    })
+    .AddHoneyDrunkNode(node =>
+    {
+        node.NodeId = "order-service";
     })
     .AddVault(vault =>
     {
@@ -118,17 +132,16 @@ builder.Services
         vault.Resilience.RetryEnabled = true;
         vault.Resilience.MaxRetryAttempts = 3;
 
-        // Add provider
-        vault.AddAzureKeyVaultProvider(akv =>
-        {
-            akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
-            akv.UseManagedIdentity = true;
-        });
-
         // Warmup and health
         vault.WarmupKeys.Add("database-connection-string");
         vault.HealthCheckSecretKey = "health-check-secret";
+    })
+    .AddVaultWithAzureKeyVault(akv =>
+    {
+        akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
+        akv.UseManagedIdentity = true;
     });
+```
 ```
 
 ### What Gets Registered
@@ -141,7 +154,7 @@ public static IHoneyDrunkBuilder AddVault(
     var services = builder.Services;
     
     // Configure options
-    services.Configure(configure);
+    services.Configure<VaultOptions>(configure);
     
     // Register core services
     services.AddVaultCore();
@@ -161,29 +174,46 @@ public static IHoneyDrunkBuilder AddVault(
 }
 ```
 
+**What AddVaultCore Registers:**
+- `ISecretStore` → Vault implementation (exported contract)
+- `IVaultClient` → Internal orchestrator
+- `IConfigProvider` → Adapter over `IConfigSource` (if available)
+- `SecretCache` → In-memory caching
+- `VaultTelemetry` → ActivitySource tracing
+
+**What AddVault Adds:**
+- Configures `VaultOptions`
+- Registers Kernel lifecycle hooks (`IStartupHook`, `IHealthContributor`, `IReadinessContributor`)
+
 ### Complete Registration Flow
 
 ```
-AddHoneyDrunk()
+AddHoneyDrunkGrid()
     │
-    ├── Kernel services (IGridContext, etc.)
+    ├── Grid services (IGridContext, etc.)
     │
-    └── AddVault()
+    └── AddHoneyDrunkNode()
             │
-            ├── VaultOptions
-            ├── VaultClient
-            ├── SecretCache
-            ├── VaultTelemetry
-            ├── VaultStartupHook
-            ├── VaultHealthContributor
-            └── VaultReadinessContributor
+            ├── Node services
+            │
+            └── AddVault()
                     │
-                    └── Provider Extensions
+                    ├── VaultOptions
+                    ├── ISecretStore (exported)
+                    ├── IVaultClient (internal)
+                    ├── IConfigProvider (exported)
+                    ├── SecretCache
+                    ├── VaultTelemetry
+                    ├── VaultStartupHook
+                    ├── VaultHealthContributor
+                    └── VaultReadinessContributor
                             │
-                            ├── AddVaultWithAzureKeyVault()
-                            ├── AddVaultWithFile()
-                            ├── AddVaultWithAws()
-                            └── AddVaultWithInMemory()
+                            └── Provider Extensions
+                                    │
+                                    ├── AddVaultWithAzureKeyVault()
+                                    ├── AddVaultWithFile()
+                                    ├── AddVaultWithAwsSecretsManager()
+                                    └── AddVaultInMemory()
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -192,9 +222,16 @@ AddHoneyDrunk()
 
 ## Provider Extension Methods
 
-Each provider package includes its own extension method:
+Each provider package includes its own extension method. Provider extension methods must be called after `AddVault()` or `AddVaultCore()` so the DI container has `VaultOptions` available.
+
+**What Provider Extensions Register:**
+- Provider-specific `ISecretProvider` implementation
+- Provider-specific `IConfigSource` implementation (if supported)
+- Provider registration in `VaultOptions.Providers`
 
 ### File Provider
+
+*Registers: `ISecretProvider`, `IConfigSource`*
 
 ```csharp
 // HoneyDrunk.Vault.Providers.File
@@ -209,6 +246,8 @@ services.AddVaultWithFile(options =>
 
 ### Azure Key Vault Provider
 
+*Registers: `ISecretProvider` (secrets only)*
+
 ```csharp
 // HoneyDrunk.Vault.Providers.AzureKeyVault
 services.AddVaultWithAzureKeyVault(options =>
@@ -220,29 +259,34 @@ services.AddVaultWithAzureKeyVault(options =>
 
 ### AWS Secrets Manager Provider
 
+*Registers: `ISecretProvider` (secrets only)*
+
 ```csharp
 // HoneyDrunk.Vault.Providers.Aws
 services.AddVaultWithAwsSecretsManager(options =>
 {
     options.Region = "us-east-1";
-    options.UseInstanceProfile = true;
     options.SecretPrefix = "prod/myapp/";
 });
 ```
 
 ### InMemory Provider
 
+*Registers: `ISecretProvider`, `IConfigSource` (for testing)*
+
 ```csharp
 // HoneyDrunk.Vault.Providers.InMemory
-services.AddVaultWithInMemory(options =>
+services.AddVaultInMemory(options =>
 {
-    options.SetSecret("api-key", "test-key");
-    options.SetSecret("db-connection", "Server=localhost;...");
-    options.SetConfig("timeout", "30");
+    options.AddSecret("api-key", "test-key");
+    options.AddSecret("db-connection", "Server=localhost;...");
+    options.AddConfigValue("timeout", "30");
 });
 ```
 
 ### Configuration Provider
+
+*Registers: `ISecretProvider`, `IConfigSource` (IConfiguration bridge)*
 
 ```csharp
 // HoneyDrunk.Vault.Providers.Configuration
@@ -272,9 +316,9 @@ if (builder.Environment.IsDevelopment())
 else if (builder.Environment.IsEnvironment("Testing"))
 {
     // InMemory for tests
-    builder.Services.AddVaultWithInMemory(options =>
+    builder.Services.AddVaultInMemory(options =>
     {
-        options.SetSecret("api-key", "test-key");
+        options.AddSecret("api-key", "test-key");
     });
 }
 else
@@ -298,14 +342,14 @@ else
 Registration is layered for flexibility:
 
 | Extension | Package | Registers |
-|-----------|---------|-----------|
-| `AddVaultCore()` | Core | VaultClient, IConfigProvider |
-| `AddVault()` | Core (Kernel) | Full Kernel integration |
-| `AddVaultWithFile()` | File | FileSecretStore, FileConfigSource |
-| `AddVaultWithAzureKeyVault()` | Azure | AzureKeyVaultSecretStore |
-| `AddVaultWithAwsSecretsManager()` | AWS | AwsSecretsManagerSecretStore |
-| `AddVaultWithInMemory()` | InMemory | InMemorySecretStore |
-| `AddVaultWithConfiguration()` | Configuration | ConfigurationSecretStore |
+|-----------|---------|-----------||
+| `AddVaultCore()` | Core | `ISecretStore`, `IVaultClient`, `IConfigProvider` (exported contracts) |
+| `AddVault()` | Core (Kernel) | Adds Kernel lifecycle hooks to `AddVaultCore()` |
+| `AddVaultWithFile()` | File | `ISecretProvider`, `IConfigSource` |
+| `AddVaultWithAzureKeyVault()` | Azure | `ISecretProvider` (secrets only) |
+| `AddVaultWithAwsSecretsManager()` | AWS | `ISecretProvider` (secrets only) |
+| `AddVaultInMemory()` | InMemory | `ISecretProvider`, `IConfigSource` (testing) |
+| `AddVaultWithConfiguration()` | Configuration | `ISecretProvider`, `IConfigSource` (IConfiguration bridge) |
 
 ---
 

@@ -1,26 +1,33 @@
 # HoneyDrunk.Vault
 
-Core secrets and configuration management library with unified provider abstraction.
+Core secrets and configuration management library for HoneyDrunk.OS. This package provides the abstractions, caching, orchestration, telemetry, and Kernel lifecycle integration that all Vault providers plug into.
+
+**This package contains no provider implementations.** It defines the Vault contract, runtime behavior, cache, telemetry, and lifecycle integration used by provider packages. Vault itself does not talk to Azure, AWS, files, or configuration—providers do.
 
 ## Overview
 
-This is the **core package** that provides abstractions, orchestration, caching, and Kernel integration. You'll also need at least one provider package (File, Azure Key Vault, AWS, InMemory, or Configuration) to store and retrieve secrets.
+Vault gives applications a unified, Kernel-aware interface for secrets and configuration no matter where those values live. Providers supply the values; Vault handles resilience, caching, lifecycle behavior, and distributed tracing.
+
+You'll need at least one provider package (File, Azure Key Vault, AWS, InMemory, or Configuration) to store and retrieve secrets.
 
 **Key Abstractions:**
 - **`ISecretStore`** - Primary interface for accessing secrets (inject this in your services)
 - **`IConfigProvider`** - Typed configuration access with defaults
-- **`IVaultClient`** - Central orchestrator combining secrets and configuration
-- **`SecretIdentifier`** - Immutable record for identifying secrets (name + optional version)
-- **`SecretValue`** - Immutable record containing secret value and metadata
+- **`IVaultClient`** - Combined orchestrator for secrets and config (use when you need both)
+- **`SecretIdentifier`** - Immutable identifier (name + optional version)
+- **`SecretValue`** - Immutable secret data + metadata
+
+**Application code injects `ISecretStore` and `IConfigProvider`, not `IVaultClient`.** `IVaultClient` is useful when your service needs a unified façade for both secrets and config, but most apps won't need it.
 
 ## Features
 
-- **Provider Abstraction**: Works with File, Azure Key Vault, AWS Secrets Manager, Configuration, and In-Memory providers
-- **Kernel Integration**: Lifecycle hooks, health checks, and distributed telemetry
-- **Caching**: In-memory caching with configurable TTL and size limits
-- **Resilience**: Retry and circuit breaker policies for production reliability
-- **Grid Context**: Distributed tracing and correlation via HoneyDrunk.Kernel
-- **Secure Telemetry**: Traces operations without logging secret values
+- **Multiple provider support** (File, Azure, AWS, Configuration, InMemory)
+- **Kernel lifecycle integration** (startup, health, readiness)
+- **In-memory caching** with TTL and optional sliding expiration
+- **Retry and circuit breaker** resilience policies
+- **Grid context propagation** for tracing and correlation
+- **Secure telemetry** (never logs secret values)
+- **Pluggable provider model**
 
 ## Installation
 
@@ -30,82 +37,96 @@ dotnet add package HoneyDrunk.Vault
 
 ## Quick Start
 
-### Basic Usage
+### Consuming Secrets
 
 ```csharp
 using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Models;
 
-// Inject ISecretStore
 public class MyService
 {
-    private readonly ISecretStore _secretStore;
+    private readonly ISecretStore _store;
 
-    public MyService(ISecretStore secretStore)
+    public MyService(ISecretStore store)
     {
-        _secretStore = secretStore;
+        _store = store;
     }
 
-    public async Task<string> GetDatabaseConnectionAsync()
+    public async Task<string> GetConnectionStringAsync()
     {
-        var secret = await _secretStore.GetSecretAsync(
+        var secret = await _store.GetSecretAsync(
             new SecretIdentifier("db-connection-string"));
         return secret.Value;
     }
 }
 ```
 
-### Configuration
+### Registering Vault Inside a HoneyDrunk Node
+
+**`AddVault(options => ...)` only exists when `HoneyDrunk.Kernel` is referenced.** This is the Kernel "builder" API, not a general DI API.
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddVault(options =>
-{
-    // Configure caching
-    options.Cache.Enabled = true;
-    options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
-    options.Cache.MaxSize = 1000;
-
-    // Configure resilience
-    options.Resilience.RetryEnabled = true;
-    options.Resilience.MaxRetryAttempts = 3;
-    options.Resilience.CircuitBreakerEnabled = true;
-
-    // Add providers
-    options.AddAzureKeyVaultProvider(akv =>
+builder.Services
+    .AddHoneyDrunkGrid(grid => { grid.StudioId = "my-studio"; })
+    .AddHoneyDrunkNode(node => { node.NodeId = "my-service-node"; })
+    .AddVault(options =>
     {
-        akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
-        akv.UseManagedIdentity = true;
+        options.Cache.Enabled = true;
+        options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
+
+        options.Resilience.RetryEnabled = true;
+        options.Resilience.MaxRetryAttempts = 3;
+
+        options.AddAzureKeyVaultProvider(akv =>
+        {
+            akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
+            akv.UseManagedIdentity = true;
+        });
+
+        options.WarmupKeys.Add("db-connection-string");
+        options.HealthCheckSecretKey = "health-check-secret";
     });
 
-    // Warm up critical secrets
-    options.WarmupKeys.Add("database-connection-string");
-    options.HealthCheckSecretKey = "health-check-secret";
+var app = builder.Build();
+```
+
+### Plain ASP.NET Core (No Kernel)
+
+For apps that don't use Kernel, register a provider directly using provider-level DI extensions:
+
+```csharp
+builder.Services.AddVaultWithFile(o =>
+{
+    o.SecretsFilePath = "secrets.json";
 });
 
-var app = builder.Build();
+builder.Services.AddVaultWithAzureKeyVault(o =>
+{
+    o.VaultUri = new Uri("https://my-vault.vault.azure.net/");
+    o.UseManagedIdentity = true;
+});
 ```
 
 ## Architecture
 
 ```
 HoneyDrunk.Vault (Core)
-??? Abstractions
-?   ??? ISecretStore      # Primary secret access
-?   ??? ISecretProvider   # Provider abstraction
-?   ??? IConfigSource     # Raw config access
-?   ??? IConfigProvider   # Typed config access
-??? Services
-?   ??? VaultClient       # Orchestrates providers
-?   ??? SecretCache       # In-memory caching
-??? Health
-?   ??? VaultHealthContributor
-?   ??? VaultReadinessContributor
-??? Lifecycle
-?   ??? VaultStartupHook
-??? Telemetry
-    ??? VaultTelemetry
+├── Abstractions
+│   ├── ISecretStore / IConfigProvider
+│   ├── ISecretProvider / IConfigSource
+│   └── SecretIdentifier / SecretValue / SecretVersion
+├── Services
+│   ├── VaultClient
+│   └── SecretCache
+├── Lifecycle
+│   └── VaultStartupHook
+├── Health
+│   ├── VaultHealthContributor
+│   └── VaultReadinessContributor
+└── Telemetry
+    └── VaultTelemetry
 ```
 
 ## Key Interfaces
@@ -138,27 +159,31 @@ public interface IConfigProvider
 
 ## Health Checks
 
-The library automatically provides health and readiness checks when integrated with HoneyDrunk.Kernel:
+**Inside a HoneyDrunk node, Vault participates automatically in health and readiness checks through Kernel's aggregation model.** No extra wiring is required.
 
-```csharp
-// Health endpoint will include vault status
-var contributors = app.Services.GetRequiredService<IEnumerable<IHealthContributor>>();
-var results = await Task.WhenAll(contributors.Select(c => c.CheckHealthAsync()));
-var allHealthy = results.All(r => r.status == HealthStatus.Healthy);
-```
+When using `AddVault` with Kernel, `VaultHealthContributor` and `VaultReadinessContributor` are automatically registered and surface vault status on Kernel's health aggregation endpoints.
 
 ## Telemetry
 
-All vault operations emit telemetry with:
+Vault emits OpenTelemetry activities for all operations. Traces include:
 - Provider name
 - Operation type (get, list, etc.)
 - Cache hit/miss status
 - Execution duration
-- Grid context (CorrelationId, NodeId, TenantId, etc.)
+- Grid correlation metadata
 
-?? **Note**: Secret values are NEVER included in telemetry or logs.
+**Security Note**: Secret values are never logged or emitted in telemetry. Only secret names and provider metadata appear in traces.
 
 ## Configuration Options
+
+Key configurable components include:
+- **VaultCacheOptions** - TTL, max size, sliding expiration
+- **VaultResilienceOptions** - Retry, circuit breaker, timeout
+- **Provider registration** - Multiple providers with optional default
+- **Warmup keys** - Preload critical secrets on startup
+- **Health check secret** - Secret used for readiness checks
+
+For full documentation of all configuration options, see the `/docs` directory.
 
 ### VaultOptions
 
@@ -204,30 +229,32 @@ public class VaultResilienceOptions
 
 ## Error Handling
 
+Use `Get*` methods for required values and `TryGet*` for optional flows:
+
 ```csharp
 try
 {
-    var secret = await _secretStore.GetSecretAsync(identifier);
+    var secret = await _store.GetSecretAsync(id);
 }
-catch (SecretNotFoundException ex)
+catch (SecretNotFoundException) { ... }
+catch (VaultOperationException) { ... }
+
+// For optional secrets
+var result = await _store.TryGetSecretAsync(id);
+if (result.IsSuccess)
 {
-    // Handle missing secret
-}
-catch (VaultOperationException ex)
-{
-    // Handle vault operation errors
+    var secret = result.Value;
 }
 ```
 
 ## Best Practices
 
-1. **Always use dependency injection** - Let the DI container manage lifecycle
-2. **Enable caching** - Improves performance and reduces provider load
-3. **Configure resilience** - Protect against transient failures
-4. **Use context-aware methods** - For distributed tracing correlation
-5. **Never log secrets** - Use secret names only
-6. **Warm up critical secrets** - Reduce latency on startup
-7. **Configure health checks** - Enable monitoring
+1. **Inject `ISecretStore` or `IConfigProvider`, not concrete providers**
+2. **Enable caching in production** - Improves performance and reduces provider load
+3. **Use resilience settings for external stores** - Protect against transient failures
+4. **Use warmup keys for latency-sensitive secrets** - Preload on startup
+5. **Never log secret values** - Use secret names only in logs and telemetry
+6. **Prefer `TryGetSecretAsync` for optional secrets and `GetSecretAsync` for required ones** - Keeps exception paths meaningful
 
 ## License
 

@@ -2,11 +2,13 @@
 
 A secrets and configuration management library designed as a first-class Kernel-aware node for the HoneyDrunk.OS ecosystem.
 
+**Vault is the Grid-facing abstraction for secrets and configuration.** Applications depend on Vault, Vault depends on providers.
+
 ## Overview
 
 **Think of this library as a secure lockbox for your application**
 
-Just like how a bank vault stores valuables with multiple layers of security and access control, this library provides unified access to secrets and configuration from multiple providers. It abstracts away the complexity of different secret stores (Azure Key Vault, AWS Secrets Manager, File-based, In-Memory) with caching, resilience policies, and Kernel-aware lifecycle integration.
+Just like how a bank vault stores valuables with multiple layers of security and access control, this library provides unified access to secrets and configuration from multiple providers. It abstracts away the complexity of different secret stores (Azure Key Vault, AWS Secrets Manager, File-based, In-Memory) with caching, resilience policies, Kernel-aware lifecycle integration, and consistent APIs for secrets and configuration—delivering security, operational reliability, and developer ergonomics.
 
 **Key Concepts:**
 - **SecretIdentifier** - The unique key to locate a secret (name + optional version)
@@ -17,6 +19,8 @@ Just like how a bank vault stores valuables with multiple layers of security and
 - **SecretCache** - In-memory caching layer with TTL
 - **Provider** - Backend-specific implementation (File, Azure, AWS, InMemory, Configuration)
 
+**Application Dependency:** Typical application code depends on `ISecretStore` for secrets and `IConfigProvider` for configuration. `IVaultClient` is useful when you want a single façade that can do both. `VaultClient` is the internal orchestrator that coordinates providers behind the scenes.
+
 ## Features
 
 - **Multiple Providers**: Support for File, Azure Key Vault, AWS Secrets Manager, Configuration, and In-Memory providers
@@ -25,7 +29,7 @@ Just like how a bank vault stores valuables with multiple layers of security and
 - **Resilience**: Retry and circuit breaker policies for production reliability
 - **Context-Aware**: Grid context support for distributed tracing and correlation
 - **Secure Telemetry**: Telemetry traces operations without leaking secret values
-- **Provider Prioritization**: Automatic fallback through multiple configured providers
+- **Provider Prioritization**: Automatic fallback through multiple configured providers based on registration order and optional default provider
 
 ## Installation
 
@@ -72,6 +76,8 @@ app.MapGet("/api/connection-string", async (ISecretStore secretStore) =>
 app.Run();
 ```
 
+**Note:** `AddVaultWithFile` registers Vault core services and the File provider. For full Kernel integration (health contributors, lifecycle hooks, telemetry), use `builder.Services.AddHoneyDrunk(...).AddVault(...)` instead (see below).
+
 Your `secrets/dev-secrets.json` file:
 ```json
 {
@@ -82,7 +88,7 @@ Your `secrets/dev-secrets.json` file:
 
 ### Switching to Azure Key Vault in Production
 
-The beauty of Vault is that you can switch providers using only configuration:
+Vault lets you switch providers without changing your application code. In simple cases you can bind provider options from configuration; in this example we use environment checks:
 
 ```csharp
 using HoneyDrunk.Vault.Providers.AzureKeyVault.Extensions;
@@ -159,6 +165,8 @@ var app = builder.Build();
 app.Run();
 ```
 
+**Kernel Integration:** When using `AddVault` with Kernel, `VaultHealthContributor` and `VaultReadinessContributor` are automatically registered and surface vault status on Kernel's health aggregation endpoints.
+
 ### Using ISecretStore
 
 The primary interface for accessing secrets:
@@ -189,6 +197,8 @@ public class MyService
     }
 }
 ```
+
+**Provider Independence:** You rarely need to know which provider is backing the secret store. Vault resolves providers based on configuration and environment, letting you write provider-agnostic application code.
 
 ### Using IConfigProvider
 
@@ -269,10 +279,10 @@ services.AddVaultWithAwsSecretsManager(options =>
 For unit testing:
 
 ```csharp
-services.AddVaultWithInMemory(options =>
+services.AddVaultInMemory(options =>
 {
-    options.SetSecret("test-secret", "test-value");
-    options.SetConfig("test-config", "config-value");
+    options.AddSecret("test-secret", "test-value");
+    options.AddConfigValue("test-config", "config-value");
 });
 ```
 
@@ -280,34 +290,30 @@ services.AddVaultWithInMemory(options =>
 
 When integrated with Kernel, Vault automatically provides health and readiness contributors:
 
-```csharp
-// Health endpoint will include vault status
-app.MapGet("/health", async (IEnumerable<IHealthContributor> contributors) =>
-{
-    var results = await Task.WhenAll(
-        contributors.Select(c => c.CheckHealthAsync()));
-    
-    var allHealthy = results.All(r => r.status == HealthStatus.Healthy);
-    return allHealthy ? Results.Ok() : Results.StatusCode(503);
-});
-```
+- **`VaultHealthContributor`** - Reports operational status (liveness probe): provider availability, optional health check secret accessibility
+- **`VaultReadinessContributor`** - Reports readiness (readiness probe): provider enablement, warmup completion
+
+These contributors are picked up by Kernel's health aggregation model and exposed on the node's health endpoints. See [Health.md](docs/Health.md) for detailed behavior and configuration.
 
 ## Telemetry
 
 All vault operations emit telemetry traces with:
-- Provider name
-- Operation type (get, list, etc.)
-- Cache hit/miss status
+- Provider name (resolved after fallback)
+- Operation type (vault.secret.get, vault.config.get, etc.)
+- Cache hit/miss status (explicit flag from cache layer)
 - Duration
-- Grid context (CorrelationId, NodeId, TenantId, etc.)
+- Grid context (CorrelationId, NodeId, OperationId, etc.)
+- Resilience metadata (retry count, circuit breaker state)
 
 **Important**: Secret values are NEVER included in telemetry or logs.
+
+**OpenTelemetry Integration**: To capture Vault traces, register the `honeydrunk.vault` activity source in your OpenTelemetry tracing configuration. See [Telemetry.md](docs/Telemetry.md) for details.
 
 ## Architecture
 
 **Secret Resolution Flow:**
 ```
-Application              VaultClient                 Provider
+Application              ISecretStore/VaultClient     Provider
     ↓                        ↓                           ↓
 SecretIdentifier → Check Cache → Cache Miss → Fetch from Backend → Return SecretValue
     ↓                        ↓                           ↓
@@ -315,6 +321,8 @@ SecretIdentifier → Check Cache → Cache Miss → Fetch from Backend → Retur
                    (hit/miss)        AWS Secrets Manager  (value + version)
                                      File / InMemory
 ```
+
+**Note:** In simple setups, `ISecretStore` is backed directly by a provider. In more advanced pipelines, `VaultClient` coordinates multiple providers, caching, and telemetry.
 
 **Component Structure:**
 ```

@@ -66,46 +66,72 @@ public sealed class VaultOptions
     /// </summary>
     public string? HealthCheckSecretKey { get; set; }
 
-    // Fluent configuration methods
+    // Generic provider registration (advanced hook for custom providers)
     public VaultOptions AddProvider(string name, Action<ProviderRegistration> configure);
-    public VaultOptions AddFileProvider(Action<FileProviderOptions>? configure = null);
-    public VaultOptions AddAzureKeyVaultProvider(Action<AzureKeyVaultProviderOptions> configure);
-    public VaultOptions AddAwsSecretsManagerProvider(Action<AwsSecretsManagerProviderOptions> configure);
-    public VaultOptions AddInMemoryProvider(Action<InMemoryProviderOptions>? configure = null);
 }
 ```
 
+**Telemetry and Kernel Integration:** When `EnableTelemetry` is `true`, Vault emits ActivitySource spans and log enrichment that Pulse can ingest. Telemetry configuration is global and independent of specific providers.
+
+**Provider Registration:** `AddProvider` is an advanced hook used by custom providers. Built-in providers should be registered via the `AddVaultWithXxx()` extension methods in their own packages.
+
+> **Note:** Provider-specific configuration (Azure Key Vault, AWS, File, InMemory) is handled by each provider package via `AddVaultWithXxx()` extension methods. See provider documentation for details.
+
 ### Usage Example
 
+**Grid-Integrated (Recommended):**
+
 ```csharp
-builder.Services.AddVault(options =>
-{
-    // Configure caching
-    options.Cache.Enabled = true;
-    options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
-    options.Cache.MaxSize = 1000;
+// Configure with full Grid integration
+builder.Services
+    .AddHoneyDrunkGrid(grid => { grid.StudioId = "my-studio"; })
+    .AddHoneyDrunkNode(node => { node.NodeId = "my-service"; })
+    .AddVault(options =>
+    {
+        // Configure caching
+        options.Cache.Enabled = true;
+        options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
+        options.Cache.MaxSize = 1000;
 
-    // Configure resilience
-    options.Resilience.RetryEnabled = true;
-    options.Resilience.MaxRetryAttempts = 3;
-    options.Resilience.CircuitBreakerEnabled = true;
+        // Configure resilience
+        options.Resilience.RetryEnabled = true;
+        options.Resilience.MaxRetryAttempts = 3;
+        options.Resilience.CircuitBreakerEnabled = true;
 
-    // Enable telemetry
-    options.EnableTelemetry = true;
+        // Enable telemetry
+        options.EnableTelemetry = true;
 
-    // Add providers
-    options.AddAzureKeyVaultProvider(akv =>
+        // Warm up critical secrets
+        options.WarmupKeys.Add("database-connection-string");
+        options.WarmupKeys.Add("redis-connection-string");
+
+        // Health check secret
+        options.HealthCheckSecretKey = "health-check-secret";
+    })
+    .AddVaultWithAzureKeyVault(akv =>
     {
         akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
         akv.UseManagedIdentity = true;
     });
+```
 
-    // Warm up critical secrets
-    options.WarmupKeys.Add("database-connection-string");
-    options.WarmupKeys.Add("redis-connection-string");
+**Off-Grid (Development/Early Adoption):**
 
-    // Health check secret
-    options.HealthCheckSecretKey = "health-check-secret";
+```csharp
+// Configure without Grid integration
+builder.Services.AddVault(options =>
+{
+    // Same configuration as above
+    options.Cache.Enabled = true;
+    options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
+    // ...
+});
+
+// Add provider
+builder.Services.AddVaultWithAzureKeyVault(akv =>
+{
+    akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
+    akv.UseManagedIdentity = true;
 });
 ```
 
@@ -146,6 +172,8 @@ public sealed class VaultCacheOptions
 }
 ```
 
+**Rotation-Friendly Caching:** `DefaultTtl` should be tuned relative to your secret rotation cadence. Vault is rotation-aware and should not cache secrets longer than they remain valid.
+
 ### Usage Example
 
 ```csharp
@@ -163,6 +191,8 @@ options.Cache.SlidingExpiration = TimeSpan.FromMinutes(5);
 | `DefaultTtl` | Absolute expiration time for cached entries |
 | `MaxSize` | LRU eviction when size exceeded |
 | `SlidingExpiration` | Resets expiration on each access |
+
+**Cache Key Scoping:** Cache keys include scope (environment, tenant, node) as well as secret name and version, so secrets are isolated between tenants and environments. This prevents cross-contamination in multi-tenant scenarios.
 
 [↑ Back to top](#table-of-contents)
 
@@ -218,6 +248,8 @@ public sealed class VaultResilienceOptions
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
 }
 ```
+
+**Scope:** These settings apply to both secret and configuration retrieval from remote providers.
 
 ### Usage Example
 
@@ -288,6 +320,8 @@ public sealed class ProviderRegistration
 }
 ```
 
+**Relationship to Provider Options:** Built-in providers map their `*Options` types to `ProviderRegistration` internally. Application code should prefer the strongly-typed `*Options` classes exposed by provider packages. `ProviderRegistration.Settings` is primarily for custom providers and advanced override scenarios.
+
 ### Usage Example
 
 ```csharp
@@ -335,8 +369,15 @@ public enum ProviderType
     /// Configuration-based provider.
     /// </summary>
     Configuration,
+
+    /// <summary>
+    /// Custom or third-party provider.
+    /// </summary>
+    Custom,
 }
 ```
+
+**Third-Party Providers:** Third-party or application-specific providers should use `ProviderType.Custom` and carry any additional metadata in `ProviderRegistration.Settings`.
 
 [↑ Back to top](#table-of-contents)
 
@@ -344,81 +385,99 @@ public enum ProviderType
 
 ## Provider-Specific Options
 
-### FileProviderOptions
+Provider-specific options are defined in their respective provider packages. Each provider has its own options class with appropriate defaults.
+
+**Package Location:** These options types live in their respective provider packages. Vault core does not depend on them directly.
+
+### FileVaultOptions (HoneyDrunk.Vault.Providers.File)
+
+*Supports: Secrets and Configuration*
 
 ```csharp
-public sealed class FileProviderOptions
+public sealed class FileVaultOptions
 {
-    public string FilePath { get; set; } = "secrets.json";
-    public string? EncryptionKeySource { get; set; }
+    public string SecretsFilePath { get; set; } = "secrets.json";
+    public string? ConfigFilePath { get; set; }
+    public bool WatchForChanges { get; set; } = false;
+    public bool CreateIfNotExists { get; set; } = false;
 }
 ```
 
-### AzureKeyVaultProviderOptions
+### AzureKeyVaultOptions (HoneyDrunk.Vault.Providers.AzureKeyVault)
+
+*Supports: Secrets only*
 
 ```csharp
-public sealed class AzureKeyVaultProviderOptions
+public sealed class AzureKeyVaultOptions
 {
     public Uri? VaultUri { get; set; }
     public bool UseManagedIdentity { get; set; } = true;
-    public string? ClientId { get; set; }
     public string? TenantId { get; set; }
+    public string? ClientId { get; set; }
+    public string? ClientSecret { get; set; }
 }
 ```
 
-### AwsSecretsManagerProviderOptions
+### AwsSecretsManagerOptions (HoneyDrunk.Vault.Providers.Aws)
+
+*Supports: Secrets only*
 
 ```csharp
-public sealed class AwsSecretsManagerProviderOptions
+public sealed class AwsSecretsManagerOptions
 {
     public string? Region { get; set; }
-    public string? AccessKeyId { get; set; }
-    public bool UseInstanceProfile { get; set; } = true;
+    public string? ProfileName { get; set; }
+    public string? ServiceUrl { get; set; }
+    public string? SecretPrefix { get; set; }
+    public bool UseVersionId { get; set; } = true;
+    public string VersionStage { get; set; } = "AWSCURRENT";
 }
 ```
 
-### InMemoryProviderOptions
+### InMemoryVaultOptions (HoneyDrunk.Vault.Providers.InMemory)
+
+*Supports: Secrets and Configuration (for testing)*
 
 ```csharp
-public sealed class InMemoryProviderOptions
+public sealed class InMemoryVaultOptions
 {
     public Dictionary<string, string> Secrets { get; }
-    public Dictionary<string, string> Config { get; }
+    public Dictionary<string, string> ConfigurationValues { get; }
     
-    public void SetSecret(string key, string value);
-    public void SetConfig(string key, string value);
+    public InMemoryVaultOptions AddSecret(string name, string value);
+    public InMemoryVaultOptions AddConfigValue(string key, string value);
 }
 ```
 
 ### Usage Examples
 
 ```csharp
-// File provider
-options.AddFileProvider(file =>
+// File provider (development)
+builder.Services.AddVaultWithFile(options =>
 {
-    file.FilePath = "secrets/dev-secrets.json";
-    file.EncryptionKeySource = "ENCRYPTION_KEY";
+    options.SecretsFilePath = "secrets/dev-secrets.json";
+    options.WatchForChanges = true;
 });
 
-// Azure Key Vault
-options.AddAzureKeyVaultProvider(akv =>
+// Azure Key Vault (production)
+builder.Services.AddVaultWithAzureKeyVault(options =>
 {
-    akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
-    akv.UseManagedIdentity = true;
+    options.VaultUri = new Uri("https://my-vault.vault.azure.net/");
+    options.UseManagedIdentity = true;
 });
 
 // AWS Secrets Manager
-options.AddAwsSecretsManagerProvider(aws =>
+builder.Services.AddVaultWithAwsSecretsManager(options =>
 {
-    aws.Region = "us-east-1";
-    aws.UseInstanceProfile = true;
+    options.Region = "us-east-1";
+    options.SecretPrefix = "prod/myapp/";
 });
 
 // InMemory (for testing)
-options.AddInMemoryProvider(mem =>
+builder.Services.AddVaultInMemory(options =>
 {
-    mem.SetSecret("api-key", "test-key");
-    mem.SetConfig("timeout", "30");
+    options.AddSecret("api-key", "test-key");
+    options.AddConfigValue("timeout", "30");
 });
 ```
 
@@ -430,13 +489,13 @@ options.AddInMemoryProvider(mem =>
 
 Configuration is organized into logical groups:
 
-| Class | Purpose | Scope |
-|-------|---------|-------|
-| `VaultOptions` | Main configuration | Global |
-| `VaultCacheOptions` | Caching behavior | Global |
-| `VaultResilienceOptions` | Retry/circuit breaker | Global |
-| `ProviderRegistration` | Provider settings | Per-provider |
-| `*ProviderOptions` | Provider-specific | Per-provider |
+| Class | Purpose | Scope | Consumer |
+|-------|---------|-------|----------|
+| `VaultOptions` | Main configuration | Global | Node / app |
+| `VaultCacheOptions` | Caching behavior | Global | Node / app |
+| `VaultResilienceOptions` | Retry/circuit breaker | Global | Node / app |
+| `ProviderRegistration` | Provider registry | Per-provider | Vault core / advanced users |
+| `*ProviderOptions` | Provider-specific options | Per-provider | Provider packages |
 
 ---
 

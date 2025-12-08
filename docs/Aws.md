@@ -22,6 +22,8 @@ AWS Secrets Manager provider for secure secret management in AWS-hosted applicat
 
 **Location:** `HoneyDrunk.Vault.Providers.Aws/`
 
+**Provider Contract:** The AWS provider implements `ISecretProvider` (backend primitive). `ISecretStore` is provided by Vault core and composes all configured providers. Application code should inject `ISecretStore`, not the provider directly. This provider does not implement `IConfigSource`; use another provider (File, Configuration, Azure KV) for typed configuration access.
+
 **Use Cases:**
 - Production AWS-hosted applications
 - EC2, ECS, EKS, Lambda deployments
@@ -62,22 +64,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddVaultWithAwsSecretsManager(options =>
 {
     options.Region = "us-east-1";
-    options.UseInstanceProfile = true;
     options.SecretPrefix = "prod/myapp/";
+    // Uses default AWS credential chain (instance profile, env vars, etc.)
 });
 
 var app = builder.Build();
 ```
 
-### Using Access Keys
+### Using Named Profile (Local Development)
 
 ```csharp
 builder.Services.AddVaultWithAwsSecretsManager(options =>
 {
     options.Region = "us-east-1";
-    options.AccessKeyId = builder.Configuration["AWS:AccessKeyId"];
-    // SecretAccessKey should come from environment or secure config
-    options.UseInstanceProfile = false;
+    options.ProfileName = "my-dev-profile"; // Uses named profile from ~/.aws/credentials
+    options.SecretPrefix = "dev/myapp/";
 });
 ```
 
@@ -88,24 +89,38 @@ public sealed class AwsSecretsManagerOptions
 {
     /// <summary>
     /// The AWS region where secrets are stored.
+    /// If not specified, uses the default region from AWS configuration.
     /// </summary>
     public string? Region { get; set; }
 
     /// <summary>
-    /// The AWS access key ID (for access key auth).
+    /// The profile name for AWS credentials.
+    /// If not specified, uses the default credential chain.
     /// </summary>
-    public string? AccessKeyId { get; set; }
+    public string? ProfileName { get; set; }
 
     /// <summary>
-    /// Whether to use EC2 instance profile for authentication.
-    /// Default: true
+    /// Optional custom service URL for Secrets Manager.
+    /// Useful for local development with LocalStack or VPC endpoints.
     /// </summary>
-    public bool UseInstanceProfile { get; set; } = true;
+    public string? ServiceUrl { get; set; }
 
     /// <summary>
     /// Optional prefix for secret names (e.g., "prod/myapp/").
     /// </summary>
     public string? SecretPrefix { get; set; }
+
+    /// <summary>
+    /// Whether to use the secret version ID as the version.
+    /// Default: true
+    /// </summary>
+    public bool UseVersionId { get; set; } = true;
+
+    /// <summary>
+    /// The version stage to use when fetching secrets.
+    /// Default: "AWSCURRENT"
+    /// </summary>
+    public string VersionStage { get; set; } = "AWSCURRENT";
 }
 ```
 
@@ -172,13 +187,15 @@ metadata:
 
 ## AwsSecretsManagerSecretStore.cs
 
-AWS Secrets Manager implementation of `ISecretStore` and `ISecretProvider`.
+AWS Secrets Manager implementation of `ISecretProvider` (primary backend contract). Also implements `ISecretStore` for off-grid scenarios, but applications should inject Vault's exported `ISecretStore` contract instead.
 
 ```csharp
-public sealed class AwsSecretsManagerSecretStore : ISecretStore, ISecretProvider
+public sealed class AwsSecretsManagerSecretStore : ISecretProvider, ISecretStore
 {
     public string ProviderName => "aws-secrets-manager";
-    public bool IsAvailable => true;
+    
+    // IsAvailable: cheap check (config present, credentials detectable)
+    public bool IsAvailable => /* region configured && credentials available */;
 
     public async Task<SecretValue> GetSecretAsync(
         SecretIdentifier identifier,
@@ -192,17 +209,24 @@ public sealed class AwsSecretsManagerSecretStore : ISecretStore, ISecretProvider
         string secretName,
         CancellationToken cancellationToken = default);
 
+    // CheckHealthAsync: live AWS connectivity and permission check
     public async Task<bool> CheckHealthAsync(
         CancellationToken cancellationToken = default);
 }
 ```
 
+**Availability Semantics:**
+- `IsAvailable` returns `true` if the provider is enabled and basic configuration is present (region, auth source)
+- `CheckHealthAsync` performs a live AWS Secrets Manager connectivity and permission check
+
 ### Implementation Details
 
 - Uses `AWSSDK.SecretsManager`
-- Supports versioned secret retrieval (AWSCURRENT, AWSPREVIOUS)
+- Supports versioned secret retrieval (see versioning semantics below)
 - Supports secret prefix for organization
 - Maps AWS exceptions to vault exceptions
+
+**Secret Name Mapping:** Application code always uses unprefixed logical names (e.g., `"database-connection"`). The AWS provider prepends `SecretPrefix` internally when resolving keys. Fully qualified AWS secret names are constructed by the provider, not by application code.
 
 ### Usage Example
 
@@ -223,18 +247,20 @@ public class DatabaseService(ISecretStore secretStore)
 
 ### Versioned Secrets
 
+**AWS-Native Versioning:** AWS Secrets Manager uses version labels like `AWSCURRENT` and `AWSPREVIOUS`. Vault treats these as opaque version identifiers. Providers map AWS version metadata to Vault's `SecretVersion` model.
+
 ```csharp
-// Get current version
+// Get current version (default behavior)
 var current = await secretStore.GetSecretAsync(
     new SecretIdentifier("api-key"),
     ct);
 
-// Get previous version
+// Get previous version using AWS-native label (passed through as opaque ID)
 var previous = await secretStore.GetSecretAsync(
     new SecretIdentifier("api-key", "AWSPREVIOUS"),
     ct);
 
-// List all versions
+// List all versions (returns Vault's SecretVersion model)
 var versions = await secretStore.ListSecretVersionsAsync("api-key", ct);
 ```
 
@@ -262,16 +288,50 @@ var credentials = JsonSerializer.Deserialize<DatabaseCredentials>(secret.Value);
 
 ---
 
+## Provider Behavior Mapping
+
+The AWS provider maps AWS-specific semantics to Vault abstractions:
+
+### Exception Mapping
+
+| AWS Exception | Vault Exception |
+|---------------|----------------|
+| `ResourceNotFoundException` | `SecretNotFoundException` |
+| `InvalidRequestException` | `VaultOperationException` |
+| `InvalidParameterException` | `VaultOperationException` |
+| `DecryptionFailureException` | `VaultOperationException` |
+| `InternalServiceErrorException` | `VaultOperationException` |
+| `ThrottlingException` | `VaultOperationException` (retry via resilience policy) |
+
+### Metadata Mapping
+
+| AWS Concept | Vault Concept |
+|-------------|---------------|
+| AWS Version ID (UUID) | `SecretVersion.Version` |
+| AWS Version Labels (AWSCURRENT, etc.) | Opaque version identifiers |
+| Secret String | `SecretValue.Value` |
+| Secret ARN | Not exposed (internal) |
+
+### Configuration Notes
+
+- **Region:** Must be explicitly configured via `AwsSecretsManagerOptions.Region`
+- **Credentials:** Follows AWS SDK credential chain (IAM roles → instance profile → environment variables → access keys)
+- **No Config Support:** This provider implements only the secret path (`ISecretProvider`), not the configuration path (`IConfigSource`)
+
+---
+
 ## Best Practices
 
-### 1. Use IAM Roles
+### 1. Use Default Credential Chain
 
 ```csharp
-// ✅ Good - IAM Role/Instance Profile
-options.UseInstanceProfile = true;
+// ✅ Good - Default credential chain (IAM role, instance profile, env vars)
+options.Region = "us-east-1";
+options.SecretPrefix = "prod/myapp/";
+// Credentials resolved automatically from environment
 
-// ❌ Avoid - Access keys in code
-options.AccessKeyId = "AKIAIOSFODNN7EXAMPLE";
+// For local dev with named profile:
+options.ProfileName = "my-dev-profile";
 ```
 
 ### 2. Minimal Permissions
@@ -295,11 +355,18 @@ options.SecretPrefix = "prod/myapp/";
 
 ### 4. Enable Rotation
 
+**Rotation Model:** Rotation is performed by AWS Secrets Manager. Vault does not rotate secrets itself; it is rotation-aware. Applications should not pin fixed versions unless explicitly needed. Configure Vault's cache TTL relative to your rotation cadence.
+
 ```bash
-# Configure automatic rotation
+# Configure automatic rotation in AWS
 aws secretsmanager rotate-secret \
   --secret-id prod/myapp/database-password \
   --rotation-lambda-arn arn:aws:lambda:...
+```
+
+```csharp
+// In Vault configuration, set cache TTL relative to rotation schedule
+vault.Cache.DefaultTtl = TimeSpan.FromMinutes(15); // Shorter than rotation interval
 ```
 
 ### 5. VPC Endpoints
@@ -316,16 +383,16 @@ aws ec2 create-vpc-endpoint \
 
 ## Summary
 
-AWS Secrets Manager provides enterprise-grade secret management:
+AWS Secrets Manager provides enterprise-grade secret management. This provider implements Vault's `ISecretProvider` contract.
 
 | Feature | Supported |
-|---------|-----------|
+|---------|-----------||
 | Secrets | ✅ |
-| Configuration | ❌ (use Parameter Store) |
+| Configuration | ❌ (use Parameter Store or another provider) |
 | Versioning | ✅ |
 | IAM Roles | ✅ |
 | Instance Profiles | ✅ |
-| Automatic Rotation | ✅ |
+| Automatic Rotation | ✅ (AWS-managed) |
 | Cross-Region | ✅ |
 | VPC Endpoints | ✅ |
 | Production use | ✅ |

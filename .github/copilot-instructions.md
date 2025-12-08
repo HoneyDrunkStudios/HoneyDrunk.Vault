@@ -1,26 +1,46 @@
 # HoneyDrunk.Vault - Copilot Instructions
 
-## Project Overview
-HoneyDrunk.Vault is a multi-provider secrets and configuration management library for .NET 10. It provides a unified abstraction layer over File, Azure Key Vault, AWS Secrets Manager, Configuration, and InMemory backends with built-in caching, resilience, and telemetry.
+## Node Identity
+
+| Attribute | Value |
+|-----------|-------|
+| **Sector** | Core |
+| **Cluster** | Security |
+| **Slot** | Provider |
+| **Exported Contracts** | `ISecretStore`, `IConfigProvider` |
+| **Package** | `HoneyDrunk.Vault` |
+| **Consumes** | `HoneyDrunk.Kernel` (runtime contracts) |
+| **Compile-time** | `HoneyDrunk.Kernel.Abstractions` in Vault packages; full `HoneyDrunk.Kernel` only at app/node level |
+
+Vault is the Grid's canonical source of secrets and configuration. Other Nodes consume it via `ISecretStore` and `IConfigProvider`—never provider SDKs directly.
 
 ## Architecture Quick Reference
 
 ### Core Abstractions (`HoneyDrunk.Vault/Abstractions/`)
-- **`ISecretStore`** - Primary interface for secret access. Inject this in application code.
-- **`ISecretProvider`** - Backend-specific implementations (Azure, AWS, File, InMemory).
-- **`IConfigSource`** / **`IConfigProvider`** - Configuration access with typed deserialization.
-- **`IVaultClient`** - Central orchestrator combining secrets and config access.
 
-### Provider Pattern
-Each provider package follows this structure:
+**Exported Contracts** (cross-Node consumption):
+- **`ISecretStore`** - Primary interface for secret access. Inject this in business logic.
+- **`IConfigProvider`** - Typed configuration access with defaults.
+
+**Internal Contracts** (Vault + provider packages only):
+- **`ISecretProvider`** - Backend-specific implementations (Azure, AWS, File, InMemory). Provider packages reference this.
+- **`IConfigSource`** - Raw configuration source (wrapped by IConfigProvider). Provider packages reference this.
+- **`IVaultClient`** - Internal orchestrator. Reserved for infrastructure/advanced orchestration; never cargo-cult into business logic.
+
+### Provider Slot Pattern
+Vault is a **provider slot Node**—provider packages implement `ISecretProvider` / `IConfigSource` and plug into the slot:
 ```
 HoneyDrunk.Vault.Providers.{Name}/
-├── Configuration/     # {Name}Options class
-├── Extensions/        # AddVaultWith{Name}() extension method
+├── Configuration/     # {Name}Options class (provider-specific)
+├── Extensions/        # AddVaultWith{Name}() or AddVault{Name}() extension method
 └── Services/          # {Name}SecretStore implementing ISecretStore + ISecretProvider
 ```
 
-Extension methods register both core services via `AddVaultCore()` and provider implementations.
+**Extension method naming:**
+- `AddVaultWithAzureKeyVault()`, `AddVaultWithAwsSecretsManager()`, `AddVaultWithFile()`, `AddVaultWithConfiguration()` - cloud and file providers
+- `AddVaultInMemory()` - InMemory provider (testing)
+
+Core Vault does not know about Azure/AWS/File specifics. Provider-specific options belong in provider packages.
 
 ## Key Conventions
 
@@ -35,12 +55,21 @@ Extension methods register both core services via `AddVaultCore()` and provider 
 - Wrap provider errors in `VaultOperationException` for consistent error handling.
 
 ### Service Registration Pattern
+
+**Grid-Integrated (Recommended):**
 ```csharp
-// Each provider has an AddVaultWith{Provider} extension
+builder.Services
+    .AddHoneyDrunkGrid(grid => { grid.StudioId = "..."; })
+    .AddHoneyDrunkNode(node => { node.NodeId = "..."; })
+    .AddVault(vault => { /* cache, resilience, warmup */ })
+    .AddVaultWithAzureKeyVault(akv => { akv.VaultUri = ...; });
+```
+
+**Off-Grid (Development):**
+```csharp
 builder.Services.AddVaultWithFile(options => { ... });
 builder.Services.AddVaultWithAzureKeyVault(options => { ... });
 builder.Services.AddVaultWithAwsSecretsManager(options => { ... });
-builder.Services.AddVaultWithInMemory(options => { ... });
 ```
 
 ## Development Commands

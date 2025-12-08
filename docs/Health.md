@@ -18,6 +18,10 @@ Health monitoring integration for the vault system. Integrates with Kernel healt
 
 **Location:** `HoneyDrunk.Vault/Health/`
 
+**Exception Semantics:** `VaultHealthContributor` distinguishes between configuration errors (`SecretNotFoundException`) and operational failures (`VaultOperationException`). Only operational failures mark Vault as Unhealthy.
+
+**Telemetry Integration:** Health contributors integrate with `VaultTelemetry` to emit provider health metrics (provider failures, warmup failures, readiness failures).
+
 Vault health contributors are registered automatically when using Kernel integration and are included in the node's composite health check.
 
 ---
@@ -45,7 +49,7 @@ CheckHealthAsync()
         │
         ▼
 ┌───────────────────────────────────┐
-│ Is HealthCheckSecretKey set?      │
+│ Are any providers configured?     │
 └───────────────┬───────────────────┘
                 │
         ┌───────┴───────┐
@@ -53,17 +57,28 @@ CheckHealthAsync()
        Yes              No
         │               │
         ▼               ▼
-┌───────────────┐ ┌───────────────────────┐
-│ TryGetSecret  │ │ Return Healthy        │
-│ (health key)  │ │ "Vault is operational"│
-└───────┬───────┘ └───────────────────────┘
+┌───────────────────┐ ┌──────────────────────┐
+│ Is HealthCheck    │ │ Return Unhealthy     │
+│ SecretKey set?    │ │ "No providers"       │
+└───────┬───────────┘ └──────────────────────┘
         │
    ┌────┴────┐
    │         │
-Success   Failure
+  Yes        No
    │         │
    ▼         ▼
-Healthy   Unhealthy
+┌──────────────┐ ┌───────────────────────┐
+│ TryGetSecret │ │ Return Healthy        │
+│ (health key) │ │ "Vault is operational"│
+└──────┬───────┘ └───────────────────────┘
+       │
+  ┌────┴────┐
+  │         │
+Found   NotFound
+  │         │
+  ▼         ▼
+Healthy  Healthy
+        (with note)
 ```
 
 ### Usage Example
@@ -85,6 +100,14 @@ public sealed class VaultHealthContributor(
 
         try
         {
+            // Check that at least one provider is configured
+            var enabledProviders = _options.Providers.Values.Count(p => p.IsEnabled);
+            if (enabledProviders == 0)
+            {
+                _logger.LogWarning("No vault providers are enabled");
+                return (HealthStatus.Unhealthy, "No vault providers configured");
+            }
+
             // If a health check secret key is configured, try to fetch it
             if (!string.IsNullOrEmpty(_options.HealthCheckSecretKey))
             {
@@ -98,13 +121,19 @@ public sealed class VaultHealthContributor(
                         "Vault is operational and health check secret is accessible");
                 }
 
-                // Secret not found is still healthy (just not configured)
+                // Secret not found means Vault is operational but key is missing
                 return (HealthStatus.Healthy, 
-                    "Vault is operational (health check secret not found)");
+                    "Vault operational, but health check secret not found");
             }
 
             // No health check secret configured, just report as healthy
             return (HealthStatus.Healthy, "Vault is operational");
+        }
+        catch (VaultOperationException ex)
+        {
+            // Provider operational failure (network, IAM, service unavailable)
+            _logger.LogError(ex, "Vault health check failed: provider operational failure");
+            return (HealthStatus.Unhealthy, $"Vault provider failure: {ex.Message}");
         }
         catch (Exception ex)
         {
@@ -162,8 +191,9 @@ CheckReadinessAsync()
         ▼               ▼
 ┌───────────────┐ ┌───────────────────────┐
 │ Check warmup  │ │ Return NotReady       │
-│ keys loaded   │ │ "No providers enabled"│
-└───────┬───────┘ └───────────────────────┘
+│ state         │ │ "No providers enabled"│
+│ (cached keys) │ └───────────────────────┘
+└───────┬───────┘
         │
    ┌────┴────┐
    │         │
@@ -200,9 +230,27 @@ public sealed class VaultReadinessContributor(
                 return (false, "No vault providers are enabled");
             }
 
-            // If warmup keys are configured, verify they were loaded
-            if (_options.WarmupKeys.Count > 0 && 
-                !string.IsNullOrEmpty(_options.HealthCheckSecretKey))
+            // If warmup keys are configured, verify they were loaded during startup
+            // VaultStartupHook already fetched these; readiness checks warmup state
+            if (_options.WarmupKeys.Count > 0)
+            {
+                foreach (var warmupKey in _options.WarmupKeys)
+                {
+                    // Check if key exists in cache (loaded during warmup)
+                    var result = await _secretStore.TryGetSecretAsync(
+                        new SecretIdentifier(warmupKey),
+                        cancellationToken);
+
+                    if (!result.IsSuccess)
+                    {
+                        _logger.LogWarning("Warmup key '{WarmupKey}' not loaded", warmupKey);
+                        return (false, $"Warmup incomplete: '{warmupKey}' not loaded");
+                    }
+                }
+            }
+
+            // Optionally verify health check secret if specified
+            if (!string.IsNullOrEmpty(_options.HealthCheckSecretKey))
             {
                 var result = await _secretStore.TryGetSecretAsync(
                     new SecretIdentifier(_options.HealthCheckSecretKey),
@@ -210,7 +258,7 @@ public sealed class VaultReadinessContributor(
 
                 if (!result.IsSuccess)
                 {
-                    return (false, "Warmup secrets not yet loaded");
+                    return (false, "Health check secret not accessible");
                 }
             }
 
@@ -224,6 +272,12 @@ public sealed class VaultReadinessContributor(
     }
 }
 ```
+
+**Warmup State Checking:** `ReadinessContributor` checks warmup state rather than re-fetching secrets. `VaultStartupHook` is the only place where warmup secrets are loaded. Readiness probes should be cheap and not re-hit cloud providers every probe interval.
+
+**Configuration Keys:** Vault readiness does not validate configuration keys. Configuration access does not block readiness. Only provider availability and warmup affect readiness state.
+
+**File Provider Behavior:** File provider always reports `IsAvailable = true` unless the secrets file cannot be parsed. Provider availability still matters for readiness.
 
 ### Kubernetes Integration
 
@@ -260,8 +314,8 @@ Health checks provide visibility into vault availability and readiness:
 
 | Contributor | Probe Type | Checks |
 |-------------|------------|--------|
-| `VaultHealthContributor` | Liveness | Can reach provider, optional secret accessible |
-| `VaultReadinessContributor` | Readiness | Providers enabled, warmup complete |
+| `VaultHealthContributor` | Liveness | Provider count > 0, optional health check secret accessible, provider operational errors → Unhealthy |
+| `VaultReadinessContributor` | Readiness | Providers enabled, all warmup keys loaded (cached), optional health check secret accessible |
 
 Both contributors integrate with Kernel's health aggregation model, allowing the vault status to be included in the node's overall health report.
 

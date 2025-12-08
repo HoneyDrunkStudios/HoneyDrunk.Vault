@@ -2,18 +2,50 @@
 
 ## Overview
 
-**Think of this library as a secure lockbox for your application**
+**Think of this Node as the Grid's secure lockbox**
 
-Just like how a bank vault stores valuables with multiple layers of security and access control, this library provides unified access to secrets and configuration from multiple providers. It abstracts away the complexity of different secret stores (Azure Key Vault, AWS Secrets Manager, File-based, In-Memory) with caching, resilience policies, and Kernel-aware lifecycle integration.
+Just like how a bank vault stores valuables with multiple layers of security and access control, Vault provides unified access to secrets and configuration from multiple providers. It abstracts away the complexity of different secret stores (Azure Key Vault, AWS Secrets Manager, File-based, In-Memory) with caching, resilience policies, and Kernel-aware lifecycle integration.
 
-**Key Concepts:**
-- **SecretIdentifier**: The unique key to locate a secret (like a safety deposit box number)
-- **SecretValue**: The retrieved secret with metadata (like the contents plus a receipt)
-- **ISecretStore**: Primary interface for secret access (like the vault teller window)
-- **IConfigProvider**: Typed configuration access (like a settings dashboard)
-- **VaultClient**: Central orchestrator that coordinates providers (like the vault manager)
-- **SecretCache**: In-memory caching layer (like a quick-access drawer)
-- **Provider**: Backend-specific implementation (File, Azure Key Vault, AWS, InMemory)
+---
+
+## Node Placement
+
+| Attribute | Value |
+|-----------|-------|
+| **Sector** | Core |
+| **Cluster** | Security |
+| **Slot** | Provider |
+| **Exported Contracts** | `ISecretStore`, `IConfigProvider` |
+| **Package** | `HoneyDrunk.Vault` |
+| **Consumes** | `HoneyDrunk.Kernel` (runtime contracts) |
+| **Compile-time** | `HoneyDrunk.Kernel.Abstractions` in Vault packages; full `HoneyDrunk.Kernel` only at app/node level |
+
+**Vault is the Grid's canonical source of secrets and configuration.** Other Nodes consume it via `ISecretStore` and `IConfigProvider`—never provider SDKs directly. Provider packages (Azure Key Vault, AWS, File, InMemory, Configuration) are child packages that plug into Vault's provider slot via shared abstractions.
+
+---
+
+## Key Concepts
+
+**Models:**
+- **SecretIdentifier** — The unique key to locate a secret (name + optional version)
+- **SecretValue** — The retrieved secret with metadata (value + version)
+- **VaultResult\<T\>** — Success/failure monad for Try* methods
+
+**Exported Contracts** (cross-Node consumption):
+- **ISecretStore** — Primary interface for secret access. Inject this in application code.
+- **IConfigProvider** — Typed configuration access with defaults. Inject this for config values.
+
+**Internal Contracts** (Vault + provider packages only):
+- **ISecretProvider** — Backend-specific provider implementation. Provider packages reference this; "internal" means Vault ecosystem, not same-assembly.
+- **IConfigSource** — Raw configuration source (wrapped by IConfigProvider). Provider packages reference this.
+- **IVaultClient** — Internal orchestrator combining secrets + config. Reserved for infrastructure and advanced orchestration only.
+
+> **Guidance:** Application and business code should depend on `ISecretStore` and `IConfigProvider`. Do not cargo-cult `IVaultClient` everywhere—it is for infrastructure code that needs unified access to both secrets and configuration.
+
+**Runtime Components:**
+- **VaultClient** — Internal orchestrator that coordinates providers
+- **SecretCache** — In-memory caching layer with TTL
+- **Provider** — Backend-specific implementation (File, Azure Key Vault, AWS, InMemory)
 
 ---
 
@@ -31,9 +63,9 @@ This guide is organized into focused documents by domain:
 
 | Domain | Document | Description |
 |--------|----------|-------------|
-| 📋 **Abstractions** | [Abstractions.md](Abstractions.md) | Core contracts and vault-agnostic types (ISecretStore, ISecretProvider, IConfigSource, IConfigProvider, IVaultClient) |
+| 📋 **Abstractions** | [Abstractions.md](Abstractions.md) | **Exported:** ISecretStore, IConfigProvider · **Internal:** ISecretProvider, IConfigSource, IVaultClient |
 | 🔧 **Models** | [Models.md](Models.md) | Building blocks (SecretIdentifier, SecretValue, SecretVersion, VaultResult, VaultScope) |
-| ⚙️ **Configuration** | [Configuration.md](Configuration.md) | Settings (VaultOptions, VaultCacheOptions, VaultResilienceOptions, provider registrations) |
+| ⚙️ **Configuration** | [Configuration.md](Configuration.md) | Core: VaultOptions, VaultCacheOptions, VaultResilienceOptions, ProviderRegistration |
 | 🔄 **Services** | [Services.md](Services.md) | Core services (VaultClient orchestrator, SecretCache, ConfigSourceAdapter) |
 | ❤️ **Health** | [Health.md](Health.md) | Health monitoring (VaultHealthContributor, VaultReadinessContributor) |
 | 🚀 **Lifecycle** | [Lifecycle.md](Lifecycle.md) | Startup integration (VaultStartupHook, cache warming) |
@@ -41,13 +73,15 @@ This guide is organized into focused documents by domain:
 | ❌ **Exceptions** | [Exceptions.md](Exceptions.md) | Error handling (SecretNotFoundException, ConfigurationNotFoundException, VaultOperationException) |
 | 🔌 **DI** | [DependencyInjection.md](DependencyInjection.md) | Service registration (VaultServiceCollectionExtensions, HoneyDrunkBuilderExtensions) |
 
-### 🔸 Provider Implementations
+### 🔸 Provider Slot Implementations
+
+Vault is a **provider slot Node**—provider packages are child packages that implement `ISecretProvider` / `IConfigSource` and register themselves via `VaultOptions.Providers`.
 
 | Document | Description |
 |----------|-------------|
-| [File.md](File.md) | File-based provider for development (JSON storage, file watching, optional encryption) |
+| [File.md](File.md) | File-based provider for development (JSON storage, file watching) |
 | [AzureKeyVault.md](AzureKeyVault.md) | Azure Key Vault provider (managed identity, enterprise-grade security) |
-| [Aws.md](Aws.md) | AWS Secrets Manager provider (IAM roles, instance profiles, cross-region) |
+| [Aws.md](Aws.md) | AWS Secrets Manager provider (IAM roles, instance profiles) |
 | [InMemory.md](InMemory.md) | In-memory provider for testing (no external dependencies, runtime updates) |
 | [ConfigurationProvider.md](ConfigurationProvider.md) | IConfiguration-based provider (bridges ASP.NET Core configuration) |
 
@@ -101,20 +135,62 @@ All integrated via IHealthContributor / IReadinessContributor / IStartupHook
 # Core abstractions and orchestrator
 dotnet add package HoneyDrunk.Vault
 
-# Choose provider implementation
-dotnet add package HoneyDrunk.Vault.Providers.AzureKeyVault
-# OR
-dotnet add package HoneyDrunk.Vault.Providers.Aws
-# OR
-dotnet add package HoneyDrunk.Vault.Providers.File
-# OR (for testing)
-dotnet add package HoneyDrunk.Vault.Providers.InMemory
+# Choose provider implementation (one or more)
+dotnet add package HoneyDrunk.Vault.Providers.AzureKeyVault   # Production (Azure)
+dotnet add package HoneyDrunk.Vault.Providers.Aws             # Production (AWS)
+dotnet add package HoneyDrunk.Vault.Providers.File            # Development
+dotnet add package HoneyDrunk.Vault.Providers.InMemory        # Testing
 ```
 
-### Basic Usage
+### Grid-Integrated Usage (Recommended)
+
+`AddVault()` is an extension on the HoneyDrunk node builder—Vault's lifecycle hooks plug into Kernel's `IStartupHook`, `IHealthContributor`, and `IReadinessContributor` contracts.
 
 ```csharp
-// Program.cs - Setup with File Provider (Development)
+// Program.cs - Full Grid Integration with Azure Key Vault
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services
+    .AddHoneyDrunkGrid(grid =>
+    {
+        grid.StudioId = "my-studio";
+    })
+    .AddHoneyDrunkNode(node =>
+    {
+        node.NodeId = "my-service-node";
+    })
+    .AddVault(vault =>
+    {
+        // Configure caching
+        vault.Cache.Enabled = true;
+        vault.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
+        vault.Cache.MaxSize = 1000;
+
+        // Configure resilience
+        vault.Resilience.RetryEnabled = true;
+        vault.Resilience.MaxRetryAttempts = 3;
+        vault.Resilience.CircuitBreakerEnabled = true;
+
+        // Warm up critical secrets at startup
+        vault.WarmupKeys.Add("database-connection-string");
+        vault.HealthCheckSecretKey = "health-check-secret";
+    })
+    .AddVaultWithAzureKeyVault(akv =>
+    {
+        akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
+        akv.UseManagedIdentity = true;
+    });
+
+var app = builder.Build();
+app.Run();
+```
+
+### Off-Grid Usage (Development / Early Adoption)
+
+For development or standalone usage without full Kernel integration:
+
+```csharp
+// Program.cs - File Provider (Development)
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddVaultWithFile(options =>
@@ -129,7 +205,7 @@ app.Run();
 ```
 
 ```csharp
-// Program.cs - Setup with Azure Key Vault (Production)
+// Program.cs - Azure Key Vault (Production, Off-Grid)
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddVaultWithAzureKeyVault(options =>
@@ -140,48 +216,10 @@ builder.Services.AddVaultWithAzureKeyVault(options =>
 
 var app = builder.Build();
 app.Run();
-```
+``` ISecretStore)
 
 ```csharp
-// Using with HoneyDrunk.Kernel (Full Integration)
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services
-    .AddHoneyDrunk(options =>
-    {
-        options.NodeId = "my-service-node";
-        options.StudioId = "my-studio";
-    })
-    .AddVault(options =>
-    {
-        // Configure caching
-        options.Cache.Enabled = true;
-        options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
-        options.Cache.MaxSize = 1000;
-
-        // Configure resilience
-        options.Resilience.RetryEnabled = true;
-        options.Resilience.MaxRetryAttempts = 3;
-        options.Resilience.CircuitBreakerEnabled = true;
-
-        // Add provider
-        options.AddAzureKeyVaultProvider(akv =>
-        {
-            akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
-            akv.UseManagedIdentity = true;
-        });
-
-        // Warm up critical secrets
-        options.WarmupKeys.Add("database-connection-string");
-        options.HealthCheckSecretKey = "health-check-secret";
-    });
-
-var app = builder.Build();
-app.Run();
-```
-
-```csharp
-// Retrieving Secrets
+// Business logic should inject ISecretStore, not IVaultClient
 public class DatabaseService(ISecretStore secretStore)
 {
     public async Task<string> GetConnectionStringAsync(CancellationToken ct)
@@ -203,8 +241,10 @@ public class DatabaseService(ISecretStore secretStore)
 }
 ```
 
+### Consuming Configuration (Inject IConfigProvider)
+
 ```csharp
-// Retrieving Configuration
+// Business logic should inject IConfigProvider for typed config access
 public class FeatureService(IConfigProvider configProvider)
 {
     public async Task<int> GetMaxConnectionsAsync(CancellationToken ct)
@@ -225,12 +265,15 @@ public class FeatureService(IConfigProvider configProvider)
 }
 ```
 
-### Using VaultClient (Unified Access)
+### Using VaultClient (Advanced / Infrastructure Code Only)
+
+> **Note:** `IVaultClient` is an internal orchestrator. Business logic should inject `ISecretStore` or `IConfigProvider` directly. Use `IVaultClient` only for infrastructure code that needs unified access to both secrets and configuration.
 
 ```csharp
-public class MyService(IVaultClient vaultClient)
+// Infrastructure code only - prefer ISecretStore / IConfigProvider in business logic
+public class InfrastructureHelper(IVaultClient vaultClient)
 {
-    public async Task DoWorkAsync(CancellationToken ct)
+    public async Task InitializeAsync(CancellationToken ct)
     {
         // Get secret
         var secret = await vaultClient.GetSecretAsync(
@@ -276,11 +319,12 @@ public class MyService(IVaultClient vaultClient)
 - Avoids exceptions for expected "not found" cases
 - Provides structured error messages
 
-**Provider Abstraction:**
-- `ISecretStore` for primary secret access
-- `ISecretProvider` for backend-specific implementations
-- `IConfigSource` / `IConfigProvider` for configuration values
-- Adapters bridge legacy interfaces to new contracts
+**Provider Abstraction (Slot Model):**
+- Core Vault does not know about Azure/AWS/File specifics
+- Provider packages implement `ISecretProvider` / `IConfigSource` and register via `VaultOptions.Providers`
+- Vault is a **provider slot Node**; provider packages are child packages that plug into the slot
+- `ISecretStore` and `IConfigProvider` are **exported contracts** for cross-Node consumption
+- `ISecretProvider`, `IConfigSource`, `IVaultClient` are **internal** to Vault and its providers
 
 **Caching Layer:**
 - Reduces calls to remote secret stores
@@ -288,11 +332,13 @@ public class MyService(IVaultClient vaultClient)
 - Size limits prevent memory exhaustion
 - Sliding expiration for frequently accessed secrets
 
-**Kernel Integration:**
-- `IStartupHook` validates configuration and warms cache
-- `IHealthContributor` reports vault health to Kubernetes probes
-- `IReadinessContributor` ensures vault is ready before accepting traffic
-- Grid context propagation for distributed tracing
+**Kernel Integration (Implements Kernel Contracts):**
+- `VaultStartupHook` implements `IStartupHook` — validates configuration and warms cache
+- `VaultHealthContributor` implements `IHealthContributor` — reports vault health to Kubernetes probes
+- `VaultReadinessContributor` implements `IReadinessContributor` — ensures vault is ready before accepting traffic
+- Grid context propagation via `IGridContext` for distributed tracing
+- Vault depends on `HoneyDrunk.Kernel.Abstractions` at compile time; full `HoneyDrunk.Kernel` referenced only at app/node layer
+- From the Grid's perspective, Vault consumes the Kernel node and is wired to its runtime contracts (context, lifecycle, health, telemetry, agents, etc.)
 
 ### Current Feature Set
 
@@ -331,33 +377,29 @@ public class MyService(IVaultClient vaultClient)
 HoneyDrunk.Vault/
 ├── HoneyDrunk.Vault/                  # Core abstractions and orchestrator
 │   ├── Abstractions/                  # Contracts and interfaces
-│   │   ├── IConfigProvider.cs         # Typed configuration access
-│   │   ├── IConfigSource.cs           # Raw configuration source
-│   │   ├── ISecretProvider.cs         # Backend-specific provider
-│   │   ├── ISecretStore.cs            # Primary secret access
-│   │   └── IVaultClient.cs            # Unified orchestrator contract
-│   ├── Configuration/                 # Settings and options
-│   │   ├── AwsSecretsManagerProviderOptions.cs
-│   │   ├── AzureKeyVaultProviderOptions.cs
-│   │   ├── FileProviderOptions.cs
-│   │   ├── InMemoryProviderOptions.cs
-│   │   ├── ProviderRegistration.cs    # Provider configuration
-│   │   ├── ProviderType.cs            # Provider type enumeration
-│   │   ├── VaultCacheOptions.cs       # Cache configuration
+│   │   ├── IConfigProvider.cs         # EXPORTED: Typed configuration access
+│   │   ├── IConfigSource.cs           # INTERNAL: Raw configuration source
+│   │   ├── ISecretProvider.cs         # INTERNAL: Backend-specific provider
+│   │   ├── ISecretStore.cs            # EXPORTED: Primary secret access
+│   │   └── IVaultClient.cs            # INTERNAL: Unified orchestrator
+│   ├── Configuration/                 # Core settings (provider-agnostic)
 │   │   ├── VaultOptions.cs            # Main vault options
-│   │   └── VaultResilienceOptions.cs  # Retry/circuit breaker config
+│   │   ├── VaultCacheOptions.cs       # Cache configuration
+│   │   ├── VaultResilienceOptions.cs  # Retry/circuit breaker config
+│   │   ├── ProviderRegistration.cs    # Generic provider registration
+│   │   └── ProviderType.cs            # Provider type enumeration
 │   ├── Exceptions/                    # Custom exceptions
 │   │   ├── ConfigurationNotFoundException.cs
 │   │   ├── SecretNotFoundException.cs
 │   │   └── VaultOperationException.cs
 │   ├── Extensions/                    # DI extensions
-│   │   ├── HoneyDrunkBuilderExtensions.cs # Kernel integration
-│   │   └── VaultServiceCollectionExtensions.cs # IServiceCollection
-│   ├── Health/                        # Health monitoring
-│   │   ├── VaultHealthContributor.cs  # Liveness health check
-│   │   └── VaultReadinessContributor.cs # Readiness check
-│   ├── Lifecycle/                     # Startup integration
-│   │   └── VaultStartupHook.cs        # Validates and warms cache
+│   │   ├── HoneyDrunkBuilderExtensions.cs # AddVault() on IHoneyDrunkBuilder
+│   │   └── VaultServiceCollectionExtensions.cs # AddVaultCore()
+│   ├── Health/                        # Implements Kernel health contracts
+│   │   ├── VaultHealthContributor.cs  # Implements IHealthContributor
+│   │   └── VaultReadinessContributor.cs # Implements IReadinessContributor
+│   ├── Lifecycle/                     # Implements Kernel lifecycle contracts
+│   │   └── VaultStartupHook.cs        # Implements IStartupHook
 │   ├── Models/                        # Domain models
 │   │   ├── SecretIdentifier.cs        # Secret lookup key
 │   │   ├── SecretValue.cs             # Retrieved secret
@@ -365,55 +407,55 @@ HoneyDrunk.Vault/
 │   │   ├── VaultResult.cs             # Factory methods
 │   │   ├── VaultResult{T}.cs          # Success/failure result
 │   │   └── VaultScope.cs              # Environment/tenant scope
-│   ├── Services/                      # Core services
+│   ├── Services/                      # Internal services
 │   │   ├── ConfigSourceAdapter.cs     # IConfigSource → IConfigProvider
-│   │   ├── SecretCache.cs             # In-memory caching
-│   │   └── VaultClient.cs             # Central orchestrator
-│   └── Telemetry/                     # Observability
-│       ├── VaultTelemetry.cs          # Activity tracing
+│   │   ├── SecretCache.cs             # In-memory caching with TTL
+│   │   └── VaultClient.cs             # Internal orchestrator
+│   └── Telemetry/                     # Observability (Pulse-compatible)
+│       ├── VaultTelemetry.cs          # ActivitySource spans
 │       └── VaultTelemetryTags.cs      # Standard tag names
 │
-├── HoneyDrunk.Vault.Providers.File/   # File-based provider
+├── HoneyDrunk.Vault.Providers.File/   # Provider slot: File-based
 │   ├── Configuration/
-│   │   └── FileVaultOptions.cs        # File provider options
+│   │   └── FileVaultOptions.cs        # Provider-specific options
 │   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithFile
+│   │   └── ServiceCollectionExtensions.cs # AddVaultWithFile()
 │   └── Services/
-│       ├── FileConfigSource.cs        # File-based config
-│       └── FileSecretStore.cs         # File-based secrets
+│       ├── FileConfigSource.cs        # Implements IConfigSource
+│       └── FileSecretStore.cs         # Implements ISecretStore + ISecretProvider (dual role for off-grid usage)
 │
-├── HoneyDrunk.Vault.Providers.AzureKeyVault/ # Azure Key Vault provider
+├── HoneyDrunk.Vault.Providers.AzureKeyVault/ # Provider slot: Azure Key Vault
 │   ├── Configuration/
-│   │   └── AzureKeyVaultOptions.cs    # Azure KV options
+│   │   └── AzureKeyVaultOptions.cs    # Provider-specific options
 │   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithAzureKeyVault
+│   │   └── ServiceCollectionExtensions.cs # AddVaultWithAzureKeyVault()
 │   └── Services/
-│       ├── AzureKeyVaultConfigSource.cs # Azure KV config
-│       └── AzureKeyVaultSecretStore.cs  # Azure KV secrets
+│       ├── AzureKeyVaultConfigSource.cs # Implements IConfigSource
+│       └── AzureKeyVaultSecretStore.cs  # Implements ISecretStore + ISecretProvider
 │
-├── HoneyDrunk.Vault.Providers.Aws/    # AWS Secrets Manager provider
+├── HoneyDrunk.Vault.Providers.Aws/    # Provider slot: AWS Secrets Manager
 │   ├── Configuration/
-│   │   └── AwsSecretsManagerOptions.cs # AWS options
+│   │   └── AwsSecretsManagerOptions.cs # Provider-specific options
 │   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithAwsSecretsManager
+│   │   └── ServiceCollectionExtensions.cs # AddVaultWithAwsSecretsManager()
 │   └── Services/
-│       └── AwsSecretsManagerSecretStore.cs # AWS secrets
+│       └── AwsSecretsManagerSecretStore.cs # Implements ISecretStore + ISecretProvider
 │
-├── HoneyDrunk.Vault.Providers.InMemory/ # In-memory provider (testing)
+├── HoneyDrunk.Vault.Providers.InMemory/ # Provider slot: In-memory (testing)
 │   ├── Configuration/
-│   │   └── InMemoryVaultOptions.cs    # InMemory options
+│   │   └── InMemoryVaultOptions.cs    # Provider-specific options
 │   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithInMemory
+│   │   └── ServiceCollectionExtensions.cs # AddVaultInMemory()
 │   └── Services/
-│       ├── InMemoryConfigSource.cs    # InMemory config
-│       └── InMemorySecretStore.cs     # InMemory secrets
+│       ├── InMemoryConfigSource.cs    # Implements IConfigSource
+│       └── InMemorySecretStore.cs     # Implements ISecretStore + ISecretProvider
 │
-├── HoneyDrunk.Vault.Providers.Configuration/ # IConfiguration provider
+├── HoneyDrunk.Vault.Providers.Configuration/ # Provider slot: IConfiguration bridge
 │   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithConfiguration
+│   │   └── ServiceCollectionExtensions.cs # AddVaultWithConfiguration()
 │   └── Services/
-│       ├── ConfigurationConfigSource.cs # IConfiguration config
-│       └── ConfigurationSecretStore.cs  # IConfiguration secrets
+│       ├── ConfigurationConfigSource.cs # Implements IConfigSource
+│       └── ConfigurationSecretStore.cs  # Implements ISecretStore + ISecretProvider
 │
 └── HoneyDrunk.Vault.Tests/            # Unit and integration tests
     ├── Configuration/                 # Configuration tests
@@ -439,17 +481,18 @@ HoneyDrunk.Vault/
 - **Timeout** - Per-operation timeout limits
 - Configurable via `VaultResilienceOptions`
 
-### Health Monitoring
-- **VaultHealthContributor** - Reports to Kubernetes liveness probes
-- **VaultReadinessContributor** - Reports to Kubernetes readiness probes
+### Health Monitoring (Implements Kernel Contracts)
+- **VaultHealthContributor** implements `IHealthContributor` — reports to Kubernetes liveness probes
+- **VaultReadinessContributor** implements `IReadinessContributor` — reports to Kubernetes readiness probes
 - Optionally verifies health check secret accessibility
-- Integrates with Kernel's health aggregation
+- Integrates with Kernel's health aggregation pipeline
 
-### Telemetry
-- **Activity tracing** - Creates spans for all vault operations
-- **Secure logging** - Never logs secret values
-- **Cache hit/miss** - Tracks cache effectiveness
-- **Grid context** - Propagates correlation IDs
+### Telemetry (Pulse-Compatible)
+- **ActivitySource spans** — `HoneyDrunk.Vault` source that Pulse can ingest
+- **Secure logging** — Never logs secret values, only operation metadata
+- **Cache hit/miss** — Tracks cache effectiveness for optimization
+- **Grid context** — Propagates correlation IDs via `IGridContext`
+- Logs and metrics designed to be Pulse-friendly for Grid observability
 
 ### Provider Features
 
@@ -459,10 +502,14 @@ HoneyDrunk.Vault/
 | Config | ✅ | ✅ | ❌ | ✅ | ✅ |
 | Versioning | ❌ | ✅ | ✅ | ❌ | ❌ |
 | File Watch | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Encryption | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Managed Identity | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Encryption | ⚠️ | ✅ | ✅ | ❌ | ❌ |
+| Managed Identity | ❌ | ✅ | ✅* | ❌ | ❌ |
 | Runtime Update | ❌ | ❌ | ❌ | ✅ | ❌ |
 | Production Use | ❌ | ✅ | ✅ | ❌ | ⚠️ |
+
+*AWS uses IAM roles/instance profiles rather than Azure-style managed identity.
+
+⚠️ File encryption is optional—plain JSON by default with opt-in encryption via environment variable or key file.
 
 ---
 
@@ -470,21 +517,35 @@ HoneyDrunk.Vault/
 
 ### Upstream Dependencies
 
-- **HoneyDrunk.Kernel.Abstractions** - IHealthContributor, IReadinessContributor, IStartupHook, IGridContext
-- **Microsoft.Extensions.Logging.Abstractions** - Logging infrastructure
-- **Microsoft.Extensions.Caching.Memory** - In-memory caching
-- **Microsoft.Extensions.Options** - Options pattern
-- **Azure.Security.KeyVault.Secrets** - Azure Key Vault SDK (provider-specific)
-- **AWSSDK.SecretsManager** - AWS Secrets Manager SDK (provider-specific)
+- **HoneyDrunk.Kernel.Abstractions** — `IHealthContributor`, `IReadinessContributor`, `IStartupHook`, `IGridContext`
+- **Microsoft.Extensions.Logging.Abstractions** — Logging infrastructure
+- **Microsoft.Extensions.Caching.Memory** — In-memory caching
+- **Microsoft.Extensions.Options** — Options pattern
 
-### Downstream Consumers
+**Provider-specific (in provider packages only):**
+- **Azure.Security.KeyVault.Secrets** — Azure Key Vault SDK
+- **AWSSDK.SecretsManager** — AWS Secrets Manager SDK
 
-Applications using HoneyDrunk.Vault:
+### Node-Level Downstream Consumers
 
-- **Web APIs** - Database connection strings, API keys
-- **Background Workers** - Service credentials, encryption keys
-- **Integration Services** - Third-party API tokens
-- **Multi-tenant Applications** - Tenant-specific secrets
+At the Grid level, Vault is consumed by:
+
+| Cluster | Consuming Nodes | Usage |
+|---------|-----------------|-------|
+| **Identity** | HoneyDrunk.Auth | Key material, tokens, credential rotation |
+| **AI** | HoneyDrunk.AgentKit, Signal, Clarity, Governor | Provider API keys, model selection, runtime policies |
+| **Observability** | HoneyDrunk.Pulse | Secure observability configuration, telemetry ingestion |
+| **Security** | HoneyDrunk.Sentinel, BreachLab.exe | Lab environments, secret handling policies |
+| **Business** | Invoice, MarketCore | Payment rails, third-party integrations (billing stack via Invoice → Ledger) |
+| **Application** | HoneyDrunk.Console, ClientPortalOS | Multi-tenant secrets, per-tenant configuration |
+
+### Application-Level Consumers
+
+Typical app-level usage patterns:
+
+- **Web APIs** — Database connection strings, API keys, JWT signing keys
+- **Background Workers** — Service credentials, encryption keys
+- **Integration Services** — Third-party API tokens, webhook secrets
 
 ---
 
@@ -507,7 +568,7 @@ Applications using HoneyDrunk.Vault:
 
 ## 💡 Motto
 
-**"Your secrets, safely abstracted."** - Focus on business logic, not secret management infrastructure.
+**"Trust, by design. Secrets and config for the whole Grid."** — Vault is the Grid's canonical source of truth for secrets and configuration. Focus on business logic, not secret management infrastructure.
 
 ---
 

@@ -19,11 +19,32 @@ Core service implementations that orchestrate vault operations. These services c
 
 **Location:** `HoneyDrunk.Vault/Services/`
 
+**Orchestration Pipeline:**
+```
+VaultClient (façade, telemetry, exception wrapping)
+   ↓
+ISecretStore (composed runtime store)
+   ↓
+CachingSecretStore (in-memory TTL cache)
+   ↓
+ProviderResolutionStore (priority, availability, fallback)
+   ↓
+ISecretProvider (Azure, AWS, File, InMemory)
+```
+
+**Architectural Principle:** `VaultClient` is a façade that exposes unified operations for secrets and config, while delegating provider selection, caching, retry logic, and fallback to the underlying store pipeline registered by `AddVault`.
+
 ---
 
 ## VaultClient.cs
 
 Central orchestrator for vault operations. Implements the `IVaultClient` interface and coordinates between secret stores and configuration sources.
+
+**Contract Boundary:** `VaultClient` depends on the runtime `ISecretStore`, which may be composed of multiple middleware layers (cache, resilience, fallback resolution). Providers are not injected directly.
+
+**Thread-Safety:** `VaultClient` is stateless and thread-safe. All stateful behavior (caching, resilience, provider selection) lives in the `ISecretStore` pipeline.
+
+**Sole Entry Point:** Application code should never access providers or caches directly. `IVaultClient` is the sole public entry point for secrets and configuration.
 
 ```csharp
 public sealed class VaultClient : IVaultClient
@@ -73,14 +94,16 @@ VaultClient.GetSecretAsync()
         │
         ▼
 ┌───────────────────────────────────┐
-│ Log operation start               │
-│ (secret name, version)            │
+│ Start Activity("vault.secret.get")
+│ Add telemetry attributes          │
+│ (secret name, version requested)  │
 └───────────────┬───────────────────┘
                 │
                 ▼
 ┌───────────────────────────────────┐
 │ Delegate to ISecretStore          │
-│ GetSecretAsync()                  │
+│ (composed pipeline: cache,        │
+│  resilience, provider resolution) │
 └───────────────┬───────────────────┘
                 │
         ┌───────┴───────┐
@@ -89,10 +112,17 @@ VaultClient.GetSecretAsync()
         │               │
         ▼               ▼
 ┌───────────────┐ ┌───────────────────────┐
-│ Log success   │ │ Log error             │
-│ Return value  │ │ Wrap in VaultOperation│
-└───────────────┘ │ Exception             │
+│ Log success   │ │ Exception already     │
+│ End Activity  │ │ wrapped by resilience │
+│ Return value  │ │ (retries exhausted,   │
+└───────────────┘ │  circuit breaker open)│
+                  │ Wrap in VaultOperation│
+                  │ Exception if needed   │
+                  │ End Activity          │
                   └───────────────────────┘
+```
+
+**Resilience Integration:** `VaultClient` only receives provider exceptions after `VaultResilienceOptions` have applied retries, backoff, circuit breaker rules, and fallback provider selection.
 ```
 
 ### Usage Example
@@ -122,6 +152,25 @@ public class PaymentService(IVaultClient vaultClient)
 services.AddSingleton<IVaultClient, VaultClient>();
 ```
 
+### Telemetry Flow
+
+`VaultClient` emits structured telemetry for every operation:
+
+```
+VaultClient
+   ↓ Start Activity("vault.secret.get") or Activity("vault.config.get")
+   ↓ Add attributes:
+   │   - secret.name / config.key
+   │   - secret.version (if requested)
+   │   - provider.name (resolved by pipeline)
+   │   - cache.hit (true/false)
+   │   - operation.result (success/failure)
+   ↓ ISecretStore.GetSecretAsync(...)
+   ↓ End Activity with status
+```
+
+**Observability:** All operations produce structured traces via Kernel's telemetry pipeline. Secret values are never included in telemetry—only metadata (names, versions, cache hits, provider names, error types).
+
 [↑ Back to top](#table-of-contents)
 
 ---
@@ -129,6 +178,10 @@ services.AddSingleton<IVaultClient, VaultClient>();
 ## SecretCache.cs
 
 In-memory caching layer for secrets. Reduces calls to remote secret stores with configurable TTL and size limits.
+
+**Expiration Semantics:** `SecretCache` uses passive expiration; entries expire lazily on access and via size-based eviction. There is no background sweeper. TTL and sliding expiration are respected on every cache access.
+
+**Position in Pipeline:** Vault registers one `CachingSecretStore` around the provider resolution store. Caching is not provider-specific—it wraps the entire provider resolution pipeline.
 
 ```csharp
 public sealed class SecretCache : IDisposable
@@ -259,7 +312,8 @@ builder.Services.AddVault(options =>
 The cache tracks:
 - **Count**: Current number of cached entries
 - **Hit/Miss**: Logged for debugging and metrics
-- **Evictions**: Automatic when MaxSize exceeded (LRU)
+- **Evictions**: Follow least-recently-used semantics when `MaxSize` is exceeded (size-based eviction)
+- **TTL Expiration**: Entries expire lazily on access when TTL threshold is reached
 
 [↑ Back to top](#table-of-contents)
 
@@ -268,6 +322,10 @@ The cache tracks:
 ## ConfigSourceAdapter.cs
 
 Adapter that wraps an `IConfigSource` to implement `IConfigProvider`. Enables legacy config sources to work with the new typed interface.
+
+**Compatibility Layer:** `ConfigSourceAdapter` is a thin compatibility layer. It does not perform caching, validation, or transformation of values beyond type conversion.
+
+**No Caching:** Configuration is always fetched fresh from the underlying `IConfigSource`. Config values do not inherit secret caching rules.
 
 ```csharp
 internal sealed class ConfigSourceAdapter : IConfigProvider
@@ -348,9 +406,15 @@ Core services provide the orchestration and caching layers:
 
 | Service | Purpose | Thread-Safe |
 |---------|---------|-------------|
-| `VaultClient` | Unified orchestrator | ✅ |
-| `SecretCache` | In-memory caching | ✅ (SemaphoreSlim) |
-| `ConfigSourceAdapter` | Interface bridging | ✅ |
+| `VaultClient` | Unified façade (telemetry, exception wrapping) | ✅ (stateless) |
+| `SecretCache` | In-memory TTL cache (passive expiration) | ✅ (thread-safe internal structures) |
+| `ConfigSourceAdapter` | Typed config bridge (no caching) | ✅ |
+
+**Key Principles:**
+- `VaultClient` orchestrates; it does NOT pick providers
+- `ISecretStore` dependency is a composed pipeline (cache → resilience → provider resolution)
+- `SecretCache` performs passive lazy expiration on access
+- Telemetry and resilience apply before exceptions reach `VaultClient`
 
 ---
 

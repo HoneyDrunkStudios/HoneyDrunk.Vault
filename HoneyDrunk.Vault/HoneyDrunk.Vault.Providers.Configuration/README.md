@@ -1,15 +1,24 @@
 # HoneyDrunk.Vault.Providers.Configuration
 
-Configuration provider for HoneyDrunk.Vault. Enables reading secrets and configuration from .NET configuration sources.
+Configuration provider for HoneyDrunk.Vault. Bridges Vault abstractions with .NET's `IConfiguration` system.
 
 ## Overview
 
-This provider bridges HoneyDrunk.Vault with the standard .NET configuration system (appsettings.json, environment variables, etc.). It supports:
-- Reading from IConfiguration
-- Multiple configuration sources
-- Environment variable overrides
-- User secrets integration
-- Configuration reloading
+This provider lets you use Vault's `ISecretStore` and `IConfigProvider` interfaces while reading values from standard .NET configuration sources (appsettings.json, environment variables, user secrets). It's designed for:
+- **Local development** - Use appsettings.json or user secrets instead of cloud providers
+- **Migration scenarios** - Gradually move from config files to proper secret stores
+- **Testing and prototyping** - Quick setup without external dependencies
+
+**Important Limitations:**
+- **No secret versioning** - Only supports latest values
+- **No rotation** - Static configuration, no automatic updates
+- **No encryption at rest** - Plain text in config files
+- **Not suitable for sensitive production secrets** - Use Azure Key Vault or AWS Secrets Manager instead
+
+**How it works:**
+- Secrets accessed via `ISecretStore` → reads from `Secrets:` configuration section
+- Config accessed via `IConfigProvider` → reads from any configuration key
+- Everything else → standard .NET `IConfiguration` binding
 
 ## Installation
 
@@ -26,39 +35,34 @@ using HoneyDrunk.Vault.Providers.Configuration.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddVaultWithConfiguration();
+builder.Services.AddVaultWithConfiguration(builder.Configuration);
 
 var app = builder.Build();
 ```
 
-### With Prefix
-
-```csharp
-builder.Services.AddVaultWithConfiguration(options =>
-{
-    options.Prefix = "Vault:";  // Reads from Vault:* configuration keys
-});
-```
+This registers `ISecretStore` and `IConfigProvider` backed by `IConfiguration`.
 
 ## Configuration Format
 
-### appsettings.json
+### Secrets (Accessed via ISecretStore)
 
+Secrets must be under the `Secrets:` section:
+
+**appsettings.json**
 ```json
 {
-  "Vault": {
-    "DatabaseConnection": "Server=prod-db.azure.com;Database=myapp;",
-    "ApiKey": "your-api-key-12345",
-    "JwtSecret": "your-jwt-secret"
+  "Secrets": {
+    "DatabaseConnection": "Server=localhost;Database=myapp;",
+    "ApiKey": "dev-api-key-12345",
+    "JwtSecret": "dev-jwt-secret"
   }
 }
 ```
 
-### appsettings.Production.json
-
+**appsettings.Production.json**
 ```json
 {
-  "Vault": {
+  "Secrets": {
     "DatabaseConnection": "Server=prod-db.azure.com;Database=myapp;",
     "ApiKey": "prod-api-key",
     "JwtSecret": "prod-jwt-secret"
@@ -66,72 +70,65 @@ builder.Services.AddVaultWithConfiguration(options =>
 }
 ```
 
-### Environment Variables
-
+**Environment Variables**
 ```bash
-export Vault__DatabaseConnection="Server=..."
-export Vault__ApiKey="api-key-value"
-export Vault__JwtSecret="jwt-secret-value"
+export Secrets__DatabaseConnection="Server=..."
+export Secrets__ApiKey="api-key-value"
+export Secrets__JwtSecret="jwt-secret-value"
 ```
 
-### User Secrets (Development)
-
+**User Secrets (Development)**
 ```bash
-dotnet user-secrets set "Vault:DatabaseConnection" "Server=dev-db;..."
-dotnet user-secrets set "Vault:ApiKey" "dev-api-key"
+dotnet user-secrets set "Secrets:DatabaseConnection" "Server=dev-db;..."
+dotnet user-secrets set "Secrets:ApiKey" "dev-api-key"
 ```
 
 ## Usage Examples
 
-### Get Secret
+### Using Vault Abstractions (ISecretStore)
 
 ```csharp
 var secret = await secretStore.GetSecretAsync(
-    new SecretIdentifier("DatabaseConnection"));
-console.WriteLine($"Connection: {secret.Value}");
+    new SecretIdentifier("DatabaseConnection"),
+    ct);
+
+Console.WriteLine($"Connection string length: {secret.Value.Length}");
 ```
 
-### Get Configuration Value
+This reads from `Secrets:DatabaseConnection` in configuration.
+
+### Using Vault Abstractions (IConfigProvider)
 
 ```csharp
-var apiKey = await configProvider.TryGetValueAsync("ApiKey");
+var apiKey = await configProvider.TryGetValueAsync("ApiSettings:Key", ct);
 if (apiKey != null)
 {
-    console.WriteLine($"API Key: {apiKey}");
+    Console.WriteLine($"API Key configured: {apiKey.Length} chars");
 }
 ```
 
-### Get Typed Configuration
+This reads from any configuration key (not limited to `Secrets:`).
+
+### Plain .NET Configuration (Not Vault)
+
+The examples below use standard .NET `IConfiguration` directly. This is **not part of Vault**—these are native .NET patterns:
 
 ```csharp
-public class VaultConfiguration
+// Typed configuration binding (standard .NET)
+public class ApiSettings
 {
-    public string? DatabaseConnection { get; set; }
-    public string? ApiKey { get; set; }
+    public string? Key { get; set; }
+    public string? Endpoint { get; set; }
     public int Timeout { get; set; } = 30;
 }
 
-var config = configuration.GetSection("Vault").Get<VaultConfiguration>();
-console.WriteLine($"Database: {config?.DatabaseConnection}");
-console.WriteLine($"Timeout: {config?.Timeout}");
-```
-
-## Configuration Options
-
-### ConfigurationProviderOptions
-
-```csharp
-public class ConfigurationProviderOptions
-{
-    public string Prefix { get; set; } = "Vault";
-    public bool ReloadOnChange { get; set; } = true;
-    public IConfiguration? Configuration { get; set; }
-}
+var apiSettings = configuration.GetSection("ApiSettings").Get<ApiSettings>();
+Console.WriteLine($"Endpoint: {apiSettings?.Endpoint}");
 ```
 
 ## Configuration Hierarchy
 
-Configuration is loaded in this order (later sources override earlier ones):
+Configuration sources are loaded in this order (later sources override earlier ones):
 
 1. appsettings.json
 2. appsettings.{Environment}.json
@@ -139,177 +136,52 @@ Configuration is loaded in this order (later sources override earlier ones):
 4. User secrets (Development only)
 5. Command-line arguments
 
-### Example Hierarchy
+**Example:**
 
 ```
-appsettings.json              # Base configuration
-??? "DatabaseConnection": "localhost"
-??? "ApiKey": "dev-key"
+appsettings.json
+└─ "Secrets:DatabaseConnection": "localhost"
+└─ "Secrets:ApiKey": "dev-key"
 
-appsettings.Production.json   # Overrides
-??? "DatabaseConnection": "prod-db.azure.com"
-??? "ApiKey": "prod-key"
+appsettings.Production.json (overrides)
+└─ "Secrets:DatabaseConnection": "prod-db.azure.com"
+└─ "Secrets:ApiKey": "prod-key"
 
-Environment variables         # Final overrides
-??? Vault__DatabaseConnection=override-db
-??? Vault__ApiKey=override-key
-```
-
-## Advanced Configuration
-
-### Named Sections
-
-```json
-{
-  "Vault": {
-    "Database": {
-      "ConnectionString": "...",
-      "Timeout": 30
-    },
-    "Api": {
-      "Key": "...",
-      "Endpoint": "..."
-    }
-  }
-}
-```
-
-```csharp
-var dbConfig = configuration.GetSection("Vault:Database").Get<DatabaseConfig>();
-var apiConfig = configuration.GetSection("Vault:Api").Get<ApiConfig>();
-```
-
-### Configuration Binding
-
-```csharp
-public class VaultOptions
-{
-    public DatabaseSettings? Database { get; set; }
-    public ApiSettings? Api { get; set; }
-}
-
-public class DatabaseSettings
-{
-    public string? ConnectionString { get; set; }
-    public int Timeout { get; set; }
-    public bool Pooling { get; set; }
-}
-
-public class ApiSettings
-{
-    public string? Key { get; set; }
-    public string? Endpoint { get; set; }
-    public int MaxRetries { get; set; }
-}
-
-var options = new VaultOptions();
-configuration.GetSection("Vault").Bind(options);
+Environment variables (final overrides)
+└─ Secrets__DatabaseConnection=override-db
+└─ Secrets__ApiKey=override-key
 ```
 
 ## Best Practices
 
-1. **Use Environment-Specific Files** - Keep production secrets separate
-2. **User Secrets in Development** - Never commit local development secrets
-3. **Environment Variables in Production** - Use deployment settings
-4. **Validate Configuration** - Check required values exist
-5. **Use Typed Options** - Leverage strong typing
-6. **Prefix Organization** - Organize related secrets logically
-7. **Document Defaults** - Make default values clear
-8. **Reload on Change** - Enable for development convenience
+1. **Use for development only** - Not suitable for production secrets
+2. **Separate secrets from config** - Keep secrets under `Secrets:` section
+3. **Use User Secrets in dev** - Never commit sensitive values to source control
+4. **Use environment variables in production** - Or migrate to Azure Key Vault / AWS Secrets Manager
+5. **Document required secrets** - Make it clear which `Secrets:` keys must be configured
+6. **Validate on startup** - Check required secrets exist before running
 
-## Integration with Dependency Injection
+## When to Use This Provider
 
-### Options Pattern
+**Good for:**
+- Local development and debugging
+- Unit testing without external dependencies
+- Prototyping and proof-of-concept work
+- Migration from config files to proper secret stores
 
-```csharp
-builder.Services.Configure<VaultOptions>(
-    configuration.GetSection("Vault"));
-
-public class MyService
-{
-    private readonly IOptions<VaultOptions> _options;
-
-    public MyService(IOptions<VaultOptions> options)
-    {
-        _options = options;
-    }
-
-    public string GetApiKey() => _options.Value.ApiKey!;
-}
-```
-
-### Direct Injection
-
-```csharp
-builder.Services.AddSingleton(
-    configuration.GetSection("Vault").Get<VaultOptions>() 
-    ?? new VaultOptions());
-```
-
-## Configuration Validation
-
-### Data Annotations
-
-```csharp
-public class VaultOptions
-{
-    [Required]
-    [MinLength(10)]
-    public string? DatabaseConnection { get; set; }
-
-    [Required]
-    public string? ApiKey { get; set; }
-
-    [Range(1, 300)]
-    public int Timeout { get; set; } = 30;
-}
-
-var options = new VaultOptions();
-configuration.GetSection("Vault").Bind(options);
-
-var context = new ValidationContext(options);
-Validator.ValidateObject(options, context, validateAllProperties: true);
-```
-
-### Custom Validation
-
-```csharp
-if (string.IsNullOrEmpty(options.DatabaseConnection))
-{
-    throw new InvalidOperationException(
-        "Vault:DatabaseConnection is required");
-}
-```
-
-## Limitations
-
-- No secret versioning
-- No encryption at rest (use Azure Key Vault or similar)
-- Configuration must be in code or config files
-- Not suitable for sensitive production secrets
-- Limited to configured sources only
-
-## Use Cases
-
-- Development and testing
-- Non-sensitive configuration values
-- Feature flags and settings
-- Application behavior configuration
-- Local overrides for development
+**Not suitable for:**
+- Production secrets (database passwords, API keys, certificates)
+- Scenarios requiring secret rotation or versioning
+- Multi-tenant applications with per-tenant secrets
+- Compliance requirements (SOC2, PCI-DSS, HIPAA)
 
 ## Related Providers
 
-- [HoneyDrunk.Vault.Providers.AzureKeyVault](../HoneyDrunk.Vault.Providers.AzureKeyVault) - For production secrets
-- [HoneyDrunk.Vault.Providers.Aws](../HoneyDrunk.Vault.Providers.Aws) - For AWS Secrets Manager
+- [HoneyDrunk.Vault.Providers.AzureKeyVault](../HoneyDrunk.Vault.Providers.AzureKeyVault) - For production secrets in Azure
+- [HoneyDrunk.Vault.Providers.Aws](../HoneyDrunk.Vault.Providers.Aws) - For production secrets in AWS
 - [HoneyDrunk.Vault.Providers.File](../HoneyDrunk.Vault.Providers.File) - For file-based development
 - [HoneyDrunk.Vault.Providers.InMemory](../HoneyDrunk.Vault.Providers.InMemory) - For testing
 
-## References
-
-- [.NET Configuration](https://docs.microsoft.com/en-us/dotnet/core/extensions/configuration)
-- [Options Pattern in .NET](https://docs.microsoft.com/en-us/dotnet/core/extensions/options)
-- [User Secrets](https://docs.microsoft.com/en-us/aspnet/core/security/app-secrets)
-
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License

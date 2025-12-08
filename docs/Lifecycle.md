@@ -17,6 +17,13 @@ Startup integration for the vault system. Validates configuration and warms cach
 
 **Location:** `HoneyDrunk.Vault/Lifecycle/`
 
+**Kernel Integration:** `VaultStartupHook` runs in a fully initialized Kernel environment. Telemetry and `GridContext` are active, ensuring all warmup operations produce structured traces.
+
+**Warmup Semantics:**
+- **Opportunistic**: Warmup does not block application startup or fail the node
+- **Non-blocking**: Failures are logged but do not prevent startup completion
+- **Readiness-aware**: `VaultStartupHook` accelerates readiness but does not determine readiness. `VaultReadinessContributor` is the authoritative signal to Kubernetes.
+
 The startup hook integrates with Kernel's lifecycle system to ensure the vault is properly configured before the application accepts traffic.
 
 ---
@@ -54,6 +61,7 @@ Application Startup
 ┌───────────────────────────────────┐
 │ IStartupHook: VaultStartupHook    │
 │ Priority: 100                     │
+│ (After core Kernel services)      │
 └───────────────┬───────────────────┘
                 │
                 ▼
@@ -64,18 +72,24 @@ Application Startup
 │    - Warn if none configured      │
 └───────────────┬───────────────────┘
                 │
-                ▼
-┌───────────────────────────────────┐
-│ 2. WarmCacheAsync()               │
-│    - For each key in WarmupKeys   │
-│    - Fetch secret from provider   │
-│    - Cache the result             │
-│    - Log success/failure          │
-└───────────────┬───────────────────┘
-                │
-                ▼
+        ┌───────┴───────┐
+        │               │
+  Providers > 0   Providers = 0
+        │               │
+        ▼               ▼
+┌───────────────────┐ ┌──────────────────────┐
+│ 2. WarmCache()    │ │ Skip warmup          │
+│ For each warmup   │ │ VaultReadiness       │
+│ key:              │ │ will block traffic   │
+│ - Try fetch       │ └──────────────────────┘
+│ - Cache result    │
+│ - Log outcome     │
+└───────┬───────────┘
+        │
+        ▼
 ┌───────────────────────────────────┐
 │ Startup Complete                  │
+│ (Readiness still evaluating)      │
 └───────────────────────────────────┘
 ```
 
@@ -113,9 +127,16 @@ public sealed class VaultStartupHook(
 
         if (enabledProviders.Count == 0)
         {
-            _logger.LogWarning("No vault providers are configured and enabled");
+            _logger.LogWarning(
+                "No vault providers are configured and enabled. " +
+                "This is acceptable in development (File provider only), " +
+                "but VaultReadinessContributor will prevent the node from becoming Ready in deployed environments.");
             return;
         }
+
+        _logger.LogInformation(
+            "Vault configured with {ProviderCount} enabled provider(s)",
+            enabledProviders.Count);
 
         foreach (var provider in enabledProviders)
         {
@@ -128,6 +149,14 @@ public sealed class VaultStartupHook(
 
     private async Task WarmCacheAsync(CancellationToken cancellationToken)
     {
+        // Skip warmup if no providers are enabled
+        var enabledProviders = _options.Providers.Values.Count(p => p.IsEnabled);
+        if (enabledProviders == 0)
+        {
+            _logger.LogDebug("Skipping cache warmup: no providers enabled");
+            return;
+        }
+
         _logger.LogInformation(
             "Warming vault cache with {Count} secrets",
             _options.WarmupKeys.Count);
@@ -136,6 +165,8 @@ public sealed class VaultStartupHook(
         {
             try
             {
+                // Warmup uses the full VaultClient pipeline (retries, timeouts, circuit breaker)
+                // Warmup operations participate in Kernel's tracing pipeline with proper spans
                 var result = await _secretStore.TryGetSecretAsync(
                     new SecretIdentifier(key),
                     cancellationToken);
@@ -147,7 +178,8 @@ public sealed class VaultStartupHook(
                 else
                 {
                     _logger.LogWarning(
-                        "Failed to warm cache for secret '{SecretName}': {Error}",
+                        "Failed to warm cache for secret '{SecretName}': {Error}. " +
+                        "Provider resolution will be re-evaluated on subsequent requests.",
                         key,
                         result.ErrorMessage);
                 }
@@ -156,7 +188,8 @@ public sealed class VaultStartupHook(
             {
                 _logger.LogError(
                     ex,
-                    "Exception warming cache for secret '{SecretName}'",
+                    "Exception warming cache for secret '{SecretName}'. " +
+                    "Warmup failures do not permanently degrade the provider.",
                     key);
             }
         });
@@ -188,6 +221,16 @@ builder.Services.AddVault(options =>
 3. **Predictable Performance** - No cache miss penalty on first access
 4. **Validation** - Ensures required secrets exist before accepting traffic
 
+**Provider Selection:** Warmup does not override provider selection or force early provider binding. Provider resolution still follows configured priority and availability checks at runtime. Cache warmup is opportunistic—failure to warm a key does not lock Vault into fallback mode.
+
+**Resilience Integration:** `WarmCacheAsync` uses the full `VaultClient` pipeline including retries, timeouts, and circuit breaker rules. This prevents transient cloud faults from blocking startup.
+
+**Telemetry Context:** Warmup operations participate in Kernel's tracing pipeline. Each warmup call creates proper spans so early provider latency and failures appear in telemetry dashboards.
+
+**Secret Rotation:** Warmup does not pin secret versions. It always attempts to warm the latest available version. Applications requesting fixed versions will bypass warmup as expected.
+
+**Health vs. Startup:** Provider health checks are the responsibility of `VaultHealthContributor`. Startup does not explicitly test provider connectivity unless a warmup key is configured.
+
 ### Priority Ordering
 
 The startup hook uses `Priority = 100` to run after core services but before the application starts accepting traffic:
@@ -208,12 +251,17 @@ The startup hook uses `Priority = 100` to run after core services but before the
 
 The startup hook ensures vault readiness before the application accepts traffic:
 
-| Phase | Action | On Failure |
-|-------|--------|------------|
-| Configuration Validation | Check enabled providers | Log warning |
-| Cache Warming | Fetch warmup keys | Log error, continue |
+| Phase | Action | On Failure | Impact on Readiness |
+|-------|--------|------------|---------------------|
+| Configuration Validation | Check enabled providers | Log warning | Zero providers → node not Ready (via `VaultReadinessContributor`) |
+| Cache Warming | Fetch warmup keys (if providers exist) | Log error, continue | Does not block startup; `ReadinessContributor` authoritative |
 
-The hook is non-blocking for missing secrets but provides valuable logging for debugging configuration issues.
+**Key Guarantees:**
+- Startup hook is **opportunistic** and **non-blocking**
+- Warmup failures do not permanently degrade providers
+- Provider resolution is re-evaluated on each request based on availability
+- Warmup uses full resilience pipeline (retries, timeouts, circuit breaker)
+- All warmup operations produce structured traces via Kernel telemetry
 
 ---
 

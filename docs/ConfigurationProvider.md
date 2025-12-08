@@ -27,6 +27,8 @@ IConfiguration-based provider that bridges ASP.NET Core's configuration system t
 - Migrating from IConfiguration to vault pattern
 - Local development fallback
 
+**Role in Ecosystem:** This provider is primarily for local development, migration, and non-sensitive settings. In production it is usually combined with cloud secret providers (Azure Key Vault, AWS) and used as a fallback, not the primary secrets store. Vault orchestrates multiple providers; Configuration is one option in the provider chain.
+
 **⚠️ Note:** For production secrets, consider Azure Key Vault or AWS Secrets Manager instead.
 
 ---
@@ -86,10 +88,12 @@ Secrets__api-key=prod-api-key
 
 ## ConfigurationSecretStore.cs
 
-IConfiguration-based implementation of `ISecretStore`.
+**Internal Backing Type**
+
+Backing `ISecretStore` implementation for the Configuration provider. The Configuration provider participates in provider resolution via `ISecretProvider` and uses `IConfiguration` as its backend. Application and Node code should consume `ISecretStore` from Vault, not this type directly.
 
 ```csharp
-public sealed class ConfigurationSecretStore : ISecretStore
+public sealed class ConfigurationSecretStore : ISecretStore, ISecretProvider
 {
     public ConfigurationSecretStore(
         IConfiguration configuration,
@@ -111,12 +115,16 @@ public sealed class ConfigurationSecretStore : ISecretStore
 
 ### Secret Resolution
 
+**Mapping Rule:** Vault treats secrets as coming from the `Secrets:` configuration section. Secret identifiers are mapped to configuration keys under this section.
+
 Secrets are resolved from the `Secrets:` configuration section:
 
 ```csharp
-// Request for "database-connection-string" maps to:
+// SecretIdentifier("database-connection-string") maps to:
 _configuration["Secrets:database-connection-string"]
 ```
+
+**Important:** In all examples, `ISecretStore` is resolved via Vault (with Configuration as one of the providers), not directly from this project.
 
 ### Usage Example
 
@@ -145,7 +153,9 @@ public class MyService(ISecretStore secretStore)
 
 ## ConfigurationConfigSource.cs
 
-IConfiguration-based implementation of `IConfigSource`.
+**Internal Type**
+
+`ConfigurationConfigSource` implements `IConfigSource` for use by Vault's internal adapters. Application code should use `IConfigProvider` instead.
 
 ```csharp
 public sealed class ConfigurationConfigSource : IConfigSource
@@ -175,11 +185,13 @@ public sealed class ConfigurationConfigSource : IConfigSource
 
 ### Configuration Resolution
 
+**Mapping Rule:** Configuration values flow through `IConfigProvider` and are resolved directly from `IConfiguration` using standard key paths (e.g., `Cache:Enabled`).
+
 Configuration values are resolved directly from IConfiguration:
 
 ```csharp
-// Request for "cache:enabled" maps to:
-_configuration["cache:enabled"]
+// IConfigProvider.GetValueAsync("Cache:Enabled") maps to:
+_configuration["Cache:Enabled"]
 ```
 
 ### Usage Example
@@ -229,16 +241,32 @@ Migrate from direct IConfiguration usage to vault pattern:
 
 ```csharp
 // Before: Direct IConfiguration
-var apiKey = configuration["Secrets:ApiKey"];
+var apiKey = configuration["Secrets:api-key"];
 
 // After: Vault abstraction (same source, better interface)
 var apiKey = await secretStore.GetSecretAsync(
-    new SecretIdentifier("ApiKey"),
+    new SecretIdentifier("api-key"),
     ct);
 
-// Future: Switch to Azure Key Vault without code changes
-builder.Services.AddVaultWithAzureKeyVault(options => { ... });
+// Future: Add cloud provider without changing consumer code
+// Configuration can remain as fallback or be disabled entirely
+builder.Services.AddVault(options =>
+{
+    options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
+});
+
+// Primary: Azure Key Vault (checked first)
+builder.Services.AddVaultWithAzureKeyVault(akv =>
+{
+    akv.VaultUri = new Uri("https://my-vault.vault.azure.net/");
+    akv.UseManagedIdentity = true;
+});
+
+// Fallback: Configuration provider (checked if Azure unavailable)
+builder.Services.AddVaultWithConfiguration();
 ```
+
+**Provider Precedence:** Vault resolves providers in registration order. Azure Key Vault is checked first; if unavailable, Configuration provider is used as fallback.
 
 ### 3. Development Fallback
 
@@ -283,7 +311,9 @@ builder.Services.AddVaultWithConfiguration();
 
 ## Best Practices
 
-### 1. Use for Non-Sensitive Configuration
+### 1. Do Not Use as Production Secrets Store
+
+**Critical:** Do not treat configuration files or user secrets as a long-term production secret store. Use this provider for dev, test, or very low-risk secrets, and migrate real secrets to Vault providers backed by Azure Key Vault or AWS Secrets Manager.
 
 ```json
 // ✅ Good - Non-sensitive settings
@@ -294,15 +324,20 @@ builder.Services.AddVaultWithConfiguration();
   }
 }
 
-// ⚠️ Caution - Sensitive data in config files
+// ❌ Bad - Sensitive production data in config files
 {
   "Secrets": {
-    "api-key": "real-production-key"  // Don't commit this!
+    "api-key": "real-production-key",  // Don't commit this!
+    "database-password": "prod-password"  // Use Azure/AWS instead
   }
 }
 ```
 
-### 2. Combine with User Secrets
+### 2. Use for Non-Sensitive Configuration
+
+*For sensitive configuration in development, use User Secrets (section 3) or environment variables (section 4).*
+
+### 3. Combine with User Secrets
 
 ```csharp
 // appsettings.json - non-sensitive defaults
@@ -320,7 +355,7 @@ builder.Services.AddVaultWithConfiguration();
 }
 ```
 
-### 3. Use Environment Variables for Secrets
+### 4. Use Environment Variables for Secrets
 
 ```bash
 # Set secrets via environment variables
@@ -332,17 +367,19 @@ export Secrets__db-password="production-password"
 
 ## Summary
 
-Configuration provider bridges IConfiguration to vault:
+Configuration provider bridges IConfiguration to vault. **Recommended for development and migration, not as a primary secrets store for production workloads.**
+
+**Versioning and Rotation:** This provider does not support versioned secrets or automatic rotation. Any rotation of values in `IConfiguration` is entirely out-of-band and not tracked by Vault.
 
 | Feature | Supported |
-|---------|-----------|
+|---------|-----------||
 | Secrets | ✅ |
 | Configuration | ✅ |
 | User Secrets | ✅ |
 | Environment Variables | ✅ |
 | Versioning | ❌ |
 | Rotation | ❌ |
-| Production use | ⚠️ Limited |
+| Production use | ⚠️ Limited (dev/migration only) |
 
 ---
 

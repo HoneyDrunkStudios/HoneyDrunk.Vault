@@ -69,20 +69,4 @@ public static class HoneyDrunkBuilderExtensions
     {
         return builder.AddVault(_ => { });
     }
-
-    /// <summary>
-    /// Adds Vault with in-memory provider for testing and development.
-    /// </summary>
-    /// <param name="builder">The HoneyDrunk builder.</param>
-    /// <param name="configure">The configuration action for in-memory options.</param>
-    /// <returns>The builder for chaining.</returns>
-    public static IHoneyDrunkBuilder AddVaultInMemory(
-        this IHoneyDrunkBuilder builder,
-        Action<InMemoryProviderOptions>? configure = null)
-    {
-        return builder.AddVault(options =>
-        {
-            options.AddInMemoryProvider(configure);
-        });
-    }
 }

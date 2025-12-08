@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
+
+    <!-- Package Metadata -->
+    <PackageId>HoneyDrunk.Vault.Providers.Aws</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>HoneyDrunk Studios</Authors>
+    <Description>AWS Secrets Manager provider for HoneyDrunk.Vault. Provides secure secret management using AWS Secrets Manager with support for IAM roles, access keys, and EC2 instance profiles.</Description>
+    <PackageReleaseNotes>v0.1.0: Initial release with IAM role, access key, and EC2 instance profile authentication, secret versioning, and health checks. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageTags>vault;provider;secrets;aws;secrets-manager;iam;access-keys;instance-profile;ec2;authentication</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</PackageProjectUrl>
+
+    <!-- Symbol Package Configuration -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.3.2" />
+    <PackageReference Include="AWSSDK.SSO" Version="4.0.2.6" />
+    <PackageReference Include="AWSSDK.SSOOIDC" Version="4.0.3.7" />
+    <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.3.0" />
+    <PackageReference Include="HoneyDrunk.Standards" Version="0.2.6">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HoneyDrunk.Vault\HoneyDrunk.Vault.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="CHANGELOG.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

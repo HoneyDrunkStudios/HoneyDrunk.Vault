@@ -1,0 +1,26 @@
+# Changelog - HoneyDrunk.Vault.Providers.AzureKeyVault
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.1.0] - 2025-01-01
+
+### Added
+- AzureKeyVaultSecretStore implementation
+- Support for Managed Identity authentication
+- Support for Service Principal authentication
+- Secret version listing
+- Secret retrieval with version specification
+- Grid context support for distributed tracing
+- Health check implementation
+- Comprehensive error handling
+
+### Features
+- Azure SDK integration
+- Credential chain support
+- Automatic retry with exponential backoff
+- Timeout configuration
+- Logging integration with correlation IDs
+- Batch secret operations

@@ -1,0 +1,172 @@
+﻿name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (without v prefix, e.g., 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      version-tag: ${{ steps.get_version.outputs.version-tag }}
+    steps:
+      - name: Determine version
+        id: get_version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            VERSION_TAG="v${VERSION}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            VERSION_TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VERSION" >>"$GITHUB_OUTPUT"
+          echo "version-tag=$VERSION_TAG" >>"$GITHUB_OUTPUT"
+          echo "Publishing version: $VERSION"
+          echo "Publishing tag: $VERSION_TAG"
+
+  release:
+    name: Build, Pack & Publish
+    needs: prepare
+    uses: HoneyDrunkStudios/HoneyDrunk.Actions/.github/workflows/release.yml@main
+    with:
+      dotnet-version: '10.0.x'
+      configuration: 'Release'
+      runs-on: 'ubuntu-latest'
+      project-path: 'HoneyDrunk.Vault/HoneyDrunk.Vault.sln'
+      enable-nuget-publish: true
+      nuget-source: 'https://api.nuget.org/v3/index.json'
+      actions-ref: 'main'
+    secrets:
+      nuget-api-key: ${{ secrets.NUGET_API_KEY }}
+
+  github-release:
+    name: Create GitHub Release
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.version-tag }}
+          name: HoneyDrunk.Vault ${{ needs.prepare.outputs.version-tag }}
+          body: |
+            ## HoneyDrunk.Vault ${{ needs.prepare.outputs.version-tag }}
+
+            Secrets and configuration management library for .NET 10. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel for lifecycle management, health reporting, and distributed telemetry.
+
+            ### Package Core
+
+            **HoneyDrunk.Vault** - Core library with abstractions and orchestration
+
+            ```xml
+            <PackageReference Include="HoneyDrunk.Vault" Version="${{ needs.prepare.outputs.version }}" />
+            ```
+
+            ### Providers
+
+            **HoneyDrunk.Vault.Providers.File** - File-based provider for development
+
+            ```xml
+            <PackageReference Include="HoneyDrunk.Vault.Providers.File" Version="${{ needs.prepare.outputs.version }}" />
+            ```
+
+            **HoneyDrunk.Vault.Providers.AzureKeyVault** - Azure Key Vault provider for production
+
+            ```xml
+            <PackageReference Include="HoneyDrunk.Vault.Providers.AzureKeyVault" Version="${{ needs.prepare.outputs.version }}" />
+            ```
+
+            **HoneyDrunk.Vault.Providers.Aws** - AWS Secrets Manager provider for production
+
+            ```xml
+            <PackageReference Include="HoneyDrunk.Vault.Providers.Aws" Version="${{ needs.prepare.outputs.version }}" />
+            ```
+
+            **HoneyDrunk.Vault.Providers.Configuration** - .NET Configuration provider
+
+            ```xml
+            <PackageReference Include="HoneyDrunk.Vault.Providers.Configuration" Version="${{ needs.prepare.outputs.version }}" />
+            ```
+
+            **HoneyDrunk.Vault.Providers.InMemory** - In-memory provider for testing
+
+            ```xml
+            <PackageReference Include="HoneyDrunk.Vault.Providers.InMemory" Version="${{ needs.prepare.outputs.version }}" />
+            ```
+
+            ### Links
+
+            - [NuGet: HoneyDrunk.Vault](https://www.nuget.org/packages/HoneyDrunk.Vault/${{ needs.prepare.outputs.version }})
+            - [NuGet: HoneyDrunk.Vault.Providers.File](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.File/${{ needs.prepare.outputs.version }})
+            - [NuGet: HoneyDrunk.Vault.Providers.AzureKeyVault](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.AzureKeyVault/${{ needs.prepare.outputs.version }})
+            - [NuGet: HoneyDrunk.Vault.Providers.Aws](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.Aws/${{ needs.prepare.outputs.version }})
+            - [NuGet: HoneyDrunk.Vault.Providers.Configuration](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.Configuration/${{ needs.prepare.outputs.version }})
+            - [NuGet: HoneyDrunk.Vault.Providers.InMemory](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.InMemory/${{ needs.prepare.outputs.version }})
+            - [Documentation](https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault#readme)
+
+            ### Quick Start
+
+            ```csharp
+            using HoneyDrunk.Vault.Extensions;
+
+            var builder = WebApplication.CreateBuilder(args);
+
+            // Add vault with Azure Key Vault provider
+            builder.Services.AddVault(options =>
+            {
+                options.Cache.Enabled = true;
+                options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
+                
+                options.AddAzureKeyVaultProvider(akv =>
+                {
+                    akv.VaultUri = new Uri(builder.Configuration["KeyVault:Uri"]!);
+                    akv.UseManagedIdentity = true;
+                });
+            });
+
+            var app = builder.Build();
+
+            // Use secrets in your handlers
+            app.MapGet("/config", async (ISecretStore secretStore) =>
+            {
+                var secret = await secretStore.GetSecretAsync(
+                    new SecretIdentifier("my-secret"));
+                return Results.Ok(new { secret = secret.Value });
+            });
+
+            app.Run();
+            ```
+
+            ### Features
+
+            - **Multiple Providers**: File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory
+            - **Caching**: Built-in caching with configurable TTL and size limits
+            - **Resilience**: Retry and circuit breaker policies
+            - **Health Checks**: Integrated health check support
+            - **Telemetry**: Distributed tracing without leaking secrets
+            - **Kernel Integration**: Full HoneyDrunk.Kernel integration
+
+            See [CHANGELOG.md](https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/blob/main/CHANGELOG.md) for detailed changes.
+          draft: false
+          prerelease: false

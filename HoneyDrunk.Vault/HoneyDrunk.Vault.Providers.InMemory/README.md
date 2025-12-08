@@ -1,15 +1,18 @@
 # HoneyDrunk.Vault.Providers.InMemory
 
-In-memory provider for HoneyDrunk.Vault. Ideal for unit testing and integration testing.
+In-memory provider for HoneyDrunk.Vault. **Recommended for unit tests and integration tests.**
 
 ## Overview
 
-This provider stores secrets and configuration entirely in memory. It supports:
-- Pre-configured secrets and configuration values
-- Runtime value updates (add/remove/clear)
-- No external dependencies
-- Fast access (no I/O)
+This provider stores secrets and configuration entirely in memory. Perfect for testing where you want fast, deterministic secret access without external dependencies.
+
+**Features:**
+- No external dependencies (no files, no cloud services)
+- Pre-configured secrets and configuration
+- Runtime updates (add/remove/clear secrets)
+- Fast access (no I/O operations)
 - Thread-safe operations
+- Works great with xUnit, NUnit, MSTest
 
 ## Installation
 

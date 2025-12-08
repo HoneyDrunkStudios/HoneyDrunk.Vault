@@ -1,0 +1,378 @@
+# 🔧 Models - Building Blocks
+
+[← Back to File Guide](FILE_GUIDE.md)
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [SecretIdentifier.cs](#secretidentifiercs)
+- [SecretValue.cs](#secretvaluecs)
+- [SecretVersion.cs](#secretversioncs)
+- [VaultResult.cs](#vaultresultcs)
+- [VaultResult{T}.cs](#vaultresulttcs)
+- [VaultScope.cs](#vaultscopecs)
+
+---
+
+## Overview
+
+Domain models that represent secrets, configuration, and operation results. These are immutable records for thread-safety and testability.
+
+**Location:** `HoneyDrunk.Vault/Models/`
+
+---
+
+## SecretIdentifier.cs
+
+Unique identifier for a secret in the vault.
+
+```csharp
+public sealed record SecretIdentifier
+{
+    /// <summary>
+    /// Initializes with secret name only (latest version).
+    /// </summary>
+    public SecretIdentifier(string name);
+
+    /// <summary>
+    /// Initializes with secret name and optional version.
+    /// </summary>
+    public SecretIdentifier(string name, string? version);
+
+    /// <summary>
+    /// Gets the name of the secret.
+    /// </summary>
+    public string Name { get; }
+
+    /// <summary>
+    /// Gets the version of the secret, if specified.
+    /// </summary>
+    public string? Version { get; }
+}
+```
+
+### Usage Example
+
+```csharp
+// Latest version
+var latestId = new SecretIdentifier("database-connection-string");
+
+// Specific version
+var versionedId = new SecretIdentifier("api-key", "v2.0.0");
+
+// Pattern matching
+if (identifier.Version is null)
+{
+    Console.WriteLine($"Getting latest version of {identifier.Name}");
+}
+else
+{
+    Console.WriteLine($"Getting version {identifier.Version} of {identifier.Name}");
+}
+```
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+## SecretValue.cs
+
+The value of a secret retrieved from the vault.
+
+```csharp
+public sealed record SecretValue
+{
+    /// <summary>
+    /// Initializes a new instance of the SecretValue class.
+    /// </summary>
+    public SecretValue(SecretIdentifier identifier, string value, string? version);
+
+    /// <summary>
+    /// Gets the identifier of the secret.
+    /// </summary>
+    public SecretIdentifier Identifier { get; }
+
+    /// <summary>
+    /// Gets the secret value.
+    /// </summary>
+    public string Value { get; }
+
+    /// <summary>
+    /// Gets the version of the secret.
+    /// </summary>
+    public string? Version { get; }
+}
+```
+
+### Usage Example
+
+```csharp
+// Retrieve and use a secret
+var secret = await secretStore.GetSecretAsync(
+    new SecretIdentifier("database-connection-string"),
+    ct);
+
+// Access properties
+Console.WriteLine($"Secret: {secret.Identifier.Name}");
+Console.WriteLine($"Version: {secret.Version ?? "latest"}");
+
+// Use the value (carefully - don't log it!)
+var connectionString = secret.Value;
+using var connection = new SqlConnection(connectionString);
+```
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+## SecretVersion.cs
+
+Version information for a secret.
+
+```csharp
+public sealed record SecretVersion
+{
+    /// <summary>
+    /// Initializes a new instance of the SecretVersion class.
+    /// </summary>
+    public SecretVersion(string version, DateTimeOffset createdOn);
+
+    /// <summary>
+    /// Gets the version identifier.
+    /// </summary>
+    public string Version { get; }
+
+    /// <summary>
+    /// Gets the date and time when the version was created.
+    /// </summary>
+    public DateTimeOffset CreatedOn { get; }
+}
+```
+
+### Usage Example
+
+```csharp
+// List all versions of a secret
+var versions = await secretStore.ListSecretVersionsAsync("api-key", ct);
+
+foreach (var version in versions.OrderByDescending(v => v.CreatedOn))
+{
+    Console.WriteLine($"Version: {version.Version}, Created: {version.CreatedOn}");
+}
+
+// Get the most recent version
+var latest = versions.MaxBy(v => v.CreatedOn);
+if (latest != null)
+{
+    var secret = await secretStore.GetSecretAsync(
+        new SecretIdentifier("api-key", latest.Version),
+        ct);
+}
+```
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+## VaultResult.cs
+
+Factory methods for creating vault results.
+
+```csharp
+public static class VaultResult
+{
+    /// <summary>
+    /// Creates a successful result with a value.
+    /// </summary>
+    public static VaultResult<T> Success<T>(T value);
+
+    /// <summary>
+    /// Creates a failed result with an error message.
+    /// </summary>
+    public static VaultResult<T> Failure<T>(string errorMessage);
+}
+```
+
+### Usage Example
+
+```csharp
+// In provider implementations
+public async Task<VaultResult<SecretValue>> TryFetchSecretAsync(
+    string key, 
+    CancellationToken ct)
+{
+    try
+    {
+        var value = await FetchFromBackend(key, ct);
+        return VaultResult.Success(value);
+    }
+    catch (SecretNotFoundException)
+    {
+        return VaultResult.Failure<SecretValue>($"Secret '{key}' not found");
+    }
+    catch (Exception ex)
+    {
+        return VaultResult.Failure<SecretValue>($"Failed to fetch: {ex.Message}");
+    }
+}
+```
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+## VaultResult{T}.cs
+
+Generic result type for operations that may succeed or fail.
+
+```csharp
+public sealed class VaultResult<T>
+{
+    /// <summary>
+    /// Gets a value indicating whether the operation succeeded.
+    /// </summary>
+    public bool IsSuccess { get; }
+
+    /// <summary>
+    /// Gets the value if successful.
+    /// </summary>
+    public T? Value { get; }
+
+    /// <summary>
+    /// Gets the error message if failed.
+    /// </summary>
+    public string? ErrorMessage { get; }
+
+    /// <summary>
+    /// Creates a successful result.
+    /// </summary>
+    public static VaultResult<T> Success(T value);
+
+    /// <summary>
+    /// Creates a failed result.
+    /// </summary>
+    public static VaultResult<T> Failure(string errorMessage);
+}
+```
+
+### Usage Example
+
+```csharp
+// Using TryGetSecretAsync with result pattern
+var result = await secretStore.TryGetSecretAsync(
+    new SecretIdentifier("optional-api-key"),
+    ct);
+
+if (result.IsSuccess)
+{
+    // Use the secret
+    var apiKey = result.Value!.Value;
+    await CallExternalApi(apiKey);
+}
+else
+{
+    // Log the failure (not the secret value!)
+    _logger.LogWarning("Could not retrieve API key: {Error}", result.ErrorMessage);
+    
+    // Use fallback behavior
+    await UseDefaultBehavior();
+}
+
+// Pattern matching style
+var connectionString = result switch
+{
+    { IsSuccess: true, Value: var secret } => secret.Value,
+    { ErrorMessage: var error } => throw new InvalidOperationException(error)
+};
+```
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+## VaultScope.cs
+
+Represents the scope for vault operations (environment, tenant, node).
+
+```csharp
+public sealed record VaultScope
+{
+    /// <summary>
+    /// Initializes with environment only.
+    /// </summary>
+    public VaultScope(string environment);
+
+    /// <summary>
+    /// Initializes with environment, tenant, and node.
+    /// </summary>
+    public VaultScope(string environment, string? tenant, string? node);
+
+    /// <summary>
+    /// Gets the environment name (e.g., Development, Production).
+    /// </summary>
+    public string Environment { get; }
+
+    /// <summary>
+    /// Gets the tenant identifier.
+    /// </summary>
+    public string? Tenant { get; }
+
+    /// <summary>
+    /// Gets the node identifier.
+    /// </summary>
+    public string? Node { get; }
+}
+```
+
+### Usage Example
+
+```csharp
+// Environment-only scope
+var devScope = new VaultScope("Development");
+
+// Full scope for multi-tenant applications
+var tenantScope = new VaultScope(
+    environment: "Production",
+    tenant: "customer-123",
+    node: "order-service");
+
+// Use scope to build secret paths
+public string BuildSecretPath(VaultScope scope, string secretName)
+{
+    var parts = new List<string> { scope.Environment };
+    
+    if (scope.Tenant != null)
+        parts.Add(scope.Tenant);
+    
+    if (scope.Node != null)
+        parts.Add(scope.Node);
+    
+    parts.Add(secretName);
+    
+    return string.Join("/", parts);
+    // e.g., "Production/customer-123/order-service/db-connection"
+}
+```
+
+[↑ Back to top](#table-of-contents)
+
+---
+
+## Summary
+
+The models provide type-safe representations for vault operations:
+
+| Model | Purpose | Immutable |
+|-------|---------|-----------|
+| `SecretIdentifier` | Locate a secret by name/version | ✅ Record |
+| `SecretValue` | Retrieved secret with metadata | ✅ Record |
+| `SecretVersion` | Version history entry | ✅ Record |
+| `VaultResult` | Factory for result creation | ✅ Static |
+| `VaultResult<T>` | Success/failure result | ✅ Sealed |
+| `VaultScope` | Environment/tenant context | ✅ Record |
+
+---
+
+[← Back to File Guide](FILE_GUIDE.md) | [↑ Back to top](#table-of-contents)

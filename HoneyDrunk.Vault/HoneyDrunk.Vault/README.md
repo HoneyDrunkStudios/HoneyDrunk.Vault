@@ -1,20 +1,26 @@
 # HoneyDrunk.Vault
 
-A secrets and configuration management library designed as a first-class Kernel-aware node for the HoneyDrunk.OS ecosystem.
+Core secrets and configuration management library with unified provider abstraction.
 
 ## Overview
 
-HoneyDrunk.Vault provides a unified abstraction for accessing secrets and configuration from multiple providers. It integrates seamlessly with HoneyDrunk.Kernel for lifecycle management, health reporting, and distributed telemetry.
+This is the **core package** that provides abstractions, orchestration, caching, and Kernel integration. You'll also need at least one provider package (File, Azure Key Vault, AWS, InMemory, or Configuration) to store and retrieve secrets.
+
+**Key Abstractions:**
+- **`ISecretStore`** - Primary interface for accessing secrets (inject this in your services)
+- **`IConfigProvider`** - Typed configuration access with defaults
+- **`IVaultClient`** - Central orchestrator combining secrets and configuration
+- **`SecretIdentifier`** - Immutable record for identifying secrets (name + optional version)
+- **`SecretValue`** - Immutable record containing secret value and metadata
 
 ## Features
 
-- **Multiple Providers**: Support for File, Azure Key Vault, AWS Secrets Manager, Configuration, and In-Memory providers
-- **Kernel Integration**: Full integration with HoneyDrunk.Kernel for lifecycle, health, and telemetry
-- **Caching**: Built-in caching with configurable TTL and size limits
+- **Provider Abstraction**: Works with File, Azure Key Vault, AWS Secrets Manager, Configuration, and In-Memory providers
+- **Kernel Integration**: Lifecycle hooks, health checks, and distributed telemetry
+- **Caching**: In-memory caching with configurable TTL and size limits
 - **Resilience**: Retry and circuit breaker policies for production reliability
-- **Context-Aware**: Grid context support for distributed tracing and correlation
-- **Secure Telemetry**: Telemetry traces operations without leaking secret values
-- **Provider Prioritization**: Automatic fallback through multiple configured providers
+- **Grid Context**: Distributed tracing and correlation via HoneyDrunk.Kernel
+- **Secure Telemetry**: Traces operations without logging secret values
 
 ## Installation
 

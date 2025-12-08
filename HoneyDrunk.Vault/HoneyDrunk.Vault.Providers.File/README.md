@@ -1,14 +1,17 @@
 # HoneyDrunk.Vault.Providers.File
 
-File-based secret and configuration provider for HoneyDrunk.Vault. Designed for local development and testing.
+File-based provider for HoneyDrunk.Vault. **Ideal for local development and testing.**
 
 ## Overview
 
-This provider stores secrets and configuration values in JSON files on the local filesystem. It supports:
-- Automatic file watching and reloading
-- Optional file encryption via environment variables or file paths
-- Both secrets and configuration storage
-- Development-friendly error handling
+This provider stores secrets and configuration in JSON files on the local filesystem. Perfect for development where you don't want to configure cloud services.
+
+**Features:**
+- JSON file storage for secrets and configuration
+- Automatic file watching and hot-reloading
+- Optional file creation if not exists
+- Development-friendly error messages
+- No external dependencies or cloud accounts needed
 
 ## Installation
 

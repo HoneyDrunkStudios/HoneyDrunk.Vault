@@ -1,16 +1,19 @@
 # HoneyDrunk.Vault.Providers.Aws
 
-AWS Secrets Manager provider for HoneyDrunk.Vault. Provides secure secret management for AWS-hosted applications.
+AWS Secrets Manager provider for HoneyDrunk.Vault. **Recommended for AWS-hosted applications.**
 
 ## Overview
 
-This provider integrates with AWS Secrets Manager for enterprise-grade secret management. It supports:
-- IAM role-based authentication (recommended)
-- Access key authentication
-- EC2 instance profiles
-- Secret versioning
-- Automatic secret rotation
+This provider integrates with AWS Secrets Manager for enterprise-grade secret management. Perfect for production workloads running on AWS.
+
+**Features:**
+- IAM role-based authentication (recommended for production)
+- EC2 instance profile support
+- ECS task role support
+- Access key authentication (for local development)
+- Automatic secret versioning
 - Cross-region replication
+- Automatic secret rotation support
 
 ## Installation
 

@@ -1,15 +1,18 @@
 # HoneyDrunk.Vault.Providers.AzureKeyVault
 
-Azure Key Vault provider for HoneyDrunk.Vault. Provides secure, centralized secret management for Azure-hosted applications.
+Azure Key Vault provider for HoneyDrunk.Vault. **Recommended for Azure-hosted applications.**
 
 ## Overview
 
-This provider integrates with Azure Key Vault for enterprise-grade secret and certificate management. It supports:
-- Managed Identity authentication (recommended)
-- Service Principal authentication
+This provider integrates with Azure Key Vault for enterprise-grade secret management. Perfect for production workloads running in Azure.
+
+**Features:**
+- Managed Identity authentication (recommended for production)
+- Service Principal authentication (for local development)
 - Automatic secret versioning
-- Certificate management
-- Access policies and RBAC
+- Native Azure integration
+- RBAC and access policies
+- Hardware Security Module (HSM) backed secrets
 
 ## Installation
 

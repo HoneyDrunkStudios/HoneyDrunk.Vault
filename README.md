@@ -4,28 +4,41 @@ A secrets and configuration management library designed as a first-class Kernel-
 
 ## Overview
 
-HoneyDrunk.Vault provides a unified abstraction for accessing secrets and configuration from multiple providers. It integrates seamlessly with HoneyDrunk.Kernel for lifecycle management, health reporting, and distributed telemetry.
+**Think of this library as a secure lockbox for your application**
+
+Just like how a bank vault stores valuables with multiple layers of security and access control, this library provides unified access to secrets and configuration from multiple providers. It abstracts away the complexity of different secret stores (Azure Key Vault, AWS Secrets Manager, File-based, In-Memory) with caching, resilience policies, and Kernel-aware lifecycle integration.
+
+**Key Concepts:**
+- **SecretIdentifier** - The unique key to locate a secret (name + optional version)
+- **SecretValue** - The retrieved secret with metadata (value + version)
+- **ISecretStore** - Primary interface for secret access in application code
+- **IConfigProvider** - Typed configuration access with defaults
+- **VaultClient** - Central orchestrator that coordinates providers
+- **SecretCache** - In-memory caching layer with TTL
+- **Provider** - Backend-specific implementation (File, Azure, AWS, InMemory, Configuration)
 
 ## Features
 
-- **Multiple Providers**: Support for File, Azure Key Vault, AWS Secrets Manager, and In-Memory providers
+- **Multiple Providers**: Support for File, Azure Key Vault, AWS Secrets Manager, Configuration, and In-Memory providers
 - **Kernel Integration**: Full integration with HoneyDrunk.Kernel for lifecycle, health, and telemetry
 - **Caching**: Built-in caching with configurable TTL and size limits
 - **Resilience**: Retry and circuit breaker policies for production reliability
-- **Context-Aware**: Secrets can be scoped per Grid/Tenant/Node using Kernel's context model
+- **Context-Aware**: Grid context support for distributed tracing and correlation
 - **Secure Telemetry**: Telemetry traces operations without leaking secret values
+- **Provider Prioritization**: Automatic fallback through multiple configured providers
 
 ## Installation
 
 ```bash
-# Core vault library
+# Core abstractions and orchestrator
 dotnet add package HoneyDrunk.Vault
 
-# Provider packages (choose as needed)
-dotnet add package HoneyDrunk.Vault.Providers.File
-dotnet add package HoneyDrunk.Vault.Providers.AzureKeyVault
-dotnet add package HoneyDrunk.Vault.Providers.Aws
-dotnet add package HoneyDrunk.Vault.Providers.InMemory
+# Choose provider implementation (one or more)
+dotnet add package HoneyDrunk.Vault.Providers.File              # For development
+dotnet add package HoneyDrunk.Vault.Providers.AzureKeyVault     # For Azure
+dotnet add package HoneyDrunk.Vault.Providers.Aws               # For AWS
+dotnet add package HoneyDrunk.Vault.Providers.InMemory          # For testing
+dotnet add package HoneyDrunk.Vault.Providers.Configuration     # Bridge to IConfiguration
 ```
 
 ## Quick Start
@@ -292,31 +305,60 @@ All vault operations emit telemetry traces with:
 
 ## Architecture
 
+**Secret Resolution Flow:**
+```
+Application              VaultClient                 Provider
+    ↓                        ↓                           ↓
+SecretIdentifier → Check Cache → Cache Miss → Fetch from Backend → Return SecretValue
+    ↓                        ↓                           ↓
+"db-connection"    SecretCache       Azure Key Vault      SecretValue
+                   (hit/miss)        AWS Secrets Manager  (value + version)
+                                     File / InMemory
+```
+
+**Component Structure:**
 ```
 HoneyDrunk.Vault (Core)
-├── Abstractions
-│   ├── ISecretStore      # Primary secret access
-│   ├── ISecretProvider   # Provider abstraction
-│   ├── IConfigSource     # Raw config access
-│   └── IConfigProvider   # Typed config access
-├── Services
-│   ├── VaultClient       # Orchestrates providers
-│   └── SecretCache       # In-memory caching
-├── Health
+├── Abstractions/
+│   ├── ISecretStore      # Primary secret access interface
+│   ├── ISecretProvider   # Backend provider abstraction
+│   ├── IConfigSource     # Raw configuration access
+│   ├── IConfigProvider   # Typed configuration with defaults
+│   └── IVaultClient      # Central orchestrator
+├── Models/
+│   ├── SecretIdentifier  # Name + optional version
+│   ├── SecretValue       # Value + metadata
+│   ├── SecretVersion     # Version info
+│   └── VaultResult<T>    # Result pattern for Try* methods
+├── Services/
+│   ├── VaultClient       # Coordinates providers
+│   ├── SecretCache       # In-memory caching with TTL
+│   └── ConfigSourceAdapter
+├── Health/
 │   ├── VaultHealthContributor
 │   └── VaultReadinessContributor
-├── Lifecycle
-│   └── VaultStartupHook
-└── Telemetry
-    └── VaultTelemetry
+├── Lifecycle/
+│   └── VaultStartupHook  # Config validation & cache warming
+└── Telemetry/
+    └── VaultTelemetry    # Secure tracing (no secret values)
 
-Providers
+Providers (Separate Packages)
 ├── HoneyDrunk.Vault.Providers.File
 ├── HoneyDrunk.Vault.Providers.AzureKeyVault
 ├── HoneyDrunk.Vault.Providers.Aws
 ├── HoneyDrunk.Vault.Providers.InMemory
 └── HoneyDrunk.Vault.Providers.Configuration
 ```
+
+## Documentation
+
+For comprehensive documentation, see the [`/docs`](docs/) directory:
+
+- **[FILE_GUIDE.md](docs/FILE_GUIDE.md)** - Complete file-by-file documentation
+- **[Architecture.md](docs/Architecture.md)** - Dependency flow and integration patterns
+- **[Abstractions.md](docs/Abstractions.md)** - Core interfaces and contracts
+- **[Testing.md](docs/Testing.md)** - Test patterns and strategies
+- **Provider Guides**: [File](docs/File.md), [Azure](docs/AzureKeyVault.md), [AWS](docs/Aws.md), [InMemory](docs/InMemory.md), [Configuration](docs/ConfigurationProvider.md)
 
 ## License
 

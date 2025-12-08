@@ -49,7 +49,7 @@ This guide is organized into focused documents by domain:
 | [AzureKeyVault.md](AzureKeyVault.md) | Azure Key Vault provider (managed identity, enterprise-grade security) |
 | [Aws.md](Aws.md) | AWS Secrets Manager provider (IAM roles, instance profiles, cross-region) |
 | [InMemory.md](InMemory.md) | In-memory provider for testing (no external dependencies, runtime updates) |
-| [Configuration.md](ConfigurationProvider.md) | IConfiguration-based provider (bridges ASP.NET Core configuration) |
+| [ConfigurationProvider.md](ConfigurationProvider.md) | IConfiguration-based provider (bridges ASP.NET Core configuration) |
 
 ### 🧪 Testing
 

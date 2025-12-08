@@ -48,7 +48,7 @@ jobs:
       dotnet-version: '10.0.x'
       configuration: 'Release'
       runs-on: 'ubuntu-latest'
-      project-path: 'HoneyDrunk.Vault/HoneyDrunk.Vault.sln'
+      project-path: 'HoneyDrunk.Vault/HoneyDrunk.Vault.slnx'
       enable-nuget-publish: true
       nuget-source: 'https://api.nuget.org/v3/index.json'
       actions-ref: 'main'

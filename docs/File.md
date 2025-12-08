@@ -28,6 +28,8 @@ File-based secret and configuration provider designed for local development and 
 - Debugging secret-related issues
 - Demonstration and prototyping
 
+**Provider Slot Architecture:** The File provider is a slot implementation of `ISecretProvider` and `IConfigSource`. `VaultCore` handles all orchestration (caching, retries, telemetry, fallback); File provider only supplies backend reads and configuration values. Applications inject `ISecretStore` and `IConfigProvider`, never the File provider directly.
+
 **⚠️ Warning:** Not recommended for production use. Use Azure Key Vault or AWS Secrets Manager for production.
 
 ---
@@ -89,15 +91,15 @@ public sealed class FileVaultOptions
 
     /// <summary>
     /// Whether to watch for file changes and reload.
-    /// Default: false
+    /// Default: true
     /// </summary>
-    public bool WatchForChanges { get; set; }
+    public bool WatchForChanges { get; set; } = true;
 
     /// <summary>
     /// Whether to create empty files if they don't exist.
-    /// Default: false
+    /// Default: true
     /// </summary>
-    public bool CreateIfNotExists { get; set; }
+    public bool CreateIfNotExists { get; set; } = true;
 }
 ```
 
@@ -128,6 +130,8 @@ public sealed class FileVaultOptions
 }
 ```
 
+**Path Scoping:** File provider does not support automatic scoping by tenant, node, or environment. File paths must be structured manually to avoid cross-environment collisions. See [VaultScope](Models.md) for core Vault scoping behavior.
+
 ---
 
 ## Features
@@ -141,6 +145,8 @@ options.WatchForChanges = true;
 ```
 
 This uses `FileSystemWatcher` to detect changes and reload the files.
+
+**Cache Behavior:** File reload updates the provider's internal dictionaries, but does not invalidate the Vault cache. Cached secrets remain until TTL expires or eviction occurs. Providers do not push invalidations into `VaultCore`—`SecretCache` manages its own eviction schedule.
 
 ### Automatic File Creation
 
@@ -164,14 +170,20 @@ Or using a key file:
 options.EncryptionKeyFilePath = "/path/to/key.txt";
 ```
 
+**Limitations:**
+- **Local only**: File provider encryption is a local-at-rest convenience. The encryption key is not managed by Vault and rotation is manual.
+- **No versioning integration**: Since File provider does not support versioned secrets, encrypted values also have no version metadata.
+
 ---
 
 ## FileSecretStore.cs
 
-File-based implementation of `ISecretStore` and `ISecretProvider`.
+File-based implementation of `ISecretProvider` (internal contract).
+
+**Provider Contract:** This class implements `ISecretProvider`, not `ISecretStore`. `ISecretStore` is the exported contract implemented by `VaultClient`. File provider participates in provider resolution alongside Azure/AWS providers.
 
 ```csharp
-public sealed class FileSecretStore : ISecretStore, ISecretProvider, IDisposable
+public sealed class FileSecretStore : ISecretProvider, IDisposable
 {
     public string ProviderName => "file";
     public bool IsAvailable => true;
@@ -196,6 +208,8 @@ public sealed class FileSecretStore : ISecretStore, ISecretProvider, IDisposable
 - Loads secrets from JSON file at startup
 - Optionally watches for file changes
 - Supports optional encryption for stored values
+- **Versioning:** File provider always returns a single implicit version. `ListSecretVersionsAsync` returns a single version placeholder to satisfy the interface.
+- **Health:** File provider always reports `IsAvailable = true`. Health failures (file access errors, JSON parse failures) are surfaced through `VaultOperationException`.
 
 ### Usage Example
 
@@ -217,7 +231,9 @@ public class DatabaseService(ISecretStore secretStore)
 
 ## FileConfigSource.cs
 
-File-based implementation of `IConfigSource`.
+File-based implementation of `IConfigSource` (internal contract).
+
+**Contract Boundary:** `IConfigSource` is raw string-based. Typed configuration retrieval is handled by Vault's `IConfigProvider`, not by `FileConfigSource` directly.
 
 ```csharp
 public sealed class FileConfigSource : IConfigSource, IDisposable
@@ -229,19 +245,12 @@ public sealed class FileConfigSource : IConfigSource, IDisposable
     public Task<string?> TryGetConfigValueAsync(
         string key,
         CancellationToken cancellationToken = default);
-
-    public Task<T> GetConfigValueAsync<T>(
-        string key,
-        CancellationToken cancellationToken = default);
-
-    public Task<T> TryGetConfigValueAsync<T>(
-        string key,
-        T defaultValue,
-        CancellationToken cancellationToken = default);
 }
 ```
 
 ### Usage Example
+
+**Layering:** Applications inject `IConfigProvider`, not `FileConfigSource`. Vault handles composition.
 
 ```csharp
 public class FeatureService(IConfigProvider configProvider)
@@ -269,6 +278,8 @@ project/
 ├── Program.cs
 └── ...
 ```
+
+**Per-Environment Files:** Many teams store per-environment secrets in subdirectories such as `secrets/dev-secrets.json`, `secrets/test-secrets.json`, and `secrets/prod-secrets.json`, but File provider itself does not enforce conventions. Structure file paths manually to match your deployment model.
 
 ### .gitignore
 

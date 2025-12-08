@@ -27,6 +27,9 @@ In-memory provider for unit testing and integration testing. Stores secrets and 
 - Local development
 - Mocking secret stores
 - Fast iteration
+- Testing provider fallback behavior
+
+**Provider Slot Architecture:** InMemory provider implements `ISecretProvider` and `IConfigSource` (internal contracts). `VaultCore` implements `ISecretStore` and `IConfigProvider` (exported contracts). Applications inject `ISecretStore`/`IConfigProvider`, never the provider directly.
 
 **⚠️ Warning:** Not for production use. All data is lost on application restart.
 
@@ -49,12 +52,12 @@ using HoneyDrunk.Vault.Providers.InMemory.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddVaultWithInMemory(options =>
+builder.Services.AddVaultInMemory(options =>
 {
-    options.SetSecret("database-connection", "Server=localhost;Database=test;");
-    options.SetSecret("api-key", "test-api-key-12345");
-    options.SetConfig("logging:level", "Debug");
-    options.SetConfig("cache:enabled", "true");
+    options.AddSecret("database-connection", "Server=localhost;Database=test;");
+    options.AddSecret("api-key", "test-api-key-12345");
+    options.AddConfigValue("logging:level", "Debug");
+    options.AddConfigValue("cache:enabled", "true");
 });
 
 var app = builder.Build();
@@ -73,17 +76,17 @@ public sealed class InMemoryVaultOptions
     /// <summary>
     /// Pre-configured configuration values.
     /// </summary>
-    public Dictionary<string, string> Config { get; }
+    public Dictionary<string, string> ConfigurationValues { get; }
 
     /// <summary>
-    /// Sets a secret value.
+    /// Adds a secret value.
     /// </summary>
-    public void SetSecret(string key, string value);
+    public InMemoryVaultOptions AddSecret(string name, string value);
 
     /// <summary>
-    /// Sets a configuration value.
+    /// Adds a configuration value.
     /// </summary>
-    public void SetConfig(string key, string value);
+    public InMemoryVaultOptions AddConfigValue(string key, string value);
 }
 ```
 
@@ -91,10 +94,12 @@ public sealed class InMemoryVaultOptions
 
 ## InMemorySecretStore.cs
 
-In-memory implementation of `ISecretStore` and `ISecretProvider`.
+In-memory implementation of `ISecretProvider` (internal contract).
+
+**Provider Contract:** This class implements `ISecretProvider`, not `ISecretStore`. `ISecretStore` is the exported contract implemented by `VaultClient`. InMemory provider participates in provider resolution and caching orchestration.
 
 ```csharp
-public sealed class InMemorySecretStore : ISecretStore, ISecretProvider
+public sealed class InMemorySecretStore : ISecretProvider
 {
     public string ProviderName => "in-memory";
     public bool IsAvailable => true;
@@ -105,7 +110,7 @@ public sealed class InMemorySecretStore : ISecretStore, ISecretProvider
         ConcurrentDictionary<string, string> secrets,
         ILogger<InMemorySecretStore> logger);
 
-    // ISecretStore implementation
+    // ISecretProvider implementation
     public Task<SecretValue> GetSecretAsync(
         SecretIdentifier identifier,
         CancellationToken cancellationToken = default);
@@ -127,37 +132,55 @@ public sealed class InMemorySecretStore : ISecretStore, ISecretProvider
 - **Runtime updates** via `SetSecret`, `RemoveSecret`, `Clear`
 - **Grid context support** for distributed tracing
 - **No external dependencies**
+- **Deterministic**: InMemory provider never throws `VaultOperationException`. Failures come only from missing keys (`SecretNotFoundException`) or explicit test errors.
+- **Provider availability**: InMemory provider always reports availability and is always selected when enabled, unless a higher-priority provider is configured in `VaultOptions`.
+- **Versioning**: InMemory provider always returns a single implicit version placeholder when `ListSecretVersionsAsync` is called. This satisfies the interface contract but does not represent real version history.
+- **GridContext propagation**: InMemory provider forwards `GridContext` into `VaultTelemetry` so test environments maintain correlation IDs and activity traces.
 
 ### Usage Example
 
-```csharp
-// Create with initial secrets
-var secrets = new ConcurrentDictionary<string, string>();
-secrets["api-key"] = "test-key";
-secrets["db-password"] = "test-password";
+**Proper DI Layering:** Applications should resolve `ISecretStore` through DI, not instantiate providers directly. Direct instantiation is only appropriate when testing provider implementations themselves.
 
-var store = new InMemorySecretStore(secrets, logger);
+```csharp
+// ✅ Correct: Use DI to resolve ISecretStore
+var services = new ServiceCollection();
+services.AddVaultCore();
+services.AddVaultInMemory(options =>
+{
+    options.AddSecret("api-key", "test-key");
+    options.AddSecret("db-password", "test-password");
+});
+
+var provider = services.BuildServiceProvider();
+var secretStore = provider.GetRequiredService<ISecretStore>();
 
 // Retrieve secret
-var secret = await store.GetSecretAsync(
+var secret = await secretStore.GetSecretAsync(
     new SecretIdentifier("api-key"),
     ct);
 
-// Update at runtime
-store.SetSecret("new-key", "new-value");
+// ❌ Avoid: Direct provider instantiation (bypasses VaultCore orchestration)
+// var store = new InMemorySecretStore(secrets, logger);
+```
 
-// Remove at runtime
-store.RemoveSecret("old-key");
+**Runtime Updates:**
 
-// Clear all
-store.Clear();
+```csharp
+// Runtime updates (testing scenarios only)
+var inMemoryProvider = provider.GetRequiredService<InMemorySecretStore>();
+inMemoryProvider.SetSecret("new-key", "new-value");
+
+// Note: Runtime updates do not invalidate the Vault cache.
+// Cached values remain until TTL expires.
 ```
 
 ---
 
 ## InMemoryConfigSource.cs
 
-In-memory implementation of `IConfigSource`.
+In-memory implementation of `IConfigSource` (internal contract).
+
+**Contract Boundary:** `IConfigSource` provides raw configuration values (string-based). Typed conversion is performed by `IConfigProvider`, not by this provider. `VaultCore` wires `IConfigSource` into `IConfigProvider` via `ConfigSourceAdapter`.
 
 ```csharp
 public sealed class InMemoryConfigSource : IConfigSource
@@ -168,19 +191,18 @@ public sealed class InMemoryConfigSource : IConfigSource
         ConcurrentDictionary<string, string> config,
         ILogger<InMemoryConfigSource> logger);
 
-    // IConfigSource implementation
+    // IConfigSource implementation (raw string-based)
     public Task<string> GetConfigValueAsync(
         string key,
         CancellationToken cancellationToken = default);
 
-    public Task<T> TryGetConfigValueAsync<T>(
+    public Task<string?> TryGetConfigValueAsync(
         string key,
-        T defaultValue,
         CancellationToken cancellationToken = default);
 
     // Runtime modification
-    public void SetConfig(string key, string value);
-    public bool RemoveConfig(string key);
+    public void SetConfigValue(string key, string value);
+    public bool RemoveConfigValue(string key);
     public void Clear();
 }
 ```
@@ -195,10 +217,16 @@ public sealed class InMemoryConfigSource : IConfigSource
 [Fact]
 public async Task MyService_GetDatabase_ReturnsConnection()
 {
-    // Arrange
-    var logger = NullLogger<InMemorySecretStore>.Instance;
-    var secretStore = new InMemorySecretStore(logger);
-    secretStore.SetSecret("db-connection", "Server=test;Database=testdb;");
+    // Arrange - Use DI to resolve ISecretStore
+    var services = new ServiceCollection();
+    services.AddVaultCore();
+    services.AddVaultInMemory(options =>
+    {
+        options.AddSecret("db-connection", "Server=test;Database=testdb;");
+    });
+
+    var provider = services.BuildServiceProvider();
+    var secretStore = provider.GetRequiredService<ISecretStore>();
     
     var service = new MyService(secretStore);
 
@@ -212,6 +240,8 @@ public async Task MyService_GetDatabase_ReturnsConnection()
 
 ### Integration Test Setup
 
+**Provider Precedence:** When multiple providers are registered, provider resolution follows priority order (see `VaultOptions.Providers`). In integration tests, replace all other provider registrations to avoid provider fallback behavior interfering with results.
+
 ```csharp
 public class MyServiceIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -223,11 +253,15 @@ public class MyServiceIntegrationTests : IClassFixture<WebApplicationFactory<Pro
         {
             builder.ConfigureServices(services =>
             {
-                // Replace real vault with in-memory
-                services.AddVaultWithInMemory(options =>
+                // Remove existing providers to avoid precedence issues
+                services.RemoveAll<ISecretProvider>();
+                services.RemoveAll<IConfigSource>();
+
+                // Replace with in-memory for testing
+                services.AddVaultInMemory(options =>
                 {
-                    options.SetSecret("api-key", "test-key");
-                    options.SetConfig("timeout", "5");
+                    options.AddSecret("api-key", "test-key");
+                    options.AddConfigValue("timeout", "5");
                 });
             });
         });
@@ -253,29 +287,32 @@ public class MyServiceIntegrationTests : IClassFixture<WebApplicationFactory<Pro
 ```csharp
 public static class TestVaultHelper
 {
-    public static InMemorySecretStore CreateSecretStore(
+    public static ISecretStore CreateSecretStore(
         params (string key, string value)[] secrets)
     {
-        var store = new InMemorySecretStore(
-            NullLogger<InMemorySecretStore>.Instance);
-
-        foreach (var (key, value) in secrets)
+        var services = new ServiceCollection();
+        services.AddVaultCore();
+        services.AddVaultInMemory(options =>
         {
-            store.SetSecret(key, value);
-        }
+            foreach (var (key, value) in secrets)
+            {
+                options.AddSecret(key, value);
+            }
+        });
 
-        return store;
+        var provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<ISecretStore>();
     }
 
     public static IServiceCollection AddTestVault(
         this IServiceCollection services,
         params (string key, string value)[] secrets)
     {
-        services.AddVaultWithInMemory(options =>
+        services.AddVaultInMemory(options =>
         {
             foreach (var (key, value) in secrets)
             {
-                options.SetSecret(key, value);
+                options.AddSecret(key, value);
             }
         });
 
@@ -312,36 +349,84 @@ public async Task MyService_WhenSecretMissing_ThrowsException()
 }
 ```
 
+### Simulating Provider Failure
+
+InMemory provider is ideal for testing provider fallback behavior:
+
+```csharp
+[Fact]
+public async Task VaultClient_WhenPrimaryProviderUnavailable_FallsBackToSecondary()
+{
+    // Arrange - Configure multiple providers
+    var services = new ServiceCollection();
+    services.AddVaultCore();
+    services.AddVaultInMemory(options =>
+    {
+        options.AddSecret("api-key", "primary-value");
+    });
+    services.AddVaultInMemory(options => // Secondary provider
+    {
+        options.AddSecret("api-key", "fallback-value");
+    });
+
+    var provider = services.BuildServiceProvider();
+    var inMemoryProvider = provider.GetServices<ISecretProvider>()
+        .OfType<InMemorySecretStore>()
+        .First();
+
+    // Simulate primary provider failure
+    inMemoryProvider.IsAvailable = false;
+
+    var secretStore = provider.GetRequiredService<ISecretStore>();
+
+    // Act - Vault should fall back to secondary provider
+    var secret = await secretStore.GetSecretAsync(
+        new SecretIdentifier("api-key"),
+        CancellationToken.None);
+
+    // Assert
+    Assert.Equal("fallback-value", secret.Value);
+}
+```
+
 ### Reset Between Tests
 
 ```csharp
 public class SecretStoreTests : IDisposable
 {
-    private readonly InMemorySecretStore _store;
+    private readonly IServiceProvider _provider;
+    private readonly ISecretStore _store;
+    private readonly InMemorySecretStore _inMemoryProvider;
 
     public SecretStoreTests()
     {
-        _store = new InMemorySecretStore(
-            NullLogger<InMemorySecretStore>.Instance);
+        var services = new ServiceCollection();
+        services.AddVaultCore();
+        services.AddVaultInMemory();
+
+        _provider = services.BuildServiceProvider();
+        _store = _provider.GetRequiredService<ISecretStore>();
+        _inMemoryProvider = _provider.GetRequiredService<InMemorySecretStore>();
     }
 
     [Fact]
     public async Task Test1()
     {
-        _store.SetSecret("key1", "value1");
+        _inMemoryProvider.SetSecret("key1", "value1");
         // ... test
     }
 
     [Fact]
     public async Task Test2()
     {
-        _store.SetSecret("key2", "value2");
+        _inMemoryProvider.SetSecret("key2", "value2");
         // ... test (isolated from Test1)
     }
 
     public void Dispose()
     {
-        _store.Clear();
+        _inMemoryProvider.Clear();
+        (_provider as IDisposable)?.Dispose();
     }
 }
 ```

@@ -19,7 +19,9 @@
 
 HoneyDrunk.Vault follows a layered architecture that separates abstractions from implementations, enabling provider-agnostic secret and configuration access.
 
-**Location:** Solution-wide architecture
+**Location:** `HoneyDrunk.Vault/docs/Architecture.md`
+
+**Scope:** Node-level architecture for HoneyDrunk.Vault and its provider packages
 
 The core library (`HoneyDrunk.Vault`) contains abstractions and orchestration logic, while provider packages (`HoneyDrunk.Vault.Providers.*`) implement backend-specific access.
 
@@ -41,36 +43,44 @@ The core library (`HoneyDrunk.Vault`) contains abstractions and orchestration lo
 ┌─────────────────────────────────────────────────────────────────────┐
 │                     HoneyDrunk.Vault (Core)                         │
 │  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                      IVaultClient                            │    │
-│  │   ┌─────────────────┐  ┌─────────────────────────────────┐  │    │
-│  │   │  VaultClient    │  │      VaultTelemetry             │  │    │
-│  │   │  (Orchestrator) │  │      (Activity Tracing)         │  │    │
-│  │   └────────┬────────┘  └─────────────────────────────────┘  │    │
-│  │            │                                                 │    │
-│  │   ┌────────▼────────┐  ┌─────────────────────────────────┐  │    │
-│  │   │  SecretCache    │  │     VaultResilienceOptions      │  │    │
-│  │   │  (TTL/Size)     │  │     (Retry/CircuitBreaker)      │  │    │
-│  │   └────────┬────────┘  └─────────────────────────────────┘  │    │
-│  │            │                                                 │    │
-│  │   ┌────────▼────────────────────────────────────────────┐   │    │
-│  │   │              ISecretStore / IConfigSource            │   │    │
-│  │   │                    (Abstractions)                    │   │    │
-│  │   └──────────────────────────┬───────────────────────────┘   │    │
-│  └──────────────────────────────┼───────────────────────────────┘    │
+│  │         ISecretStore / IConfigProvider (Exported)           │    │
+│  │              (Primary contracts for apps)                   │    │
+│  └──────────────────────────┬───────────────────────────────────┘    │
+│                             │                                        │
+│  ┌──────────────────────────▼───────────────────────────────────┐   │
+│  │         IVaultClient (Internal Orchestrator)                 │   │
+│  │         (Infrastructure components only)                     │   │
+│  │   ┌─────────────────┐  ┌─────────────────────────────────┐  │   │
+│  │   │  VaultClient    │  │      VaultTelemetry             │  │   │
+│  │   │  (Orchestrator) │  │      (Activity Tracing)         │  │   │
+│  │   └────────┬────────┘  └─────────────────────────────────┘  │   │
+│  │            │                                                 │   │
+│  │   ┌────────▼────────┐  ┌─────────────────────────────────┐  │   │
+│  │   │  SecretCache    │  │     VaultResilienceOptions      │  │   │
+│  │   │  (TTL/Size)     │  │     (Retry/CircuitBreaker)      │  │   │
+│  │   └────────┬────────┘  └─────────────────────────────────┘  │   │
+│  │            │                                                 │   │
+│  │   ┌────────▼────────────────────────────────────────────┐   │   │
+│  │   │     ISecretProvider / IConfigSource (Internal)      │   │   │
+│  │   │            (Provider implementations)               │   │   │
+│  │   └──────────────────────────┬───────────────────────────┘   │   │
+│  └──────────────────────────────┼───────────────────────────────┘   │
 └─────────────────────────────────┼───────────────────────────────────┘
                                   │
-           ┌──────────────────────┼──────────────────────┐
-           │                      │                      │
-           ▼                      ▼                      ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Providers     │    │   Providers     │    │   Providers     │
-│   .File         │    │   .AzureKeyVault│    │   .Aws          │
-├─────────────────┤    ├─────────────────┤    ├─────────────────┤
-│FileSecretStore  │    │AzureKeyVault    │    │AwsSecrets       │
-│FileConfigSource │    │SecretStore      │    │ManagerSecret    │
-│                 │    │AzureKeyVault    │    │Store            │
-│                 │    │ConfigSource     │    │                 │
-└────────┬────────┘    └────────┬────────┘    └────────┬────────┘
+           ┌──────────────────────┼──────────────────────┬──────────┬──────────┐
+           │                      │                      │          │          │
+           ▼                      ▼                      ▼          ▼          ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┬──────────┬──────────┐
+│   Providers     │    │   Providers     │    │   Providers     │Providers │Providers │
+│   .File         │    │   .AzureKeyVault│    │   .Aws          │.InMemory │.Config   │
+├─────────────────┤    ├─────────────────┤    ├─────────────────┼──────────┼──────────┤
+│FileSecretStore  │    │AzureKeyVault    │    │AwsSecrets       │InMemory  │Config    │
+│FileConfigSource │    │SecretStore      │    │ManagerSecret    │Secret    │Secret    │
+│                 │    │AzureKeyVault    │    │Store            │Store     │Store     │
+│                 │    │ConfigSource     │    │                 │InMemory  │Config    │
+│                 │    │                 │    │                 │Config    │Config    │
+│                 │    │                 │    │                 │Source    │Source    │
+└────────┬────────┘    └────────┬────────┘    └────────┬────────┴──────────┴──────────┘
          │                      │                      │
          ▼                      ▼                      ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -114,27 +124,45 @@ HoneyDrunk.Vault.Providers.Configuration
     └── Microsoft.Extensions.Configuration.Abstractions
 ```
 
+**Grid-Level Dependency Note:**
+
+At the Grid level, Vault consumes the `HoneyDrunk.Kernel` Node for lifecycle, health, and context. At the package level, Vault depends only on `HoneyDrunk.Kernel.Abstractions`. The full Kernel package is referenced in the hosting application, not inside Vault or its providers.
+
 ### Interface Hierarchy
 
+**Exported Contracts (Application Layer):**
 ```
-IVaultClient (Unified Orchestrator)
+ISecretStore (Primary secret access, exported)
+    └── Used by application code for secrets
+
+IConfigProvider (Typed config access, exported)
+    └── Used by application code for configuration
+```
+
+**Internal Orchestration:**
+```
+IVaultClient (Unified Orchestrator, internal)
     │
-    ├── Uses ISecretStore (Primary Secret Access)
-    │       │
-    │       └── Implemented by Providers
-    │               ├── FileSecretStore
-    │               ├── AzureKeyVaultSecretStore
-    │               ├── AwsSecretsManagerSecretStore
-    │               ├── InMemorySecretStore
-    │               └── ConfigurationSecretStore
-    │
-    └── Uses IConfigSource (Configuration Access)
-            │
-            └── Implemented by Providers
-                    ├── FileConfigSource
-                    ├── AzureKeyVaultConfigSource
-                    ├── InMemoryConfigSource
-                    └── ConfigurationConfigSource
+    ├── Uses ISecretStore (exported contract)
+    └── Uses IConfigProvider (exported contract)
+```
+
+**Provider Implementations (Internal):**
+```
+ISecretProvider (Internal provider contract)
+    └── Implemented by providers:
+            ├── FileSecretStore (also implements ISecretStore for off-grid usage)
+            ├── AzureKeyVaultSecretStore
+            ├── AwsSecretsManagerSecretStore
+            ├── InMemorySecretStore
+            └── ConfigurationSecretStore
+
+IConfigSource (Internal provider contract)
+    └── Implemented by providers:
+            ├── FileConfigSource
+            ├── AzureKeyVaultConfigSource
+            ├── InMemoryConfigSource
+            └── ConfigurationConfigSource
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -172,8 +200,15 @@ builder.Services.AddVault(options =>
    └── No: Try next provider in order
 
 3. If no providers available
-   └── Throw InvalidOperationException
+   └── Throw VaultOperationException
 ```
+
+**Provider Availability:**
+
+A provider is considered available if:
+- It is enabled by configuration
+- Its basic connectivity check passes (credentials present, endpoint reachable)
+- Its circuit breaker is not permanently open for this operation type
 
 ### Example Resolution
 
@@ -242,14 +277,22 @@ options.Cache.SlidingExpiration = TimeSpan.FromMinutes(5); // Sliding window
 
 ```csharp
 // Cache key format:
-// "{SecretName}:{Version}"
+// "{Scope}:{SecretName}:{Version}"
 // or
-// "{SecretName}" (if no version)
+// "{Scope}:{SecretName}" (if no version)
+//
+// Scope includes environment/tenant/node context
+// to prevent cache collisions across contexts
 
+var scopePrefix = scope?.ToString() ?? "default";
 var key = identifier.Version != null
-    ? $"{identifier.Name}:{identifier.Version}"
-    : identifier.Name;
+    ? $"{scopePrefix}:{identifier.Name}:{identifier.Version}"
+    : $"{scopePrefix}:{identifier.Name}";
 ```
+
+**Rotation Friendliness:**
+
+Cache TTLs should be configured relative to secret rotation cadence. Rotation friendliness is a design goal—Vault does not cache indefinitely and never bypasses provider checks for rotation-sensitive keys.
 
 [↑ Back to top](#table-of-contents)
 
@@ -265,7 +308,7 @@ Application Startup
         ▼
 ┌───────────────────────────────────────────┐
 │  IStartupHook: VaultStartupHook           │
-│  Priority: 100                            │
+│  (Runs after core Kernel initialization)  │
 │                                           │
 │  1. Validate provider configuration       │
 │  2. Check enabled providers               │
@@ -292,6 +335,10 @@ Application Startup
 │  - Health check secret status             │
 └───────────────────────────────────────────┘
 ```
+
+**Kernel Contract Integration:**
+
+All of these components implement Kernel's standard contracts (`IStartupHook`, `IReadinessContributor`, `IHealthContributor`), so Vault plugs into the same health and lifecycle pipeline as other Nodes. Vault does not invent its own health system—it integrates with Kernel's existing observability infrastructure.
 
 ### Health Check Flow
 

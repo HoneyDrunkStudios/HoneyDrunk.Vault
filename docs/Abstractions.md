@@ -17,17 +17,28 @@
 
 ## Overview
 
-Core contracts that define the vault abstraction layer. These interfaces enable provider-agnostic secret and configuration access.
+Core contracts for Vault, split into exported and internal:
+
+**Exported** for other Nodes and app code:
+- **`ISecretStore`** — Primary secret access
+- **`IConfigProvider`** — Typed configuration access
+
+**Internal** to Vault and provider packages:
+- **`ISecretProvider`** — Backend-specific secret provider
+- **`IConfigSource`** — Raw configuration source
+- **`IVaultClient`** — Internal orchestrator
 
 **Location:** `HoneyDrunk.Vault/Abstractions/`
 
-All providers implement these interfaces, allowing applications to swap backends without changing business logic.
+Providers implement the internal interfaces. Applications and other Nodes depend only on the exported ones.
 
 ---
 
 ## ISecretStore.cs
 
-Primary interface for secret access. This is the main interface applications should depend on.
+**Exported Contract**
+
+Primary interface for secret access. This is one of Vault's exported contracts and the main interface application and Node code should depend on.
 
 ```csharp
 public interface ISecretStore
@@ -103,7 +114,11 @@ public class DatabaseService(ISecretStore secretStore)
 
 ## ISecretProvider.cs
 
+**Internal Contract**
+
 Backend-specific provider interface. Implementations provide access to specific secret stores (File, Azure KV, AWS, etc.).
+
+**Note:** `IsAvailable` is a cheap, config-based check (credentials present, enabled flag). `CheckHealthAsync` is a deeper check, potentially involving remote calls, used by health contributors.
 
 ```csharp
 public interface ISecretProvider
@@ -151,7 +166,8 @@ public interface ISecretProvider
 ### Usage Example
 
 ```csharp
-// Providers implement both ISecretStore and ISecretProvider
+// Example provider that implements both ISecretStore and ISecretProvider for off-grid scenarios.
+// In practice, providers may implement only ISecretProvider and let Vault core own the ISecretStore facade.
 public sealed class AzureKeyVaultSecretStore : ISecretStore, ISecretProvider
 {
     public string ProviderName => "azure-key-vault";
@@ -192,7 +208,9 @@ public sealed class AzureKeyVaultSecretStore : ISecretStore, ISecretProvider
 
 ## IConfigSource.cs
 
-Raw configuration access interface. Provides string-based configuration retrieval.
+**Internal Contract**
+
+Raw configuration access for provider implementations and internal adapters. Not intended for injection into application services; app code should use `IConfigProvider`.
 
 ```csharp
 public interface IConfigSource
@@ -232,24 +250,17 @@ public interface IConfigSource
 ### Usage Example
 
 ```csharp
-public class FeatureService(IConfigSource configSource)
+// Internal adapter example: ConfigSourceAdapter wraps IConfigSource to provide IConfigProvider
+internal sealed class ConfigSourceAdapter(IConfigSource configSource) : IConfigProvider
 {
-    public async Task<int> GetTimeoutAsync(CancellationToken ct)
+    public async Task<string> GetValueAsync(string key, CancellationToken ct)
     {
-        // Get typed value with default
-        return await configSource.TryGetConfigValueAsync<int>(
-            "operation-timeout-seconds",
-            defaultValue: 30,
-            ct);
+        return await configSource.GetConfigValueAsync(key, ct);
     }
 
-    public async Task<bool> IsFeatureEnabledAsync(string feature, CancellationToken ct)
+    public async Task<T> GetValueAsync<T>(string key, T defaultValue, CancellationToken ct)
     {
-        var value = await configSource.TryGetConfigValueAsync(
-            $"feature:{feature}",
-            ct);
-        
-        return bool.TryParse(value, out var enabled) && enabled;
+        return await configSource.TryGetConfigValueAsync(key, defaultValue, ct);
     }
 }
 ```
@@ -260,7 +271,9 @@ public class FeatureService(IConfigSource configSource)
 
 ## IConfigProvider.cs
 
-Typed configuration access interface. Provides strongly-typed configuration retrieval with better error handling.
+**Exported Contract**
+
+Typed configuration access interface. This is Vault's exported configuration contract. Application and Node code should inject this rather than `IConfigSource`.
 
 ```csharp
 public interface IConfigProvider
@@ -277,7 +290,7 @@ public interface IConfigProvider
     /// Gets a typed configuration value with a default fallback.
     /// </summary>
     Task<T> GetValueAsync<T>(
-        string path, 
+        string key, 
         T defaultValue, 
         CancellationToken cancellationToken = default);
 
@@ -331,7 +344,9 @@ public class AppSettingsService(IConfigProvider configProvider)
 
 ## IVaultClient.cs
 
-Unified orchestrator interface. Combines secret and configuration access in a single facade.
+**Internal Contract**
+
+Unified orchestrator interface used by Vault core and infrastructure components. Application and business code should depend on `ISecretStore` and `IConfigProvider` instead.
 
 ```csharp
 public interface IVaultClient
@@ -369,30 +384,52 @@ public interface IVaultClient
 }
 ```
 
-### Usage Example
+### Usage Example - Infrastructure Only
 
 ```csharp
-public class PaymentService(IVaultClient vaultClient)
+// Infrastructure component example - NOT business logic
+// Business logic should inject ISecretStore and IConfigProvider separately
+internal sealed class VaultBootstrapHelper(IVaultClient vaultClient, ILogger logger)
+{
+    public async Task WarmupCriticalResourcesAsync(CancellationToken ct)
+    {
+        // Infrastructure code can use IVaultClient for convenience
+        // when it needs both secrets and config
+        
+        var dbSecret = await vaultClient.GetSecretAsync(
+            new SecretIdentifier("database-connection"),
+            ct);
+        logger.LogInformation("Warmed up database secret");
+        
+        var maxConnections = await vaultClient.TryGetConfigValueAsync<int>(
+            "database:max-connections",
+            defaultValue: 100,
+            ct);
+        logger.LogInformation("Max connections: {MaxConnections}", maxConnections);
+    }
+}
+
+// Preferred pattern for business logic:
+public class PaymentService(ISecretStore secretStore, IConfigProvider configProvider)
 {
     public async Task ProcessPaymentAsync(Payment payment, CancellationToken ct)
     {
-        // Get API key secret
-        var apiKeySecret = await vaultClient.GetSecretAsync(
+        // Get API key secret via ISecretStore
+        var apiKeySecret = await secretStore.GetSecretAsync(
             new SecretIdentifier("payment-gateway-api-key"),
             ct);
         
-        // Get configuration
-        var timeout = await vaultClient.TryGetConfigValueAsync<int>(
+        // Get configuration via IConfigProvider
+        var timeout = await configProvider.GetValueAsync(
             "payment:timeout-seconds",
             defaultValue: 30,
             ct);
         
-        var maxRetries = await vaultClient.TryGetConfigValueAsync<int>(
+        var maxRetries = await configProvider.GetValueAsync(
             "payment:max-retries",
             defaultValue: 3,
             ct);
 
-        // Process payment with retrieved credentials and config
         await ProcessWithGateway(payment, apiKeySecret.Value, timeout, maxRetries, ct);
     }
 }
@@ -406,13 +443,13 @@ public class PaymentService(IVaultClient vaultClient)
 
 The abstractions layer provides a clean separation between vault operations and backend implementations:
 
-| Interface | Purpose | Use Case |
-|-----------|---------|----------|
-| `ISecretStore` | Primary secret access | Application services needing secrets |
-| `ISecretProvider` | Backend implementation | Provider implementations |
-| `IConfigSource` | Raw config access | Simple string configuration |
-| `IConfigProvider` | Typed config access | Strongly-typed settings |
-| `IVaultClient` | Unified orchestrator | Combined secret + config access |
+| Interface | Purpose | Use Case | Scope |
+|-----------|---------|----------|-------|
+| `ISecretStore` | Primary secret access | Application and Node services needing secrets | **Exported** |
+| `IConfigProvider` | Typed config access | Strongly-typed settings and feature flags | **Exported** |
+| `ISecretProvider` | Backend secret access | Provider implementations | **Internal** |
+| `IConfigSource` | Raw config source | Provider implementations and adapters | **Internal** |
+| `IVaultClient` | Unified orchestrator | Vault core or infra components only | **Internal** |
 
 ---
 

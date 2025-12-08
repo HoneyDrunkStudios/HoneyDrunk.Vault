@@ -22,6 +22,19 @@ Domain models that represent secrets, configuration, and operation results. Thes
 
 **Location:** `HoneyDrunk.Vault/Models/`
 
+**Pure Models:** None of these models perform validation, provider resolution, access control, or caching. Those responsibilities belong to `VaultClient` and provider implementations.
+
+**Relationship Diagram:**
+```
+SecretIdentifier  →  SecretValue
+        │                  │
+        ├───────────────┬──┘
+                        ▼
+                   ISecretProvider
+                        ▼
+                   VaultResult<T>
+```
+
 ---
 
 ## SecretIdentifier.cs
@@ -52,6 +65,8 @@ public sealed record SecretIdentifier
     public string? Version { get; }
 }
 ```
+
+**Provider Semantics:** Secret identifiers are logical names. `SecretIdentifier` does not encode provider routing—provider selection happens at runtime in `VaultClient` based on `VaultOptions`. Providers decide how to interpret identifiers (prefix, hierarchy, naming conventions).
 
 ### Usage Example
 
@@ -106,6 +121,10 @@ public sealed record SecretValue
 }
 ```
 
+**Version Resolution:** The `Version` on `SecretValue` always reflects the actual resolved version from the backend, which may differ from the version requested in `SecretIdentifier`. When requesting latest (null version), providers populate `SecretValue.Version` with the backend's version identifier.
+
+**Security:** `SecretValue.Value` must never be written to logs, traces, metrics, or exception messages. This is enforced by convention, not by type system.
+
 ### Usage Example
 
 ```csharp
@@ -150,6 +169,13 @@ public sealed record SecretVersion
     public DateTimeOffset CreatedOn { get; }
 }
 ```
+
+**Version Ordering:** Vault does not enforce any version ordering semantics. Providers decide ordering rules:
+- **Azure Key Vault**: GUID-based versions (no inherent order)
+- **AWS Secrets Manager**: Staging labels (`AWSCURRENT`, `AWSPREVIOUS`)
+- **File Provider**: Single implicit version (no version history)
+
+Consumers should sort by `CreatedOn` when chronological ordering is needed.
 
 ### Usage Example
 
@@ -257,6 +283,10 @@ public sealed class VaultResult<T>
 }
 ```
 
+**Non-throwing Pattern:** `VaultResult<T>` is the non-throwing path. `Try*` methods always return `VaultResult`, never throw exceptions (except for catastrophic failures like `ArgumentNullException`).
+
+**Internal Wrapper:** `VaultResult<T>` is an internal operational wrapper and is not intended to be serialized or surfaced outside the node boundary. Do not expose `VaultResult` in public APIs or log its contents (which may contain secret names).
+
 ### Usage Example
 
 ```csharp
@@ -325,6 +355,10 @@ public sealed record VaultScope
     public string? Node { get; }
 }
 ```
+
+**Kernel Integration:** `VaultScope` is typically populated from Kernel's `GridContext` and `NodeContext`, not constructed manually by application code. Scopes are derived from Kernel context to ensure consistency with telemetry, identity, and operation context.
+
+**Provider Scoping:** `VaultScope` does not directly participate in provider routing unless the provider opts into scoping (e.g., Azure's hierarchical naming, AWS prefixes). Scope is a representation, not a routing mechanism.
 
 ### Usage Example
 

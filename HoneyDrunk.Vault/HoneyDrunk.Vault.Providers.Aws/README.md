@@ -1,19 +1,18 @@
 # HoneyDrunk.Vault.Providers.Aws
 
-AWS Secrets Manager provider for HoneyDrunk.Vault. **Recommended for AWS-hosted applications.**
+AWS Secrets Manager provider for HoneyDrunk.Vault. **Recommended for AWS hosted applications.**
 
 ## Overview
 
-This provider integrates with AWS Secrets Manager for enterprise-grade secret management. Perfect for production workloads running on AWS.
+This provider integrates HoneyDrunk.Vault with AWS Secrets Manager. It lets you use the Vault abstractions (`ISecretStore`, `IConfigProvider`, `SecretIdentifier`, `SecretValue`) while actually storing secrets in AWS.
 
 **Features:**
-- IAM role-based authentication (recommended for production)
-- EC2 instance profile support
-- ECS task role support
-- Access key authentication (for local development)
-- Automatic secret versioning
-- Cross-region replication
-- Automatic secret rotation support
+- IAM role based authentication (recommended for production)
+- EC2 instance profile and ECS task role support
+- Optional access key authentication for local development
+- Secret prefixing by environment or application
+- Versioned secrets and rollback
+- Works with Vault caching, resilience and telemetry
 
 ## Installation
 
@@ -24,15 +23,15 @@ dotnet add package HoneyDrunk.Vault.Providers.Aws
 ## Prerequisites
 
 - AWS account
-- AWS Secrets Manager service available in your region
-- Either:
+- AWS Secrets Manager available in your region
+- One of:
   - IAM role with Secrets Manager permissions (recommended)
-  - AWS Access Keys with appropriate permissions
-  - EC2 instance profile
+  - EC2 instance profile or ECS task role
+  - AWS access keys with least privilege for local development
 
 ## Quick Start
 
-### Using IAM Role (Recommended)
+### Using IAM Role or Instance Profile (Recommended)
 
 ```csharp
 using HoneyDrunk.Vault.Providers.Aws.Extensions;
@@ -42,53 +41,77 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddVaultWithAwsSecretsManager(options =>
 {
     options.Region = "us-east-1";
-    options.UseInstanceProfile = true;
     options.SecretPrefix = "prod/myapp/";
+    // Uses default AWS credential chain (instance profile, env vars, etc.)
 });
 
 var app = builder.Build();
 ```
 
-### Using Access Keys
+**With this configuration:**
+- `new SecretIdentifier("db-connection-string")` will resolve to the AWS secret named `prod/myapp/db-connection-string`
+- Credentials are resolved from the default AWS credential chain for the instance or task
+
+### Using Named Profile (Local Development)
 
 ```csharp
 builder.Services.AddVaultWithAwsSecretsManager(options =>
 {
-    options.Region = "us-east-1";
-    options.AccessKeyId = "AKIAIOSFODNN7EXAMPLE";
-    // SecretAccessKey should come from configuration, not hardcoded
-    options.UseInstanceProfile = false;
+    options.Region = builder.Configuration["AWS:Region"];
+    options.ProfileName = "my-dev-profile"; // Uses named profile from ~/.aws/credentials
+    options.SecretPrefix = "dev/myapp/";
 });
 ```
 
-### Using EC2 Instance Profile
-
-```csharp
-builder.Services.AddVaultWithAwsSecretsManager(options =>
-{
-    options.Region = "us-east-1";
-    options.UseInstanceProfile = true;
-});
-```
+**Avoid hardcoding access keys in code.** Use user secrets, environment variables or local config instead.
 
 ## Configuration Options
 
-### AwsSecretsManagerOptions
-
 ```csharp
-public class AwsSecretsManagerOptions
+public sealed class AwsSecretsManagerOptions
 {
+    /// <summary>
+    /// AWS region where secrets are stored, for example "us-east-1".
+    /// If not specified, uses the default region from AWS configuration.
+    /// </summary>
     public string? Region { get; set; }
-    public string? AccessKeyId { get; set; }
-    public bool UseInstanceProfile { get; set; } = true;
-    public string? SecretPrefix { get; set; }
+
+    /// <summary>
+    /// The profile name for AWS credentials.
+    /// If not specified, uses the default credential chain.
+    /// </summary>
+    public string? ProfileName { get; set; }
+
+    /// <summary>
+    /// Optional custom service URL for Secrets Manager.
+    /// Useful for local development with LocalStack or VPC endpoints.
+    /// </summary>
     public string? ServiceUrl { get; set; }
+
+    /// <summary>
+    /// Optional prefix for secret names, for example "prod/myapp/".
+    /// </summary>
+    public string? SecretPrefix { get; set; }
+
+    /// <summary>
+    /// Whether to use the secret version ID as the version.
+    /// Default: true
+    /// </summary>
+    public bool UseVersionId { get; set; } = true;
+
+    /// <summary>
+    /// The version stage to use when fetching secrets.
+    /// Default: "AWSCURRENT"
+    /// </summary>
+    public string VersionStage { get; set; } = "AWSCURRENT";
 }
 ```
 
+**If `SecretPrefix` is set**, a `SecretIdentifier` of `"api-key"` will be resolved as `"prod/myapp/api-key"` in AWS.
+
 ## Setup Instructions
 
-### 1. Create IAM Role
+### 1. IAM Role and Policy
 
 ```bash
 # Create policy
@@ -100,14 +123,13 @@ aws iam create-policy \
       "Effect": "Allow",
       "Action": [
         "secretsmanager:GetSecretValue",
-        "secretsmanager:ListSecrets",
         "secretsmanager:ListSecretVersionIds"
       ],
-      "Resource": "arn:aws:secretsmanager:*:*:secret:*"
+      "Resource": "arn:aws:secretsmanager:*:*:secret:prod/myapp/*"
     }]
   }'
 
-# Create role
+# Create role (example for EC2)
 aws iam create-role \
   --role-name SecretsManagerRole \
   --assume-role-policy-document '{
@@ -125,15 +147,15 @@ aws iam attach-role-policy \
   --policy-arn arn:aws:iam::ACCOUNT_ID:policy/SecretsManagerAccess
 ```
 
+**Attach this role to your EC2 instance or ECS task.**
+
 ### 2. Create Secrets
 
 ```bash
-# Create a secret
 aws secretsmanager create-secret \
   --name prod/myapp/db-connection-string \
   --secret-string "Server=...;Database=...;User=...;Password=..."
 
-# Create another secret
 aws secretsmanager create-secret \
   --name prod/myapp/api-key \
   --secret-string "your-api-key-value"
@@ -149,28 +171,36 @@ aws secretsmanager rotate-secret \
 
 ## Usage Examples
 
-### Get Secret
+**These examples use the Vault abstractions. The AWS provider is hidden behind `ISecretStore`.**
+
+### Get a Secret
 
 ```csharp
 var secret = await secretStore.GetSecretAsync(
-    new SecretIdentifier("db-connection-string"));
-console.WriteLine($"Connection: {secret.Value}");
+    new SecretIdentifier("db-connection-string"),
+    ct);
+
+Console.WriteLine($"Connection string length: {secret.Value.Length}");
 ```
 
-### Get Specific Version
+**If `SecretPrefix = "prod/myapp/"`, this reads `prod/myapp/db-connection-string` from AWS.**
+
+### Get a Specific Version
 
 ```csharp
 var secret = await secretStore.GetSecretAsync(
-    new SecretIdentifier("api-key", version: "abc123def456"));
+    new SecretIdentifier("api-key", "abc123"),
+    ct);
 ```
 
 ### List Versions
 
 ```csharp
-var versions = await secretStore.ListSecretVersionsAsync("api-key");
+var versions = await secretStore.ListSecretVersionsAsync("api-key", ct);
+
 foreach (var version in versions)
 {
-    console.WriteLine($"Version: {version.VersionId}, Created: {version.CreatedAt}");
+    Console.WriteLine($"Version: {version.Version}, Created: {version.CreatedOn}");
 }
 ```
 
@@ -178,37 +208,23 @@ foreach (var version in versions)
 
 ```csharp
 var result = await secretStore.TryGetSecretAsync(
-    new SecretIdentifier("optional-secret"));
+    new SecretIdentifier("optional-secret"),
+    ct);
 
 if (result.IsSuccess)
 {
-    console.WriteLine($"Secret: {result.Value!.Value}");
+    Console.WriteLine("Secret present");
 }
 else
 {
-    console.WriteLine($"Secret not found: {result.ErrorMessage}");
+    Console.WriteLine($"Secret not available: {result.ErrorMessage}");
 }
 ```
 
 ## Access Control
 
-### IAM Policy Examples
+Minimal IAM policy for a single application prefix:
 
-Minimal permissions:
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Action": [
-      "secretsmanager:GetSecretValue"
-    ],
-    "Resource": "arn:aws:secretsmanager:region:account:secret:prod/myapp/*"
-  }]
-}
-```
-
-With versioning:
 ```json
 {
   "Version": "2012-10-17",
@@ -223,43 +239,35 @@ With versioning:
 }
 ```
 
-## Environment Configuration
+**Apply the principle of least privilege by scoping to the exact prefixes your node uses.**
 
-Store credentials in AWS Systems Manager Parameter Store:
+## Configuration Example
 
-```csharp
-// Configuration via appsettings.json
+You can drive `AwsSecretsManagerOptions` from configuration:
+
+```json
 {
   "Vault": {
     "AwsSecretsManager": {
       "Region": "us-east-1",
-      "UseInstanceProfile": true,
-      "SecretPrefix": "prod/myapp/"
+      "SecretPrefix": "prod/myapp/",
+      "VersionStage": "AWSCURRENT"
     }
   }
 }
 ```
 
+Then bind inside `AddVaultWithAwsSecretsManager`.
+
 ## Best Practices
 
-1. **Use IAM Roles** - More secure than access keys
-2. **Use Instance Profiles** - On EC2 for automatic credential rotation
-3. **Enable Secret Rotation** - Regularly rotate sensitive credentials
-4. **Use Secret Prefix** - Organize secrets by application/environment
-5. **Enable Automatic Rotation** - For database passwords and API keys
-6. **Principle of Least Privilege** - Grant minimal required permissions
-7. **Use Resource-based Policies** - Control cross-account access
-8. **Enable CloudTrail Logging** - Monitor access to secrets
-9. **Use KMS Encryption** - For at-rest encryption
-10. **Avoid Hardcoding Credentials** - Use IAM roles or instance profiles
-
-## Performance Considerations
-
-- **Caching** - Use Vault's caching to reduce API calls
-- **Rate Limiting** - Secrets Manager has rate limits (see AWS docs)
-- **Network** - Use VPC endpoints for better performance and security
-- **Batch Operations** - Group secret retrievals when possible
-- **Prefix Strategy** - Use prefixes to organize and filter secrets
+1. **Prefer IAM roles and default credential chain over static access keys**
+2. **Use `SecretPrefix` to separate environments and applications**
+3. **Enable Vault caching to reduce Secrets Manager calls**
+4. **Configure rotation for high value secrets such as database passwords**
+5. **Use VPC endpoints for Secrets Manager in private networks**
+6. **Monitor access with CloudTrail and CloudWatch metrics**
+7. **Keep IAM policies scoped to the smallest necessary set of secrets**
 
 ## Troubleshooting
 
@@ -269,10 +277,9 @@ Store credentials in AWS Systems Manager Parameter Store:
 AmazonSecretsManagerException: The security token included in the request is invalid
 ```
 
-- Verify IAM credentials are correct
-- Check IAM role permissions
-- Ensure instance profile is attached to EC2 instance
-- Verify region is correct
+- Check that the instance profile or role is attached to the instance or task
+- Verify that the region matches where the secrets are stored
+- Confirm that your local credentials are valid when using access keys
 
 ### Permission Errors
 
@@ -280,30 +287,21 @@ AmazonSecretsManagerException: The security token included in the request is inv
 AmazonSecretsManagerException: User is not authorized to perform: secretsmanager:GetSecretValue
 ```
 
-- Verify IAM policy is attached
-- Check resource ARN in policy
-- Ensure secret exists in specified region
-- Review secret-based policies
+- Check IAM policies on the role or user
+- Verify the ARN patterns match your secret names and region
 
-### Rate Limiting
+### Throttling and Rate Limits
 
-- Implement exponential backoff (automatic in SDK)
-- Use caching to reduce requests
-- Consider request batching
-- Monitor CloudWatch metrics
+- Enable Vault caching so you hit Secrets Manager less often
+- Use the SDK built in exponential backoff
+- Avoid tight polling loops that read the same secret repeatedly
 
 ## Related Providers
 
-- [HoneyDrunk.Vault.Providers.AzureKeyVault](../HoneyDrunk.Vault.Providers.AzureKeyVault) - For Azure Key Vault
-- [HoneyDrunk.Vault.Providers.File](../HoneyDrunk.Vault.Providers.File) - For local development
-- [HoneyDrunk.Vault.Providers.InMemory](../HoneyDrunk.Vault.Providers.InMemory) - For testing
-
-## References
-
-- [AWS Secrets Manager Documentation](https://docs.aws.amazon.com/secretsmanager/)
-- [AWS SDK for .NET](https://github.com/aws/aws-sdk-net)
-- [IAM Roles for Amazon EC2](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html)
+- [HoneyDrunk.Vault.Providers.AzureKeyVault](../HoneyDrunk.Vault.Providers.AzureKeyVault) for Azure Key Vault
+- [HoneyDrunk.Vault.Providers.File](../HoneyDrunk.Vault.Providers.File) for local development
+- [HoneyDrunk.Vault.Providers.InMemory](../HoneyDrunk.Vault.Providers.InMemory) for testing
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License. See the LICENSE file for details.

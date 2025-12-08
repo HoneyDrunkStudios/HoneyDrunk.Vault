@@ -29,18 +29,19 @@ public sealed class VaultOptionsTests
     }
 
     /// <summary>
-    /// Verifies that AddFileProvider registers with file provider type.
+    /// Verifies that AddProvider registers a provider with ProviderType correctly.
     /// </summary>
     [Fact]
-    public void AddFileProvider_RegistersWithFileProviderType()
+    public void AddProvider_RegistersWithProviderType()
     {
         // Arrange
         var options = new VaultOptions();
 
         // Act
-        options.AddFileProvider(opt =>
+        options.AddProvider("file", reg =>
         {
-            opt.FilePath = "secrets/dev.json";
+            reg.ProviderType = ProviderType.File;
+            reg.Settings["FilePath"] = "secrets/dev.json";
         });
 
         // Assert
@@ -49,62 +50,68 @@ public sealed class VaultOptionsTests
     }
 
     /// <summary>
-    /// Verifies that AddAzureKeyVaultProvider registers correctly.
+    /// Verifies that AddProvider with custom settings works correctly.
     /// </summary>
     [Fact]
-    public void AddAzureKeyVaultProvider_RegistersCorrectly()
+    public void AddProvider_RegistersWithCustomSettings()
     {
         // Arrange
         var options = new VaultOptions();
         const string vaultUri = "https://my-vault.vault.azure.net/";
 
         // Act
-        options.AddAzureKeyVaultProvider(opt =>
+        options.AddProvider("azure-keyvault", reg =>
         {
-            opt.VaultUri = new Uri(vaultUri);
+            reg.ProviderType = ProviderType.AzureKeyVault;
+            reg.Settings["VaultUri"] = vaultUri;
         });
 
         // Assert
         Assert.True(options.Providers.ContainsKey("azure-keyvault"));
+        Assert.Equal(vaultUri, options.Providers["azure-keyvault"].Settings["VaultUri"]);
     }
 
     /// <summary>
-    /// Verifies that AddAwsSecretsManagerProvider registers correctly.
+    /// Verifies that multiple providers can be registered.
     /// </summary>
     [Fact]
-    public void AddAwsSecretsManagerProvider_RegistersCorrectly()
+    public void AddProvider_SupportsMultipleProviders()
     {
         // Arrange
         var options = new VaultOptions();
 
         // Act
-        options.AddAwsSecretsManagerProvider(opt =>
+        options.AddProvider("aws-secretsmanager", reg =>
         {
-            opt.Region = "us-east-1";
+            reg.ProviderType = ProviderType.AwsSecretsManager;
+            reg.Settings["Region"] = "us-east-1";
         });
 
         // Assert
         Assert.True(options.Providers.ContainsKey("aws-secretsmanager"));
+        Assert.Equal("us-east-1", options.Providers["aws-secretsmanager"].Settings["Region"]);
     }
 
     /// <summary>
-    /// Verifies that AddInMemoryProvider registers correctly.
+    /// Verifies that in-memory provider can be registered with secrets.
     /// </summary>
     [Fact]
-    public void AddInMemoryProvider_RegistersCorrectly()
+    public void AddProvider_InMemoryWithSecrets()
     {
         // Arrange
         var options = new VaultOptions();
 
         // Act
-        options.AddInMemoryProvider(opt =>
+        options.AddProvider("in-memory", reg =>
         {
-            opt.Secrets["key1"] = "value1";
-            opt.Secrets["key2"] = "value2";
+            reg.ProviderType = ProviderType.InMemory;
+            reg.Settings["Secret:key1"] = "value1";
+            reg.Settings["Secret:key2"] = "value2";
         });
 
         // Assert
         Assert.True(options.Providers.ContainsKey("in-memory"));
+        Assert.Equal("value1", options.Providers["in-memory"].Settings["Secret:key1"]);
     }
 
     /// <summary>

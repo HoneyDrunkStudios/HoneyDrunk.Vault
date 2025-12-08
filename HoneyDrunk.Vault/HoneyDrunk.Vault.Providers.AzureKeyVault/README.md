@@ -1,18 +1,18 @@
 # HoneyDrunk.Vault.Providers.AzureKeyVault
 
-Azure Key Vault provider for HoneyDrunk.Vault. **Recommended for Azure-hosted applications.**
+Azure Key Vault provider for HoneyDrunk.Vault. **Recommended for Azure hosted applications.**
 
 ## Overview
 
-This provider integrates with Azure Key Vault for enterprise-grade secret management. Perfect for production workloads running in Azure.
+This provider integrates HoneyDrunk.Vault with Azure Key Vault, giving you secure, versioned secret retrieval through the standard Vault abstractions (`ISecretStore`, `SecretIdentifier`, `SecretValue`). It is the preferred provider for applications running in Azure App Service, Azure Container Apps, AKS or any Azure VM with Managed Identity enabled.
 
 **Features:**
-- Managed Identity authentication (recommended for production)
-- Service Principal authentication (for local development)
-- Automatic secret versioning
-- Native Azure integration
-- RBAC and access policies
-- Hardware Security Module (HSM) backed secrets
+- Managed Identity authentication (best practice for production)
+- Optional Service Principal authentication for local development
+- Versioned secret retrieval
+- Azure RBAC and access policy support
+- Integration with Vault caching, resilience and telemetry
+- Zero secret values ever logged or emitted in telemetry
 
 ## Installation
 
@@ -24,9 +24,9 @@ dotnet add package HoneyDrunk.Vault.Providers.AzureKeyVault
 
 - Azure subscription
 - Azure Key Vault instance
-- Either:
-  - Application with Managed Identity enabled (recommended)
-  - Service Principal with appropriate permissions
+- One of:
+  - Managed Identity enabled on your application (recommended)
+  - Service Principal with secret read permissions
 
 ## Quick Start
 
@@ -46,220 +46,191 @@ builder.Services.AddVaultWithAzureKeyVault(options =>
 var app = builder.Build();
 ```
 
-### Using Service Principal
+### Using Service Principal (Local Dev or Non-Azure Hosts)
 
 ```csharp
 builder.Services.AddVaultWithAzureKeyVault(options =>
 {
     options.VaultUri = new Uri("https://my-vault.vault.azure.net/");
-    options.TenantId = "your-tenant-id";
-    options.ClientId = "your-client-id";
-    // ClientSecret should come from configuration, not hardcoded
+    options.TenantId = builder.Configuration["AzureAd:TenantId"];
+    options.ClientId = builder.Configuration["AzureAd:ClientId"];
+    // ClientSecret should come from secure config, not source code
+    options.UseManagedIdentity = false;
 });
 ```
 
 ## Configuration Options
 
-### AzureKeyVaultProviderOptions
-
 ```csharp
-public class AzureKeyVaultProviderOptions
+public sealed class AzureKeyVaultOptions
 {
     public Uri? VaultUri { get; set; }
     public bool UseManagedIdentity { get; set; } = true;
-    public string? ClientId { get; set; }
     public string? TenantId { get; set; }
+    public string? ClientId { get; set; }
+    public string? ClientSecret { get; set; }
 }
 ```
 
+**If `UseManagedIdentity = true`**, Vault uses `DefaultAzureCredential` and falls back through the Azure identity chain (Managed Identity, Azure CLI login, Visual Studio login, etc).
+
 ## Setup Instructions
 
-### 1. Create Azure Key Vault
+### 1. Create Secrets in Key Vault
 
 ```bash
-az keyvault create --name my-vault --resource-group my-rg --location eastus
+az keyvault secret set \
+  --vault-name my-vault \
+  --name db-connection-string \
+  --value "Server=..."
 ```
 
-### 2. Configure Managed Identity
+**Later updates automatically create new versions.**
 
-For Azure App Service or Azure Container Instances:
+### 2. Grant Access to Your Application
 
 ```bash
-# Enable system-assigned managed identity
-az webapp identity assign --name my-app --resource-group my-rg
-
-# Grant access to Key Vault
+# For Managed Identity
 az keyvault set-policy \
   --name my-vault \
   --object-id <identity-object-id> \
-  --secret-permissions get list \
-  --certificate-permissions get list \
-  --key-permissions get list
+  --secret-permissions get list
+
+# For Service Principal
+az keyvault set-policy \
+  --name my-vault \
+  --spn <client-id> \
+  --secret-permissions get list
 ```
 
-### 3. Add Secrets to Key Vault
-
-```bash
-az keyvault secret set --vault-name my-vault --name db-connection-string --value "Server=..."
-az keyvault secret set --vault-name my-vault --name api-key --value "your-api-key"
-```
+**For secret-only access, certificate and key permissions are not required.**
 
 ## Usage Examples
 
-### Get Secret
+### Get the Latest Version of a Secret
 
 ```csharp
 var secret = await secretStore.GetSecretAsync(
-    new SecretIdentifier("db-connection-string"));
-console.WriteLine($"Connection: {secret.Value}");
+    new SecretIdentifier("db-connection-string"),
+    ct);
+
+Console.WriteLine(secret.Value.Length);
 ```
 
-### Get Specific Version
+**Azure Key Vault returns the latest version when no version is specified.**
+
+### Get a Specific Version
 
 ```csharp
 var secret = await secretStore.GetSecretAsync(
-    new SecretIdentifier("api-key", version: "abc123def456"));
+    new SecretIdentifier("api-key", "3f92c96c7d9e4f1e9a5e2bb0a1b7e3a1"),
+    ct);
 ```
 
 ### List Versions
 
 ```csharp
-var versions = await secretStore.ListSecretVersionsAsync("api-key");
+var versions = await secretStore.ListSecretVersionsAsync("api-key", ct);
+
 foreach (var version in versions)
 {
-    console.WriteLine($"Version: {version.VersionId}, Created: {version.CreatedAt}");
+    Console.WriteLine($"Version: {version.Version}, Created: {version.CreatedOn}");
 }
 ```
 
-### Handle Missing Secrets
+### Gracefully Handle Missing Secrets
 
 ```csharp
 var result = await secretStore.TryGetSecretAsync(
-    new SecretIdentifier("optional-secret"));
+    new SecretIdentifier("optional-secret"),
+    ct);
 
 if (result.IsSuccess)
-{
-    console.WriteLine($"Secret: {result.Value!.Value}");
-}
+    Console.WriteLine("Secret available");
 else
-{
-    console.WriteLine($"Secret not found: {result.ErrorMessage}");
-}
+    Console.WriteLine($"Not available: {result.ErrorMessage}");
 ```
 
 ## Access Control
 
-### Managed Identity Permissions
+### Managed Identity
 
 ```bash
-# Read secrets
 az keyvault set-policy \
   --name my-vault \
-  --object-id <managed-identity-id> \
+  --object-id <identity-object-id> \
   --secret-permissions get list
-
-# Read certificates
-az keyvault set-policy \
-  --name my-vault \
-  --object-id <managed-identity-id> \
-  --certificate-permissions get list
-
-# Read keys
-az keyvault set-policy \
-  --name my-vault \
-  --object-id <managed-identity-id> \
-  --key-permissions get list
 ```
 
-### Service Principal Permissions
+### Service Principal
 
 ```bash
-# Create service principal
-az ad sp create-for-rbac --name my-sp
-
-# Grant permissions
 az keyvault set-policy \
   --name my-vault \
-  --spn <service-principal-id> \
-  --secret-permissions get list \
-  --certificate-permissions get list
+  --spn <client-id> \
+  --secret-permissions get list
 ```
 
-## Environment Configuration
+**For secret-only access, certificate and key permissions are not required.**
 
-Store credentials securely:
+## Configuration Example
 
 ```json
 {
   "Vault": {
     "AzureKeyVault": {
       "VaultUri": "https://my-vault.vault.azure.net/",
-      "UseManagedIdentity": true,
-      "TenantId": "optional-for-service-principal",
-      "ClientId": "optional-for-service-principal"
+      "UseManagedIdentity": true
     }
   }
 }
 ```
 
+**You can bind this in `AddVaultWithAzureKeyVault`.**
+
 ## Best Practices
 
-1. **Use Managed Identity** - More secure than storing credentials
-2. **Enable Soft Delete** - Prevent accidental deletion
-3. **Enable Purge Protection** - Protect critical secrets
-4. **Rotate Credentials** - Regularly update service principal credentials
-5. **Use Secret Versions** - Maintain history and rollback capability
-6. **Principle of Least Privilege** - Grant minimal required permissions
-7. **Enable Logging** - Monitor access to secrets
-8. **Use RBAC** - Leverage Azure AD roles for access control
-
-## Performance Considerations
-
-- **Caching** - Use Vault's caching to reduce API calls
-- **Rate Limiting** - Key Vault has rate limits (see Azure docs)
-- **Network** - Prefer Azure Private Endpoints for security
-- **Secrets Size** - Keep secrets reasonably sized (<4KB)
+1. **Prefer Managed Identity for production**
+2. **Enable Soft Delete and Purge Protection on your vault**
+3. **Use secret versions intentionally for rollback**
+4. **Do not log secret values, only names**
+5. **Enable Vault caching to reduce Key Vault API usage**
+6. **Use Private Endpoints for secure and high performance networking**
+7. **Grant least privilege access (only `get` and `list` for secrets)**
 
 ## Troubleshooting
 
-### Authentication Errors
+### Authentication Issues
 
 ```
-MsalServiceException: AADSTS700016: Application not found in directory
+MsalServiceException: AADSTS700016: Application not found
 ```
 
-- Verify Application ID and Tenant ID
-- Ensure service principal has required permissions
-- Check managed identity is enabled
+- Verify `TenantId`, `ClientId` and `ClientSecret` if using a Service Principal
+- Ensure Managed Identity is enabled if using MI
+- Check Key Vault firewall or private endpoint settings
 
-### Permission Errors
+### Permission Denied
 
 ```
-KeyVaultErrorException: Access denied. Make sure that the caller has permissions
+KeyVaultErrorException: Access denied
 ```
 
-- Verify access policies in Key Vault
-- Check managed identity or service principal has `get` and `list` permissions
-- Use `az keyvault show-deleted --name my-vault` to check deletion status
+- Ensure `get` and `list` permissions are granted for secrets
+- Verify the identity object ID used in `set-policy`
 
-### Timeout Errors
+### Timeouts or Rate Limiting
 
-- Enable caching to reduce API calls
-- Check network connectivity
-- Consider using Private Endpoints
+- Ensure Vault caching is enabled
+- Prefer Private Endpoints for low latency
+- Avoid repeatedly fetching the same secret in a hot path
 
 ## Related Providers
 
-- [HoneyDrunk.Vault.Providers.Aws](../HoneyDrunk.Vault.Providers.Aws) - For AWS Secrets Manager
-- [HoneyDrunk.Vault.Providers.File](../HoneyDrunk.Vault.Providers.File) - For local development
-- [HoneyDrunk.Vault.Providers.InMemory](../HoneyDrunk.Vault.Providers.InMemory) - For testing
-
-## References
-
-- [Azure Key Vault Documentation](https://docs.microsoft.com/en-us/azure/key-vault/)
-- [Managed Identities for Azure Resources](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/)
-- [Azure SDK for .NET - Key Vault](https://github.com/Azure/azure-sdk-for-net/tree/main/sdk/keyvault)
+- [HoneyDrunk.Vault.Providers.Aws](../HoneyDrunk.Vault.Providers.Aws)
+- [HoneyDrunk.Vault.Providers.File](../HoneyDrunk.Vault.Providers.File)
+- [HoneyDrunk.Vault.Providers.InMemory](../HoneyDrunk.Vault.Providers.InMemory)
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License

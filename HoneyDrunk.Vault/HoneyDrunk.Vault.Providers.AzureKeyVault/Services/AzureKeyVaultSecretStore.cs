@@ -159,7 +159,7 @@ public sealed class AzureKeyVaultSecretStore(
         try
         {
             // Try to list secrets (with very limited results) to verify connectivity
-            await foreach (var property in _secretClient.GetPropertiesOfSecretsAsync(cancellationToken).ConfigureAwait(false))
+            await foreach (var _ in _secretClient.GetPropertiesOfSecretsAsync(cancellationToken).ConfigureAwait(false))
             {
                 // Just need to verify we can connect
                 break;

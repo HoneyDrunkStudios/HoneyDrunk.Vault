@@ -341,7 +341,8 @@ HoneyDrunk.Vault (Core)
 ├── Services/
 │   ├── VaultClient       # Coordinates providers
 │   ├── SecretCache       # In-memory caching with TTL
-│   └── ConfigSourceAdapter
+│   ├── CompositeSecretStore # Provider orchestration for secrets
+│   └── CompositeConfigSource # Provider orchestration for config
 ├── Health/
 │   ├── VaultHealthContributor
 │   └── VaultReadinessContributor

@@ -29,4 +29,10 @@ public sealed class ProviderRegistration
     /// Gets or sets the priority order (lower is higher priority).
     /// </summary>
     public int Priority { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this provider is required.
+    /// When true, failures from this provider will fail fast instead of falling back.
+    /// </summary>
+    public bool IsRequired { get; set; }
 }

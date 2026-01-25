@@ -247,21 +247,17 @@ public interface IConfigSource
 }
 ```
 
-### Usage Example
+### Architecture Note
+
+`CompositeConfigSource` implements both `IConfigSource` and `IConfigProvider`, serving as the unified entry point for configuration access. Individual providers implement `IConfigSourceProvider` (which extends `IConfigSource`) and are registered via `AddConfigSourceProvider()`. The composite handles provider orchestration and type conversion.
 
 ```csharp
-// Internal adapter example: ConfigSourceAdapter wraps IConfigSource to provide IConfigProvider
-internal sealed class ConfigSourceAdapter(IConfigSource configSource) : IConfigProvider
+// CompositeConfigSource implements both interfaces:
+public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
 {
-    public async Task<string> GetValueAsync(string key, CancellationToken ct)
-    {
-        return await configSource.GetConfigValueAsync(key, ct);
-    }
-
-    public async Task<T> GetValueAsync<T>(string key, T defaultValue, CancellationToken ct)
-    {
-        return await configSource.TryGetConfigValueAsync(key, defaultValue, ct);
-    }
+    // Orchestrates multiple IConfigSourceProvider instances
+    // Handles priority-based selection and fallback
+    // Performs type conversion for IConfigProvider methods
 }
 ```
 

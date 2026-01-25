@@ -10,10 +10,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.File</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>File-based secrets and configuration provider for HoneyDrunk.Vault. Ideal for local development and testing with support for file watching and optional encryption.</Description>
-    <PackageReleaseNotes>v0.1.0: Initial release with file-based secret storage, file watching, and configuration management. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.2.0: Maintenance release aligned with core library version. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;secrets;configuration;file;development;testing;file-watcher</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,7 +27,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.3.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.6">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -39,7 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.102" />
   </ItemGroup>
 
   <ItemGroup>

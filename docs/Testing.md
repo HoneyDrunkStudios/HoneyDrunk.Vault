@@ -77,7 +77,7 @@ public class PaymentServiceTests
 
 ### Testing Configuration Access
 
-**Contract Boundary:** Application code should depend on `IConfigProvider` (exported contract), not `IConfigSource` (internal plumbing). Tests use `InMemoryConfigSource` + `ConfigSourceAdapter` or a test implementation of `IConfigProvider`.
+**Contract Boundary:** Application code should depend on `IConfigProvider` (exported contract), not `IConfigSource` (internal plumbing). For unit tests, mock `IConfigProvider` directly or use `InMemoryConfigSource` with the DI container.
 
 ```csharp
 public class FeatureServiceTests
@@ -85,13 +85,13 @@ public class FeatureServiceTests
     [Fact]
     public async Task IsFeatureEnabled_WhenConfigured_ReturnsTrue()
     {
-        // Arrange
-        var configSource = new InMemoryConfigSource(
-            NullLogger<InMemoryConfigSource>.Instance);
-        configSource.SetConfigValue("feature:new-ui", "true");
+        // Arrange - Mock IConfigProvider directly
+        var mockConfigProvider = new Mock<IConfigProvider>();
+        mockConfigProvider
+            .Setup(p => p.GetValueAsync("feature:new-ui", false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
-        var configProvider = new ConfigSourceAdapter(configSource);
-        var service = new FeatureService(configProvider);
+        var service = new FeatureService(mockConfigProvider.Object);
 
         // Act
         var isEnabled = await service.IsFeatureEnabledAsync(
@@ -105,13 +105,21 @@ public class FeatureServiceTests
     [Fact]
     public async Task GetTimeout_WhenNotConfigured_ReturnsDefault()
     {
-        // Arrange
+        // Arrange - InMemoryConfigSource for integration-style tests
         var configSource = new InMemoryConfigSource(
             NullLogger<InMemoryConfigSource>.Instance);
-        // No config set
+        // No config set - will return default
 
-        var configProvider = new ConfigSourceAdapter(configSource);
-        var service = new FeatureService(configProvider);
+        // For full composite stack, use DI registration:
+        // services.AddVaultCore();
+        // services.AddConfigSourceProvider(configSource, new ProviderRegistration(...));
+
+        var mockConfigProvider = new Mock<IConfigProvider>();
+        mockConfigProvider
+            .Setup(p => p.GetValueAsync("timeout", 30, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(30);
+
+        var service = new FeatureService(mockConfigProvider.Object);
 
         // Act
         var timeout = await service.GetTimeoutAsync(CancellationToken.None);
@@ -603,6 +611,77 @@ public async Task VaultReadiness_AfterWarmup_ReturnsReady()
     var (isReady, message) = await readinessContributor.CheckReadinessAsync(CancellationToken.None);
 
     Assert.True(isReady);
+}
+```
+
+---
+
+## Architecture Canary Tests
+
+Vault includes canary tests that enforce architectural invariants. These tests run in CI to ensure Vault respects its boundaries with Kernel and provider packages remain isolated.
+
+**Location:** `HoneyDrunk.Vault.Tests/Canary/`
+
+### Invariants Enforced
+
+| Invariant | Description | Validation Method |
+|-----------|-------------|-------------------|
+| **Kernel Context Ownership** | Vault must not instantiate or replace Kernel contexts | Runtime validation via hash comparison |
+| **No Context Creation** | Vault code must not construct `GridContext`, `NodeContext`, or `OperationContext` | IL scanning for `newobj` opcodes |
+| **Provider Boundary** | Provider assemblies must not reference `HoneyDrunk.Kernel` | Reflection-based assembly inspection |
+
+### Key Components
+
+```csharp
+// CanaryInvariantException - Custom exception for invariant violations
+throw new CanaryInvariantException(
+    invariantName: "KernelContextOwnership",
+    details: "GridContext identity changed during Vault operations");
+
+// KernelContextOwnershipInvariant - Validates context stability
+await KernelContextOwnershipInvariant.ValidateAsync(
+    scope,
+    async services =>
+    {
+        var secretStore = services.GetRequiredService<ISecretStore>();
+        await secretStore.GetSecretAsync(new SecretIdentifier("key"));
+    });
+
+// NoContextCreationInvariant - IL scanning
+NoContextCreationInvariant.Validate(vaultAssembly);
+
+// ProviderBoundaryInvariant - Assembly reference validation
+ProviderBoundaryInvariant.Validate(providerAssembly);
+```
+
+### Running Canary Tests
+
+```bash
+# Run only canary tests
+dotnet test --filter "Category=Canary"
+
+# Run all architecture tests
+dotnet test --filter "Category=Architecture"
+```
+
+### Test Categories
+
+Canary tests are tagged with traits for filtering:
+
+```csharp
+[Trait("Category", "Canary")]
+[Trait("Category", "Architecture")]
+public sealed class VaultArchitectureCanaryTests
+{
+    [Fact]
+    public void Invariant2_NoContextCreation_VaultAssembliesDoNotConstructContexts()
+    {
+        var vaultAssemblies = GetVaultAssemblies();
+        foreach (var assembly in vaultAssemblies)
+        {
+            NoContextCreationInvariant.Validate(assembly);
+        }
+    }
 }
 ```
 

@@ -12,11 +12,12 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="HoneyDrunk.Kernel" Version="0.4.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.6">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.2" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -27,6 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\HoneyDrunk.Vault.Providers.Configuration\HoneyDrunk.Vault.Providers.Configuration.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault.Providers.InMemory\HoneyDrunk.Vault.Providers.InMemory.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault.Providers.File\HoneyDrunk.Vault.Providers.File.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault\HoneyDrunk.Vault.csproj" />
@@ -37,7 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.102" />
   </ItemGroup>
 
 </Project>

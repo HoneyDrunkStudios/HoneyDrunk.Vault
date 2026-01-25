@@ -146,23 +146,28 @@ public sealed class VaultTelemetry(
 
     private void EnrichWithContext(Activity activity)
     {
-        // Add grid context if available
-        var gridContext = _gridContextAccessor?.GridContext;
-        if (gridContext != null)
+        // Add grid context if available and initialized
+        // In Kernel v0.4.0, GridContext is non-nullable but may not be initialized
+        // Accessing properties before initialization throws InvalidOperationException
+        if (_gridContextAccessor is { } accessor)
         {
-            activity.SetTag("grid.node_id", gridContext.NodeId.ToString());
-            activity.SetTag("grid.studio_id", gridContext.StudioId.ToString());
-
-            if (gridContext.TenantId is { } tenantId)
+            var gridContext = accessor.GridContext;
+            if (gridContext.IsInitialized)
             {
-                activity.SetTag("grid.tenant_id", tenantId.ToString());
-            }
+                activity.SetTag("grid.node_id", gridContext.NodeId.ToString());
+                activity.SetTag("grid.studio_id", gridContext.StudioId.ToString());
 
-            activity.SetTag("grid.correlation_id", gridContext.CorrelationId.ToString());
+                if (gridContext.TenantId is { } tenantId)
+                {
+                    activity.SetTag("grid.tenant_id", tenantId.ToString());
+                }
 
-            if (gridContext.CausationId is { } causationId)
-            {
-                activity.SetTag("grid.causation_id", causationId.ToString());
+                activity.SetTag("grid.correlation_id", gridContext.CorrelationId.ToString());
+
+                if (gridContext.CausationId is { } causationId)
+                {
+                    activity.SetTag("grid.causation_id", causationId.ToString());
+                }
             }
         }
 

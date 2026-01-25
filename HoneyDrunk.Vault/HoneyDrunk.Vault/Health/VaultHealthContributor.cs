@@ -1,29 +1,28 @@
 using HoneyDrunk.Kernel.Abstractions.Health;
 using HoneyDrunk.Kernel.Abstractions.Lifecycle;
-using HoneyDrunk.Vault.Abstractions;
-using HoneyDrunk.Vault.Configuration;
+using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace HoneyDrunk.Vault.Health;
 
 /// <summary>
 /// Health contributor for the vault system.
-/// Checks that the configured provider is reachable and operational.
+/// Performs deep health checks by probing registered providers.
+/// Vault is healthy if core is operational and at least one provider is reachable.
 /// </summary>
 /// <remarks>
 /// Initializes a new instance of the <see cref="VaultHealthContributor"/> class.
 /// </remarks>
-/// <param name="secretStore">The secret store.</param>
-/// <param name="options">The vault options.</param>
+/// <param name="secretProviders">The registered secret providers.</param>
+/// <param name="configProviders">The registered configuration providers.</param>
 /// <param name="logger">The logger.</param>
 public sealed class VaultHealthContributor(
-    ISecretStore secretStore,
-    IOptions<VaultOptions> options,
+    IEnumerable<RegisteredSecretProvider> secretProviders,
+    IEnumerable<RegisteredConfigSourceProvider> configProviders,
     ILogger<VaultHealthContributor> logger) : IHealthContributor
 {
-    private readonly ISecretStore _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
-    private readonly VaultOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+    private readonly IEnumerable<RegisteredSecretProvider> _secretProviders = secretProviders ?? throw new ArgumentNullException(nameof(secretProviders));
+    private readonly IEnumerable<RegisteredConfigSourceProvider> _configProviders = configProviders ?? throw new ArgumentNullException(nameof(configProviders));
     private readonly ILogger<VaultHealthContributor> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -38,43 +37,107 @@ public sealed class VaultHealthContributor(
     /// <inheritdoc/>
     public async Task<(HealthStatus status, string? message)> CheckHealthAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Performing vault health check");
+        _logger.LogDebug("Performing vault health check with deep provider probes");
 
-        try
+        var healthyProviders = new List<string>();
+        var unhealthyProviders = new List<string>();
+
+        // Check secret providers
+        foreach (var registered in _secretProviders.Where(p => p.Registration.IsEnabled))
         {
-            // If a health check secret key is configured, try to fetch it
-            if (!string.IsNullOrEmpty(_options.HealthCheckSecretKey))
-            {
-                var result = await _secretStore.TryGetSecretAsync(
-                    new Models.SecretIdentifier(_options.HealthCheckSecretKey),
-                    cancellationToken).ConfigureAwait(false);
+            var providerName = registered.Provider.ProviderName;
 
-                if (result.IsSuccess)
+            try
+            {
+                var isHealthy = await registered.Provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
+
+                if (isHealthy)
                 {
-                    _logger.LogDebug("Vault health check passed: health check secret is accessible");
-                    return (status: HealthStatus.Healthy, message: "Vault is operational and health check secret is accessible");
+                    healthyProviders.Add(providerName);
+                    _logger.LogDebug("Secret provider '{ProviderName}' is healthy", providerName);
+                }
+                else
+                {
+                    unhealthyProviders.Add(providerName);
+                    _logger.LogWarning("Secret provider '{ProviderName}' health check returned unhealthy", providerName);
+                }
+            }
+            catch (Exception ex)
+            {
+                unhealthyProviders.Add(providerName);
+                _logger.LogWarning(ex, "Secret provider '{ProviderName}' health check failed", providerName);
+            }
+        }
+
+        // Check config providers
+        foreach (var registered in _configProviders.Where(p => p.Registration.IsEnabled))
+        {
+            var providerName = registered.Provider.ProviderName;
+
+            try
+            {
+                var isHealthy = await registered.Provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
+
+                if (isHealthy)
+                {
+                    if (!healthyProviders.Contains(providerName))
+                    {
+                        healthyProviders.Add(providerName);
+                    }
+
+                    _logger.LogDebug("Config provider '{ProviderName}' is healthy", providerName);
+                }
+                else
+                {
+                    if (!unhealthyProviders.Contains(providerName))
+                    {
+                        unhealthyProviders.Add(providerName);
+                    }
+
+                    _logger.LogWarning("Config provider '{ProviderName}' health check returned unhealthy", providerName);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!unhealthyProviders.Contains(providerName))
+                {
+                    unhealthyProviders.Add(providerName);
                 }
 
-                // Secret not found is still healthy, just means no test secret configured
-                _logger.LogDebug("Health check secret not found, but vault is operational");
-                return (status: HealthStatus.Healthy, message: "Vault is operational (health check secret not found)");
+                _logger.LogWarning(ex, "Config provider '{ProviderName}' health check failed", providerName);
             }
-
-            // No health check secret configured, check basic provider availability
-            var providers = _options.Providers.Values.Where(p => p.IsEnabled).ToList();
-            if (providers.Count == 0)
-            {
-                _logger.LogWarning("No vault providers are configured and enabled");
-                return (status: HealthStatus.Degraded, message: "No vault providers configured");
-            }
-
-            _logger.LogDebug("Vault health check passed: {Count} provider(s) configured", providers.Count);
-            return (status: HealthStatus.Healthy, message: $"Vault is operational with {providers.Count} provider(s)");
         }
-        catch (Exception ex)
+
+        // Determine overall health status
+        // Healthy: at least one provider is reachable
+        // Degraded: some providers are unhealthy but at least one is healthy
+        // Unhealthy: no providers are healthy
+        if (healthyProviders.Count == 0 && unhealthyProviders.Count == 0)
         {
-            _logger.LogError(ex, "Vault health check failed");
-            return (status: HealthStatus.Unhealthy, message: $"Vault health check failed: {ex.Message}");
+            _logger.LogWarning("No vault providers are configured");
+            return (status: HealthStatus.Degraded, "No vault providers configured");
         }
+
+        if (healthyProviders.Count == 0)
+        {
+            _logger.LogError(
+                "All vault providers are unhealthy: {Providers}",
+                string.Join(", ", unhealthyProviders));
+            return (status: HealthStatus.Unhealthy, $"All providers unhealthy: {string.Join(", ", unhealthyProviders)}");
+        }
+
+        if (unhealthyProviders.Count > 0)
+        {
+            _logger.LogWarning(
+                "Some vault providers are unhealthy. Healthy: {Healthy}, Unhealthy: {Unhealthy}",
+                string.Join(", ", healthyProviders),
+                string.Join(", ", unhealthyProviders));
+            return (status: HealthStatus.Degraded, $"Healthy: {string.Join(", ", healthyProviders)}; Unhealthy: {string.Join(", ", unhealthyProviders)}");
+        }
+
+        _logger.LogDebug(
+            "All vault providers are healthy: {Providers}",
+            string.Join(", ", healthyProviders));
+        return (status: HealthStatus.Healthy, $"All providers healthy: {string.Join(", ", healthyProviders)}");
     }
 }

@@ -31,6 +31,16 @@ public static class VaultTelemetryTags
     public const string OperationType = "vault.operation";
 
     /// <summary>
+    /// The vault retry attempt count tag.
+    /// </summary>
+    public const string RetryAttempts = "vault.retry.attempts";
+
+    /// <summary>
+    /// The vault circuit breaker state tag.
+    /// </summary>
+    public const string CircuitBreakerState = "vault.circuit_breaker.state";
+
+    /// <summary>
     /// Result status value: success.
     /// </summary>
     public const string ResultSuccess = "success";
@@ -46,6 +56,11 @@ public static class VaultTelemetryTags
     public const string ResultNotFound = "not_found";
 
     /// <summary>
+    /// Result status value: circuit breaker open.
+    /// </summary>
+    public const string ResultCircuitOpen = "circuit_open";
+
+    /// <summary>
     /// Cache status value: hit.
     /// </summary>
     public const string CacheHit = "hit";
@@ -59,4 +74,19 @@ public static class VaultTelemetryTags
     /// Cache status value: bypass.
     /// </summary>
     public const string CacheBypass = "bypass";
+
+    /// <summary>
+    /// Circuit breaker state value: closed (normal operation).
+    /// </summary>
+    public const string CircuitClosed = "closed";
+
+    /// <summary>
+    /// Circuit breaker state value: open (blocking requests).
+    /// </summary>
+    public const string CircuitOpen = "open";
+
+    /// <summary>
+    /// Circuit breaker state value: half-open (testing recovery).
+    /// </summary>
+    public const string CircuitHalfOpen = "half_open";
 }

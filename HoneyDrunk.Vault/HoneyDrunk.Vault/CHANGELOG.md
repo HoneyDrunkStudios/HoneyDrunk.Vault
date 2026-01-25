@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-01-25
+
+### Added
+- Architecture canary tests for enforcing Kernel context ownership invariants
+- `CanaryInvariantException` for reporting invariant violations
+- `KernelContextOwnershipInvariant` - validates context stability during Vault operations
+- `NoContextCreationInvariant` - IL scanning to detect forbidden context construction
+- `ProviderBoundaryInvariant` - validates provider assemblies have no Kernel dependencies
+- `VaultArchitectureCanaryTests` - comprehensive test suite for architecture validation
+
+### Changed
+- Tests now use full composite stack with proper provider registration
+- Improved documentation for provider slot architecture
+
 ## [0.1.0] - 2025-01-01
 
 ### Added

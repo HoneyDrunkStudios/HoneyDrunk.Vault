@@ -178,13 +178,20 @@ inMemoryProvider.SetSecret("new-key", "new-value");
 
 ## InMemoryConfigSource.cs
 
-In-memory implementation of `IConfigSource` (internal contract).
+In-memory implementation of `IConfigSourceProvider` (internal contract).
 
-**Contract Boundary:** `IConfigSource` provides raw configuration values (string-based). Typed conversion is performed by `IConfigProvider`, not by this provider. `VaultCore` wires `IConfigSource` into `IConfigProvider` via `ConfigSourceAdapter`.
+**Contract Boundary:** `IConfigSource` provides raw configuration values (string-based). Typed conversion is performed by `IConfigProvider`, not by this provider. `VaultCore` wires `IConfigSourceProvider` into `IConfigProvider` via `ConfigSourceAdapter`.
+
+**Provider Interface:** As of v0.2.0, `InMemoryConfigSource` implements `IConfigSourceProvider` (which extends `IConfigSource`), enabling registration via `AddConfigSourceProvider()` for use with composite stores and health contributors.
 
 ```csharp
-public sealed class InMemoryConfigSource : IConfigSource
+public sealed class InMemoryConfigSource : IConfigSource, IConfigSourceProvider
 {
+    // IConfigSourceProvider members
+    public string ProviderName => "in-memory";
+    public bool IsAvailable => true;
+    public Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default);
+
     public InMemoryConfigSource(ILogger<InMemoryConfigSource> logger);
 
     public InMemoryConfigSource(
@@ -198,6 +205,14 @@ public sealed class InMemoryConfigSource : IConfigSource
 
     public Task<string?> TryGetConfigValueAsync(
         string key,
+        CancellationToken cancellationToken = default);
+
+    // Runtime modification
+    public void SetConfigValue(string key, string value);
+    public bool RemoveConfigValue(string key);
+    public void Clear();
+}
+```
         CancellationToken cancellationToken = default);
 
     // Runtime modification

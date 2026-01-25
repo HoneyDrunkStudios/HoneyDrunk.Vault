@@ -1,4 +1,3 @@
-using HoneyDrunk.Kernel.Abstractions.Context;
 using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
@@ -39,22 +38,8 @@ public sealed class InMemorySecretStore(
 
     /// <inheritdoc/>
     public Task<SecretValue> GetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
-        => GetSecretAsync(identifier, context: null, cancellationToken);
-
-    /// <summary>
-    /// Gets a secret by its identifier with grid context for distributed tracing.
-    /// </summary>
-    /// <param name="identifier">The secret identifier.</param>
-    /// <param name="context">The optional grid context for correlation and tracing.</param>
-    /// <returns>The secret value.</returns>
-    public Task<SecretValue> GetSecretAsync(
-        SecretIdentifier identifier,
-        IGridContext? context,
-        CancellationToken _ = default)
     {
         ArgumentNullException.ThrowIfNull(identifier);
-
-        using var scope = CreateLogScope(context);
 
         _logger.LogDebug("Getting secret '{SecretName}' from in-memory store", identifier.Name);
 
@@ -71,30 +56,15 @@ public sealed class InMemorySecretStore(
     }
 
     /// <inheritdoc/>
-    public Task<VaultResult<SecretValue>> TryGetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
-        => TryGetSecretAsync(identifier, context: null, cancellationToken);
-
-    /// <summary>
-    /// Attempts to get a secret by its identifier with grid context for distributed tracing.
-    /// </summary>
-    /// <param name="identifier">The secret identifier.</param>
-    /// <param name="context">The optional grid context for correlation and tracing.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A result containing the secret value if found, or a failure result.</returns>
-    public async Task<VaultResult<SecretValue>> TryGetSecretAsync(
-        SecretIdentifier identifier,
-        IGridContext? context,
-        CancellationToken cancellationToken = default)
+    public async Task<VaultResult<SecretValue>> TryGetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(identifier);
-
-        using var scope = CreateLogScope(context);
 
         _logger.LogDebug("Attempting to get secret '{SecretName}' from in-memory store", identifier.Name);
 
         try
         {
-            var secretValue = await GetSecretAsync(identifier, context, cancellationToken).ConfigureAwait(false);
+            var secretValue = await GetSecretAsync(identifier, cancellationToken).ConfigureAwait(false);
             return VaultResult.Success(secretValue);
         }
         catch (SecretNotFoundException ex)
@@ -111,25 +81,11 @@ public sealed class InMemorySecretStore(
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<SecretVersion>> ListSecretVersionsAsync(string secretName, CancellationToken cancellationToken = default)
-        => ListSecretVersionsAsync(secretName, context: null, cancellationToken);
-
-    /// <summary>
-    /// Lists all versions of a secret with grid context for distributed tracing.
-    /// </summary>
-    /// <param name="secretName">The name of the secret.</param>
-    /// <param name="context">The optional grid context for correlation and tracing.</param>
-    /// <returns>A collection of secret versions.</returns>
-    public Task<IReadOnlyList<SecretVersion>> ListSecretVersionsAsync(
-        string secretName,
-        IGridContext? context,
-        CancellationToken _ = default)
     {
         if (string.IsNullOrWhiteSpace(secretName))
         {
             throw new ArgumentException("Secret name cannot be null or whitespace.", nameof(secretName));
         }
-
-        using var scope = CreateLogScope(context);
 
         _logger.LogDebug("Listing versions for secret '{SecretName}' from in-memory store", secretName);
 
@@ -221,37 +177,5 @@ public sealed class InMemorySecretStore(
     {
         // In-memory store is always healthy
         return Task.FromResult(true);
-    }
-
-    private IDisposable? CreateLogScope(IGridContext? context)
-    {
-        if (context == null)
-        {
-            return null;
-        }
-
-        var scopeProperties = new Dictionary<string, object>
-        {
-            ["CorrelationId"] = context.CorrelationId,
-            ["NodeId"] = context.NodeId,
-            ["StudioId"] = context.StudioId,
-        };
-
-        // Add CausationId if present
-        if (context.CausationId != null)
-        {
-            scopeProperties["CausationId"] = context.CausationId;
-        }
-
-        // Add baggage items to scope
-        if (context.Baggage != null)
-        {
-            foreach (var (key, value) in context.Baggage)
-            {
-                scopeProperties[$"Baggage.{key}"] = value;
-            }
-        }
-
-        return _logger.BeginScope(scopeProperties);
     }
 }

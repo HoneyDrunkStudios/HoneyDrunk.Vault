@@ -37,20 +37,17 @@ public static class HoneyDrunkBuilderExtensions
         configure(options);
         services.AddSingleton(Microsoft.Extensions.Options.Options.Create(options));
 
-        // Register core vault services
-        services.AddVaultCore();
-
-        // Register caching if enabled
-        if (options.Cache.Enabled)
-        {
-            services.TryAddSingleton<SecretCache>();
-        }
+        // Register secret cache (always registered, respects Enabled flag internally)
+        services.TryAddSingleton<SecretCache>();
 
         // Register telemetry
         if (options.EnableTelemetry)
         {
             services.TryAddSingleton<VaultTelemetry>();
         }
+
+        // Register core vault services (composite, caching, resilience)
+        services.AddVaultCore();
 
         // Register Kernel lifecycle integration
         services.AddSingleton<IHealthContributor, VaultHealthContributor>();

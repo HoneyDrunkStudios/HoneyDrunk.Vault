@@ -1,28 +1,26 @@
 using HoneyDrunk.Kernel.Abstractions.Lifecycle;
-using HoneyDrunk.Vault.Abstractions;
-using HoneyDrunk.Vault.Configuration;
+using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace HoneyDrunk.Vault.Health;
 
 /// <summary>
 /// Readiness contributor for the vault system.
-/// Determines if the vault is ready to serve requests.
+/// Vault is ready only if all required providers are reachable.
 /// </summary>
 /// <remarks>
 /// Initializes a new instance of the <see cref="VaultReadinessContributor"/> class.
 /// </remarks>
-/// <param name="secretStore">The secret store.</param>
-/// <param name="options">The vault options.</param>
+/// <param name="secretProviders">The registered secret providers.</param>
+/// <param name="configProviders">The registered configuration providers.</param>
 /// <param name="logger">The logger.</param>
 public sealed class VaultReadinessContributor(
-    ISecretStore secretStore,
-    IOptions<VaultOptions> options,
+    IEnumerable<RegisteredSecretProvider> secretProviders,
+    IEnumerable<RegisteredConfigSourceProvider> configProviders,
     ILogger<VaultReadinessContributor> logger) : IReadinessContributor
 {
-    private readonly ISecretStore _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
-    private readonly VaultOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+    private readonly IEnumerable<RegisteredSecretProvider> _secretProviders = secretProviders ?? throw new ArgumentNullException(nameof(secretProviders));
+    private readonly IEnumerable<RegisteredConfigSourceProvider> _configProviders = configProviders ?? throw new ArgumentNullException(nameof(configProviders));
     private readonly ILogger<VaultReadinessContributor> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -39,37 +37,142 @@ public sealed class VaultReadinessContributor(
     {
         _logger.LogDebug("Performing vault readiness check");
 
-        try
+        var readyProviders = new List<string>();
+        var notReadyProviders = new List<string>();
+        var requiredNotReadyProviders = new List<string>();
+
+        // Check secret providers
+        foreach (var registered in _secretProviders.Where(p => p.Registration.IsEnabled))
         {
-            // Check that at least one provider is configured and enabled
-            var enabledProviders = _options.Providers.Values.Count(p => p.IsEnabled);
-            if (enabledProviders == 0)
-            {
-                _logger.LogWarning("No vault providers are enabled");
-                return (false, "No vault providers are enabled");
-            }
+            var providerName = registered.Provider.ProviderName;
+            var isRequired = registered.Registration.IsRequired;
 
-            // If warmup keys are configured, verify they were loaded
-            if (_options.WarmupKeys.Count > 0 && !string.IsNullOrEmpty(_options.HealthCheckSecretKey))
+            try
             {
-                var result = await _secretStore.TryGetSecretAsync(
-                    new Models.SecretIdentifier(_options.HealthCheckSecretKey),
-                    cancellationToken).ConfigureAwait(false);
+                var isHealthy = await registered.Provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
 
-                if (!result.IsSuccess)
+                if (isHealthy)
                 {
-                    _logger.LogWarning("Vault readiness check: warmup may not be complete");
-                    return (true, "Vault ready (warmup may not be complete)");
+                    readyProviders.Add(providerName);
+                    _logger.LogDebug("Secret provider '{ProviderName}' is ready", providerName);
+                }
+                else
+                {
+                    notReadyProviders.Add(providerName);
+                    if (isRequired)
+                    {
+                        requiredNotReadyProviders.Add(providerName);
+                    }
+
+                    _logger.LogWarning(
+                        "Secret provider '{ProviderName}' is not ready (required: {IsRequired})",
+                        providerName,
+                        isRequired);
                 }
             }
+            catch (Exception ex)
+            {
+                notReadyProviders.Add(providerName);
+                if (isRequired)
+                {
+                    requiredNotReadyProviders.Add(providerName);
+                }
 
-            _logger.LogDebug("Vault readiness check passed");
-            return (true, $"Vault ready with {enabledProviders} provider(s)");
+                _logger.LogWarning(
+                    ex,
+                    "Secret provider '{ProviderName}' readiness check failed (required: {IsRequired})",
+                    providerName,
+                    isRequired);
+            }
         }
-        catch (Exception ex)
+
+        // Check config providers
+        foreach (var registered in _configProviders.Where(p => p.Registration.IsEnabled))
         {
-            _logger.LogError(ex, "Vault readiness check failed");
-            return (false, $"Vault not ready: {ex.Message}");
+            var providerName = registered.Provider.ProviderName;
+            var isRequired = registered.Registration.IsRequired;
+
+            try
+            {
+                var isHealthy = await registered.Provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
+
+                if (isHealthy)
+                {
+                    if (!readyProviders.Contains(providerName))
+                    {
+                        readyProviders.Add(providerName);
+                    }
+
+                    _logger.LogDebug("Config provider '{ProviderName}' is ready", providerName);
+                }
+                else
+                {
+                    if (!notReadyProviders.Contains(providerName))
+                    {
+                        notReadyProviders.Add(providerName);
+                    }
+
+                    if (isRequired && !requiredNotReadyProviders.Contains(providerName))
+                    {
+                        requiredNotReadyProviders.Add(providerName);
+                    }
+
+                    _logger.LogWarning(
+                        "Config provider '{ProviderName}' is not ready (required: {IsRequired})",
+                        providerName,
+                        isRequired);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!notReadyProviders.Contains(providerName))
+                {
+                    notReadyProviders.Add(providerName);
+                }
+
+                if (isRequired && !requiredNotReadyProviders.Contains(providerName))
+                {
+                    requiredNotReadyProviders.Add(providerName);
+                }
+
+                _logger.LogWarning(
+                    ex,
+                    "Config provider '{ProviderName}' readiness check failed (required: {IsRequired})",
+                    providerName,
+                    isRequired);
+            }
         }
+
+        // Determine readiness
+        // Not ready if any required provider is not reachable
+        if (requiredNotReadyProviders.Count > 0)
+        {
+            _logger.LogError(
+                "Vault not ready: required providers unavailable: {Providers}",
+                string.Join(", ", requiredNotReadyProviders));
+            return (false, $"Required providers not ready: {string.Join(", ", requiredNotReadyProviders)}");
+        }
+
+        // Ready if no providers are configured (degenerate case)
+        if (readyProviders.Count == 0 && notReadyProviders.Count == 0)
+        {
+            _logger.LogWarning("Vault ready but no providers configured");
+            return (true, "Vault ready (no providers configured)");
+        }
+
+        // Ready if at least one provider is available (and no required providers are down)
+        if (readyProviders.Count > 0)
+        {
+            var message = notReadyProviders.Count > 0
+                ? $"Ready: {string.Join(", ", readyProviders)}; Unavailable: {string.Join(", ", notReadyProviders)}"
+                : $"Ready: {string.Join(", ", readyProviders)}";
+
+            _logger.LogDebug("Vault readiness check passed: {Message}", message);
+            return (true, message);
+        }
+
+        // No providers ready
+        _logger.LogError("Vault not ready: no providers available");
+        return (false, "No providers available");
     }
 }

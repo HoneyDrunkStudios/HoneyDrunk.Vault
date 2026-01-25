@@ -608,6 +608,77 @@ public async Task VaultReadiness_AfterWarmup_ReturnsReady()
 
 ---
 
+## Architecture Canary Tests
+
+Vault includes canary tests that enforce architectural invariants. These tests run in CI to ensure Vault respects its boundaries with Kernel and provider packages remain isolated.
+
+**Location:** `HoneyDrunk.Vault.Tests/Canary/`
+
+### Invariants Enforced
+
+| Invariant | Description | Validation Method |
+|-----------|-------------|-------------------|
+| **Kernel Context Ownership** | Vault must not instantiate or replace Kernel contexts | Runtime validation via hash comparison |
+| **No Context Creation** | Vault code must not construct `GridContext`, `NodeContext`, or `OperationContext` | IL scanning for `newobj` opcodes |
+| **Provider Boundary** | Provider assemblies must not reference `HoneyDrunk.Kernel` | Reflection-based assembly inspection |
+
+### Key Components
+
+```csharp
+// CanaryInvariantException - Custom exception for invariant violations
+throw new CanaryInvariantException(
+    invariantName: "KernelContextOwnership",
+    details: "GridContext identity changed during Vault operations");
+
+// KernelContextOwnershipInvariant - Validates context stability
+await KernelContextOwnershipInvariant.ValidateAsync(
+    scope,
+    async services =>
+    {
+        var secretStore = services.GetRequiredService<ISecretStore>();
+        await secretStore.GetSecretAsync(new SecretIdentifier("key"));
+    });
+
+// NoContextCreationInvariant - IL scanning
+NoContextCreationInvariant.Validate(vaultAssembly);
+
+// ProviderBoundaryInvariant - Assembly reference validation
+ProviderBoundaryInvariant.Validate(providerAssembly);
+```
+
+### Running Canary Tests
+
+```bash
+# Run only canary tests
+dotnet test --filter "Category=Canary"
+
+# Run all architecture tests
+dotnet test --filter "Category=Architecture"
+```
+
+### Test Categories
+
+Canary tests are tagged with traits for filtering:
+
+```csharp
+[Trait("Category", "Canary")]
+[Trait("Category", "Architecture")]
+public sealed class VaultArchitectureCanaryTests
+{
+    [Fact]
+    public void Invariant2_NoContextCreation_VaultAssembliesDoNotConstructContexts()
+    {
+        var vaultAssemblies = GetVaultAssemblies();
+        foreach (var assembly in vaultAssemblies)
+        {
+            NoContextCreationInvariant.Validate(assembly);
+        }
+    }
+}
+```
+
+---
+
 ## Summary
 
 Testing strategies for vault-dependent code:

@@ -180,7 +180,9 @@ inMemoryProvider.SetSecret("new-key", "new-value");
 
 In-memory implementation of `IConfigSourceProvider` (internal contract).
 
-**Contract Boundary:** `IConfigSource` provides raw configuration values (string-based). Typed conversion is performed by `IConfigProvider`, not by this provider. `VaultCore` wires `IConfigSourceProvider` into `IConfigProvider` via `ConfigSourceAdapter`.
+**Architecture:** `InMemoryConfigSource` implements `IConfigSourceProvider` which extends `IConfigSource`. When registered via `AddConfigSourceProvider()`, it is wrapped by `CompositeConfigSource` which implements both `IConfigSource` and `IConfigProvider`. The composite handles priority-based provider selection and exposes typed APIs to consumers.
+
+**Typed APIs:** Both `IConfigSource` and `IConfigProvider` expose typed methods (`GetConfigValueAsync<T>`/`GetValueAsync<T>`). Type conversion is performed by `CompositeConfigSource` when serving `IConfigProvider` requests. Individual providers like `InMemoryConfigSource` implement only the string-based `IConfigSource` methods; typed overloads throw `NotSupportedException`.
 
 **Provider Interface:** As of v0.2.0, `InMemoryConfigSource` implements `IConfigSourceProvider` (which extends `IConfigSource`), enabling registration via `AddConfigSourceProvider()` for use with composite stores and health contributors.
 
@@ -205,14 +207,6 @@ public sealed class InMemoryConfigSource : IConfigSource, IConfigSourceProvider
 
     public Task<string?> TryGetConfigValueAsync(
         string key,
-        CancellationToken cancellationToken = default);
-
-    // Runtime modification
-    public void SetConfigValue(string key, string value);
-    public bool RemoveConfigValue(string key);
-    public void Clear();
-}
-```
         CancellationToken cancellationToken = default);
 
     // Runtime modification

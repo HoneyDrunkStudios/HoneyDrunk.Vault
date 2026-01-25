@@ -319,53 +319,71 @@ The cache tracks:
 
 ---
 
-## ConfigSourceAdapter.cs
+## CompositeConfigSource.cs
 
-Adapter that wraps an `IConfigSource` to implement `IConfigProvider`. Enables legacy config sources to work with the new typed interface.
+Composite configuration source that orchestrates multiple `IConfigSourceProvider` instances with priority-based fallback. Implements both `IConfigSource` and `IConfigProvider` interfaces.
 
-**Compatibility Layer:** `ConfigSourceAdapter` is a thin compatibility layer. It does not perform caching, validation, or transformation of values beyond type conversion.
+**Unified Interface:** `CompositeConfigSource` serves as the single entry point for all configuration access. It implements both internal (`IConfigSource`) and exported (`IConfigProvider`) contracts, eliminating the need for adapter wrappers.
 
-**No Caching:** Configuration is always fetched fresh from the underlying `IConfigSource`. Config values do not inherit secret caching rules.
+**No Caching:** Configuration is always fetched fresh from providers. Config values do not inherit secret caching rules.
 
 ```csharp
-internal sealed class ConfigSourceAdapter : IConfigProvider
+public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
 {
-    public ConfigSourceAdapter(IConfigSource configSource);
+    public CompositeConfigSource(
+        IEnumerable<RegisteredConfigSourceProvider> providers,
+        ResiliencePipelineFactory resilienceFactory,
+        ILogger<CompositeConfigSource> logger);
 
-    public Task<string> GetValueAsync(
+    public IReadOnlyList<RegisteredConfigSourceProvider> Providers { get; }
+
+    // IConfigSource implementation
+    public Task<string> GetConfigValueAsync(
         string key, 
         CancellationToken cancellationToken = default);
 
-    public Task<T> GetValueAsync<T>(
-        string path, 
+    public Task<string?> TryGetConfigValueAsync(
+        string key, 
+        CancellationToken cancellationToken = default);
+
+    public Task<T> GetConfigValueAsync<T>(
+        string key, 
+        CancellationToken cancellationToken = default);
+
+    public Task<T> TryGetConfigValueAsync<T>(
+        string key, 
         T defaultValue, 
         CancellationToken cancellationToken = default);
 
-    public Task<string?> TryGetValueAsync(
-        string key, 
-        CancellationToken cancellationToken = default);
-
-    public Task<T> GetValueAsync<T>(
-        string key, 
-        CancellationToken cancellationToken = default);
+    // IConfigProvider implementation (delegates to IConfigSource methods)
+    Task<string> IConfigProvider.GetValueAsync(string key, CancellationToken ct);
+    Task<T> IConfigProvider.GetValueAsync<T>(string path, T defaultValue, CancellationToken ct);
+    Task<string?> IConfigProvider.TryGetValueAsync(string key, CancellationToken ct);
+    Task<T> IConfigProvider.GetValueAsync<T>(string key, CancellationToken ct);
 }
 ```
 
-### Adapter Flow
+### Composite Flow
 
 ```
 IConfigProvider.GetValueAsync<T>()
         │
         ▼
 ┌───────────────────────────────────┐
-│ ConfigSourceAdapter               │
-│ (wraps IConfigSource)             │
+│ CompositeConfigSource             │
+│ (implements both interfaces)      │
 └───────────────┬───────────────────┘
                 │
                 ▼
 ┌───────────────────────────────────┐
-│ IConfigSource.GetConfigValueAsync │
-│ (returns string)                  │
+│ Priority-based provider iteration │
+│ (registered IConfigSourceProvider)│
+└───────────────┬───────────────────┘
+                │
+                ▼
+┌───────────────────────────────────┐
+│ TryGetConfigValueAsync per provider│
+│ (with resilience pipeline)        │
 └───────────────┬───────────────────┘
                 │
                 ▼
@@ -375,25 +393,23 @@ IConfigProvider.GetValueAsync<T>()
 └───────────────────────────────────┘
 ```
 
-### Usage Example
+### Registration Example
 
 ```csharp
-// Automatic registration in VaultServiceCollectionExtensions
-services.TryAddSingleton<IConfigProvider>(sp =>
-{
-    var configSource = sp.GetService<IConfigSource>();
-    
-    // If IConfigSource already implements IConfigProvider, use directly
-    if (configSource is IConfigProvider provider)
+// Providers register via AddConfigSourceProvider()
+services.AddConfigSourceProvider(
+    configSourceProvider,
+    new ProviderRegistration
     {
-        return provider;
-    }
+        Name = "in-memory",
+        Priority = 1,
+        IsEnabled = true
+    });
 
-    // Otherwise, wrap in adapter
-    return configSource != null
-        ? new ConfigSourceAdapter(configSource)
-        : throw new InvalidOperationException("No IConfigSource registered");
-});
+// CompositeConfigSource is registered as both IConfigSource and IConfigProvider
+services.TryAddSingleton<CompositeConfigSource>();
+services.TryAddSingleton<IConfigSource>(sp => sp.GetRequiredService<CompositeConfigSource>());
+services.TryAddSingleton<IConfigProvider>(sp => sp.GetRequiredService<CompositeConfigSource>());
 ```
 
 [↑ Back to top](#table-of-contents)
@@ -408,13 +424,14 @@ Core services provide the orchestration and caching layers:
 |---------|---------|-------------|
 | `VaultClient` | Unified façade (telemetry, exception wrapping) | ✅ (stateless) |
 | `SecretCache` | In-memory TTL cache (passive expiration) | ✅ (thread-safe internal structures) |
-| `ConfigSourceAdapter` | Typed config bridge (no caching) | ✅ |
+| `CompositeSecretStore` | Provider orchestration for secrets | ✅ |
+| `CompositeConfigSource` | Provider orchestration for config | ✅ |
 
 **Key Principles:**
-- `VaultClient` orchestrates; it does NOT pick providers
-- `ISecretStore` dependency is a composed pipeline (cache → resilience → provider resolution)
+- Composite stores handle provider selection (priority, availability, fallback)
+- `ISecretStore` and `IConfigProvider` point to composite implementations
 - `SecretCache` performs passive lazy expiration on access
-- Telemetry and resilience apply before exceptions reach `VaultClient`
+- Telemetry and resilience apply at the composite level
 
 ---
 

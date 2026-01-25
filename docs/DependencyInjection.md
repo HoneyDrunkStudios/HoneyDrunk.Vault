@@ -45,9 +45,9 @@ public static class VaultServiceCollectionExtensions
 builder.Services.AddVaultCore();
 
 // Core services registered:
-// - ISecretStore -> VaultClient (exported contract)
-// - IVaultClient -> VaultClient (internal orchestrator)
-// - IConfigProvider -> ConfigSourceAdapter (wraps IConfigSource if available)
+// - ISecretStore -> CompositeSecretStore (exported contract)
+// - IConfigSource -> CompositeConfigSource (internal)
+// - IConfigProvider -> CompositeConfigSource (exported contract)
 ```
 
 ### What Gets Registered
@@ -57,36 +57,26 @@ public static IServiceCollection AddVaultCore(this IServiceCollection services)
 {
     ArgumentNullException.ThrowIfNull(services);
 
-    // Register the central orchestrator as both ISecretStore and IVaultClient
-    services.TryAddSingleton<IVaultClient, VaultClient>();
-    services.TryAddSingleton<ISecretStore>(sp => sp.GetRequiredService<IVaultClient>());
+    // Register composite stores that orchestrate multiple providers
+    services.TryAddSingleton<CompositeSecretStore>();
+    services.TryAddSingleton<CompositeConfigSource>();
 
-    // Register IConfigProvider as a wrapper around IConfigSource
-    // Only provides configuration if a provider registers IConfigSource
-    services.TryAddSingleton<IConfigProvider>(sp =>
-    {
-        var configSource = sp.GetService<IConfigSource>();
-        
-        // If IConfigSource already implements IConfigProvider, use directly
-        if (configSource is IConfigProvider provider)
-        {
-            return provider;
-        }
+    // Register the exported contracts pointing to composites
+    services.TryAddSingleton<ISecretStore>(sp => sp.GetRequiredService<CompositeSecretStore>());
+    services.TryAddSingleton<IConfigSource>(sp => sp.GetRequiredService<CompositeConfigSource>());
+    services.TryAddSingleton<IConfigProvider>(sp => sp.GetRequiredService<CompositeConfigSource>());
 
-        // Otherwise wrap in adapter (if available)
-        // If no IConfigSource, configuration access will not be available
-        return configSource != null
-            ? new ConfigSourceAdapter(configSource)
-            : new NullConfigProvider(); // Returns defaults/empty
-    });
+    // Register supporting services
+    services.TryAddSingleton<ResiliencePipelineFactory>();
+    services.TryAddSingleton<VaultTelemetry>();
 
     return services;
 }
 ```
 
-**Configuration Availability:** `IConfigProvider` is registered only if a provider registers an `IConfigSource`. If no provider supplies configuration, Vault will not offer configuration via `IConfigProvider`. Vault does not guarantee configuration availability unless at least one config-capable provider is registered (File, InMemory, Configuration).
+**Composite Architecture:** `CompositeConfigSource` implements both `IConfigSource` and `IConfigProvider`. It orchestrates registered `IConfigSourceProvider` instances with priority-based selection and fallback. Individual providers are registered via `AddConfigSourceProvider()`.
 
-**Provider Resolution:** Providers registered via `AddVaultWithX()` populate `VaultOptions.Providers`. `VaultClient` consumes this registry to perform provider selection (default provider, fallback chain, `IsAvailable` checks, health integration).
+**Provider Resolution:** Providers registered via `AddVaultWithX()` call `AddSecretProvider()` and/or `AddConfigSourceProvider()` to register themselves with the composite stores. The composites handle provider selection based on priority, availability, and health status.
 
 [↑ Back to top](#table-of-contents)
 

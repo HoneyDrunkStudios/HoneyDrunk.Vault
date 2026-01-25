@@ -29,20 +29,17 @@ public sealed class CachingSecretStore(
 
         var cacheKey = BuildCacheKey(identifier);
 
-        // Check cache first
+        // Check cache first (SecretCache handles hit/miss logging)
         if (_cache.TryGet(cacheKey, out var cached) && cached != null)
         {
-            _logger.LogDebug("Cache hit for secret '{SecretName}'", identifier.Name);
             return cached;
         }
 
         // Fetch from providers
-        _logger.LogDebug("Cache miss for secret '{SecretName}', fetching from providers", identifier.Name);
         var result = await _inner.GetSecretAsync(identifier, cancellationToken).ConfigureAwait(false);
 
         // Cache successful result
         _cache.Set(cacheKey, result);
-        _logger.LogDebug("Cached secret '{SecretName}'", identifier.Name);
 
         return result;
     }
@@ -54,22 +51,19 @@ public sealed class CachingSecretStore(
 
         var cacheKey = BuildCacheKey(identifier);
 
-        // Check cache first
+        // Check cache first (SecretCache handles hit/miss logging)
         if (_cache.TryGet(cacheKey, out var cached) && cached != null)
         {
-            _logger.LogDebug("Cache hit for secret '{SecretName}'", identifier.Name);
             return VaultResult.Success(cached);
         }
 
         // Fetch from providers
-        _logger.LogDebug("Cache miss for secret '{SecretName}', fetching from providers", identifier.Name);
         var result = await _inner.TryGetSecretAsync(identifier, cancellationToken).ConfigureAwait(false);
 
         // Only cache successful results - never cache failures
         if (result.IsSuccess && result.Value != null)
         {
             _cache.Set(cacheKey, result.Value);
-            _logger.LogDebug("Cached secret '{SecretName}'", identifier.Name);
         }
 
         return result;

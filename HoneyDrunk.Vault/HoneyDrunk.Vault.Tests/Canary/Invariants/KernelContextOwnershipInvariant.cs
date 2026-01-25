@@ -34,9 +34,9 @@ public static class KernelContextOwnershipInvariant
         var gridContextAccessor = services.GetService<IGridContextAccessor>();
         var operationContextAccessor = services.GetService<IOperationContextAccessor>();
 
-        // Capture context identity before operations (using hash codes since GridContext is a struct)
-        int? gridContextHashBefore = null;
-        int? operationContextHashBefore = null;
+        // Capture context identity before operations (using actual IDs, not hash codes)
+        string? correlationIdBefore = null;
+        string? operationIdBefore = null;
         bool gridContextInitializedBefore = false;
 
         if (gridContextAccessor != null)
@@ -45,8 +45,8 @@ public static class KernelContextOwnershipInvariant
             gridContextInitializedBefore = gridContext.IsInitialized;
             if (gridContext.IsInitialized)
             {
-                // Capture identifying information (correlation ID is unique per context)
-                gridContextHashBefore = gridContext.CorrelationId.GetHashCode();
+                // Capture the actual correlation ID for comparison
+                correlationIdBefore = gridContext.CorrelationId;
             }
         }
 
@@ -55,7 +55,7 @@ public static class KernelContextOwnershipInvariant
             var opContext = operationContextAccessor.Current;
             if (opContext != null)
             {
-                operationContextHashBefore = opContext.OperationId.GetHashCode();
+                operationIdBefore = opContext.OperationId;
             }
         }
 
@@ -72,8 +72,8 @@ public static class KernelContextOwnershipInvariant
         }
 
         // Capture context identity after operations
-        int? gridContextHashAfter = null;
-        int? operationContextHashAfter = null;
+        string? correlationIdAfter = null;
+        string? operationIdAfter = null;
         bool gridContextInitializedAfter = false;
 
         if (gridContextAccessor != null)
@@ -82,7 +82,7 @@ public static class KernelContextOwnershipInvariant
             gridContextInitializedAfter = gridContext.IsInitialized;
             if (gridContext.IsInitialized)
             {
-                gridContextHashAfter = gridContext.CorrelationId.GetHashCode();
+                correlationIdAfter = gridContext.CorrelationId;
             }
         }
 
@@ -91,19 +91,17 @@ public static class KernelContextOwnershipInvariant
             var opContext = operationContextAccessor.Current;
             if (opContext != null)
             {
-                operationContextHashAfter = opContext.OperationId.GetHashCode();
+                operationIdAfter = opContext.OperationId;
             }
         }
 
         // Validate: If grid context was initialized before, it should have the same identity after
-        if (gridContextInitializedBefore && gridContextInitializedAfter)
+        if (gridContextInitializedBefore && gridContextInitializedAfter &&
+            !string.Equals(correlationIdBefore, correlationIdAfter, StringComparison.Ordinal))
         {
-            if (gridContextHashBefore != gridContextHashAfter)
-            {
-                var message = $"GridContext identity changed during Vault operations. Vault must not replace or recreate Kernel contexts. CorrelationId hash before: {gridContextHashBefore}, after: {gridContextHashAfter}";
+            var message = $"GridContext identity changed during Vault operations. Vault must not replace or recreate Kernel contexts. CorrelationId before: {correlationIdBefore}, after: {correlationIdAfter}";
 
-                throw new CanaryInvariantException(InvariantName, message);
-            }
+            throw new CanaryInvariantException(InvariantName, message);
         }
 
         // Validate: Grid context should not transition from uninitialized to initialized by Vault
@@ -115,14 +113,12 @@ public static class KernelContextOwnershipInvariant
         }
 
         // Validate: If operation context was present before, it should have the same identity after
-        if (operationContextHashBefore.HasValue && operationContextHashAfter.HasValue)
+        if (operationIdBefore != null && operationIdAfter != null &&
+            !string.Equals(operationIdBefore, operationIdAfter, StringComparison.Ordinal))
         {
-            if (operationContextHashBefore != operationContextHashAfter)
-            {
-                var message = $"OperationContext identity changed during Vault operations. Vault must not replace or recreate Kernel contexts. OperationId hash before: {operationContextHashBefore}, after: {operationContextHashAfter}";
+            var message = $"OperationContext identity changed during Vault operations. Vault must not replace or recreate Kernel contexts. OperationId before: {operationIdBefore}, after: {operationIdAfter}";
 
-                throw new CanaryInvariantException(InvariantName, message);
-            }
+            throw new CanaryInvariantException(InvariantName, message);
         }
 
         // If Vault threw an exception related to uninitialized context access, fail the invariant

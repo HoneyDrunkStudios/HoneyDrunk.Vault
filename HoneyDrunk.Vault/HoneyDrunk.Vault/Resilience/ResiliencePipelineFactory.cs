@@ -47,7 +47,8 @@ public sealed class ResiliencePipelineFactory(
         {
             // Circuit breaker state is managed internally by Polly
             // We track it through the OnCircuitStateChange callback
-            return _circuitStates.GetValueOrDefault(providerName);
+            // Use TryGetValue to return null when no state has been recorded yet
+            return _circuitStates.TryGetValue(providerName, out var state) ? state : null;
         }
 
         return null;

@@ -66,7 +66,7 @@ This guide is organized into focused documents by domain:
 | 📋 **Abstractions** | [Abstractions.md](Abstractions.md) | **Exported:** ISecretStore, IConfigProvider · **Internal:** ISecretProvider, IConfigSource, IVaultClient |
 | 🔧 **Models** | [Models.md](Models.md) | Building blocks (SecretIdentifier, SecretValue, SecretVersion, VaultResult, VaultScope) |
 | ⚙️ **Configuration** | [Configuration.md](Configuration.md) | Core: VaultOptions, VaultCacheOptions, VaultResilienceOptions, ProviderRegistration |
-| 🔄 **Services** | [Services.md](Services.md) | Core services (VaultClient orchestrator, SecretCache, ConfigSourceAdapter) |
+| 🔄 **Services** | [Services.md](Services.md) | Core services (VaultClient orchestrator, SecretCache, CompositeSecretStore, CompositeConfigSource) |
 | ❤️ **Health** | [Health.md](Health.md) | Health monitoring (VaultHealthContributor, VaultReadinessContributor) |
 | 🚀 **Lifecycle** | [Lifecycle.md](Lifecycle.md) | Startup integration (VaultStartupHook, cache warming) |
 | 📈 **Telemetry** | [Telemetry.md](Telemetry.md) | Observability (VaultTelemetry, activity tracing, secure logging) |
@@ -408,7 +408,8 @@ HoneyDrunk.Vault/
 │   │   ├── VaultResult{T}.cs          # Success/failure result
 │   │   └── VaultScope.cs              # Environment/tenant scope
 │   ├── Services/                      # Internal services
-│   │   ├── ConfigSourceAdapter.cs     # IConfigSource → IConfigProvider
+│   │   ├── CompositeConfigSource.cs   # Provider orchestration for config
+│   │   ├── CompositeSecretStore.cs    # Provider orchestration for secrets
 │   │   ├── SecretCache.cs             # In-memory caching with TTL
 │   │   └── VaultClient.cs             # Internal orchestrator
 │   └── Telemetry/                     # Observability (Pulse-compatible)

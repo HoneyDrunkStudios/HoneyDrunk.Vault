@@ -4,6 +4,7 @@ using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Resilience;
 using HoneyDrunk.Vault.Telemetry;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace HoneyDrunk.Vault.Services;
 
@@ -12,6 +13,8 @@ namespace HoneyDrunk.Vault.Services;
 /// </summary>
 public sealed class CompositeSecretStore : ISecretStore
 {
+    private static readonly ActivitySource CompositeActivitySource = new("HoneyDrunk.Vault.Composite");
+
     private readonly ResiliencePipelineFactory _resilienceFactory;
     private readonly VaultTelemetry? _telemetry;
     private readonly ILogger<CompositeSecretStore> _logger;
@@ -72,7 +75,19 @@ public sealed class CompositeSecretStore : ISecretStore
             return result.Value!;
         }
 
-        throw new SecretNotFoundException(identifier.Name);
+        // Distinguish between "not found" and provider failures
+        // Error messages for not-found start with "Secret '" or "No providers"
+        var isNotFound = result.ErrorMessage?.StartsWith("Secret '", StringComparison.Ordinal) == true
+            || result.ErrorMessage?.StartsWith("No providers", StringComparison.Ordinal) == true;
+
+        if (isNotFound)
+        {
+            throw new SecretNotFoundException(identifier.Name);
+        }
+
+        // Provider failure - throw VaultOperationException with the error details
+        throw new VaultOperationException(
+            result.ErrorMessage ?? $"Failed to retrieve secret '{identifier.Name}'");
     }
 
     /// <inheritdoc/>
@@ -80,14 +95,20 @@ public sealed class CompositeSecretStore : ISecretStore
     {
         ArgumentNullException.ThrowIfNull(identifier);
 
+        using var activity = CompositeActivitySource.StartActivity("composite.get_secret", ActivityKind.Internal);
+        activity?.SetTag("vault.key", identifier.Name);
+        activity?.SetTag("vault.provider_count", Providers.Count);
+
         if (Providers.Count == 0)
         {
             _logger.LogWarning("No providers available to retrieve secret '{SecretName}'", identifier.Name);
+            activity?.SetTag("vault.result", "no_providers");
             return VaultResult.Failure<SecretValue>("No providers available");
         }
 
         Exception? lastException = null;
         var attemptedProviders = new List<string>();
+        var fallbackCount = 0;
 
         foreach (var registered in Providers)
         {
@@ -119,12 +140,19 @@ public sealed class CompositeSecretStore : ISecretStore
                     identifier.Name,
                     providerName);
 
+                // Record telemetry for successful retrieval
+                activity?.SetTag("vault.result", "success");
+                activity?.SetTag("vault.serving_provider", providerName);
+                activity?.SetTag("vault.fallback_count", fallbackCount);
+                _telemetry?.RecordCacheHit(identifier.Name); // Indicates provider served the request
+
                 return VaultResult.Success(secretValue);
             }
             catch (Exception ex)
             {
                 lastException = ex;
                 var classification = FailureClassifier.Classify(ex);
+                fallbackCount++;
 
                 _logger.LogDebug(
                     ex,
@@ -150,6 +178,9 @@ public sealed class CompositeSecretStore : ISecretStore
                             "Fatal configuration error from provider '{ProviderName}' for secret '{SecretName}'",
                             providerName,
                             identifier.Name);
+                        activity?.SetTag("vault.result", "fatal_error");
+                        activity?.SetTag("vault.failed_provider", providerName);
+                        activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                         return VaultResult.Failure<SecretValue>($"Fatal configuration error: {ex.Message}");
 
                     case FailureClassification.Transient:
@@ -161,6 +192,9 @@ public sealed class CompositeSecretStore : ISecretStore
                                 "Required provider '{ProviderName}' failed transiently for secret '{SecretName}'",
                                 providerName,
                                 identifier.Name);
+                            activity?.SetTag("vault.result", "required_provider_failed");
+                            activity?.SetTag("vault.failed_provider", providerName);
+                            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
                             return VaultResult.Failure<SecretValue>($"Required provider '{providerName}' failed: {ex.Message}");
                         }
 
@@ -181,9 +215,13 @@ public sealed class CompositeSecretStore : ISecretStore
             identifier.Name,
             string.Join(", ", attemptedProviders));
 
+        activity?.SetTag("vault.result", "not_found");
+        activity?.SetTag("vault.attempted_providers", string.Join(",", attemptedProviders));
+        activity?.SetTag("vault.fallback_count", fallbackCount);
+
         var errorMessage = lastException is SecretNotFoundException or null
             ? $"Secret '{identifier.Name}' not found in any provider"
-            : $"Failed to retrieve secret '{identifier.Name}': {lastException?.Message}";
+            : $"Failed to retrieve secret '{identifier.Name}': {lastException.Message}";
 
         return VaultResult.Failure<SecretValue>(errorMessage);
     }

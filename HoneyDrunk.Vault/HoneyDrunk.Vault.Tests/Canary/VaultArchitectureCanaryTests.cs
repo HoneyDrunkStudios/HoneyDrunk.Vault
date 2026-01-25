@@ -60,51 +60,45 @@ public sealed class VaultArchitectureCanaryTests
     public async Task Invariant1_KernelContextOwnership_VaultConsumesContextsViaAccessors()
     {
         // Arrange: Build host with Kernel + Vault registered
-        var host = CreateHostWithKernelAndVault();
+        using var host = CreateHostWithKernelAndVault();
         await host.StartAsync();
 
-        try
-        {
-            using var scope = host.Services.CreateScope();
+        using var scope = host.Services.CreateScope();
 
-            // Act & Assert: Execute Vault operations and verify context stability
-            await KernelContextOwnershipInvariant.ValidateAsync(
-                scope,
-                async services =>
-                {
-                    // Representative Vault operations
-                    var secretStore = services.GetRequiredService<ISecretStore>();
-                    var configSource = services.GetRequiredService<IConfigSource>();
+        // Act & Assert: Execute Vault operations and verify context stability
+        await KernelContextOwnershipInvariant.ValidateAsync(
+            scope,
+            async services =>
+            {
+                // Representative Vault operations
+                var secretStore = services.GetRequiredService<ISecretStore>();
+                var configSource = services.GetRequiredService<IConfigSource>();
 
-                    // Read secrets
-                    var secret1 = await secretStore.GetSecretAsync(new SecretIdentifier(CanarySecretKey));
-                    Assert.Equal(CanarySecretValue, secret1.Value);
+                // Read secrets
+                var secret1 = await secretStore.GetSecretAsync(new SecretIdentifier(CanarySecretKey));
+                Assert.Equal(CanarySecretValue, secret1.Value);
 
-                    // Read again to exercise cache path
-                    var secret2 = await secretStore.GetSecretAsync(new SecretIdentifier(CanarySecretKey));
-                    Assert.Equal(CanarySecretValue, secret2.Value);
+                // Read again to exercise cache path
+                var secret2 = await secretStore.GetSecretAsync(new SecretIdentifier(CanarySecretKey));
+                Assert.Equal(CanarySecretValue, secret2.Value);
 
-                    // Read config
-                    var config1 = await configSource.GetConfigValueAsync(CanaryConfigKey);
-                    Assert.Equal(CanaryConfigValue, config1);
+                // Read config
+                var config1 = await configSource.GetConfigValueAsync(CanaryConfigKey);
+                Assert.Equal(CanaryConfigValue, config1);
 
-                    // Read again to exercise cache path
-                    var config2 = await configSource.GetConfigValueAsync(CanaryConfigKey);
-                    Assert.Equal(CanaryConfigValue, config2);
+                // Read again to exercise cache path
+                var config2 = await configSource.GetConfigValueAsync(CanaryConfigKey);
+                Assert.Equal(CanaryConfigValue, config2);
 
-                    // Try-read patterns
-                    var trySecret = await secretStore.TryGetSecretAsync(new SecretIdentifier(CanarySecretKey));
-                    Assert.True(trySecret.IsSuccess);
+                // Try-read patterns
+                var trySecret = await secretStore.TryGetSecretAsync(new SecretIdentifier(CanarySecretKey));
+                Assert.True(trySecret.IsSuccess);
 
-                    var tryConfig = await configSource.TryGetConfigValueAsync(CanaryConfigKey);
-                    Assert.NotNull(tryConfig);
-                });
-        }
-        finally
-        {
-            await host.StopAsync();
-            host.Dispose();
-        }
+                var tryConfig = await configSource.TryGetConfigValueAsync(CanaryConfigKey);
+                Assert.NotNull(tryConfig);
+            });
+
+        await host.StopAsync();
     }
 
     /// <summary>
@@ -163,48 +157,42 @@ public sealed class VaultArchitectureCanaryTests
     public async Task Invariant4_HealthContributors_DoNotViolateContextRules()
     {
         // Arrange: Build host with Kernel + Vault registered
-        var host = CreateHostWithKernelAndVault();
+        using var host = CreateHostWithKernelAndVault();
         await host.StartAsync();
 
-        try
-        {
-            using var scope = host.Services.CreateScope();
+        using var scope = host.Services.CreateScope();
 
-            // Act: Execute health and readiness checks
-            await KernelContextOwnershipInvariant.ValidateAsync(
-                scope,
-                async services =>
+        // Act: Execute health and readiness checks
+        await KernelContextOwnershipInvariant.ValidateAsync(
+            scope,
+            async services =>
+            {
+                // Get health contributors
+                var healthContributors = services.GetServices<IHealthContributor>();
+                var readinessContributors = services.GetServices<IReadinessContributor>();
+
+                // Exercise health contributors
+                foreach (var contributor in healthContributors)
                 {
-                    // Get health contributors
-                    var healthContributors = services.GetServices<IHealthContributor>();
-                    var readinessContributors = services.GetServices<IReadinessContributor>();
+                    var (status, message) = await contributor.CheckHealthAsync();
 
-                    // Exercise health contributors
-                    foreach (var contributor in healthContributors)
-                    {
-                        var (status, message) = await contributor.CheckHealthAsync();
+                    // We don't assert on status - just that it doesn't throw context violations
+                    _ = status;
+                    _ = message;
+                }
 
-                        // We don't assert on status - just that it doesn't throw context violations
-                        _ = status;
-                        _ = message;
-                    }
+                // Exercise readiness contributors
+                foreach (var contributor in readinessContributors)
+                {
+                    var (isReady, message) = await contributor.CheckReadinessAsync();
 
-                    // Exercise readiness contributors
-                    foreach (var contributor in readinessContributors)
-                    {
-                        var (isReady, message) = await contributor.CheckReadinessAsync();
+                    // We don't assert on readiness - just that it doesn't throw context violations
+                    _ = isReady;
+                    _ = message;
+                }
+            });
 
-                        // We don't assert on readiness - just that it doesn't throw context violations
-                        _ = isReady;
-                        _ = message;
-                    }
-                });
-        }
-        finally
-        {
-            await host.StopAsync();
-            host.Dispose();
-        }
+        await host.StopAsync();
     }
 
     /// <summary>
@@ -227,47 +215,41 @@ public sealed class VaultArchitectureCanaryTests
         ProviderBoundaryInvariant.Validate(typeof(Providers.Configuration.Services.ConfigurationSecretStore).Assembly);
 
         // Boot the host
-        var host = CreateHostWithKernelAndVault();
+        using var host = CreateHostWithKernelAndVault();
         await host.StartAsync();
 
-        try
-        {
-            using var scope = host.Services.CreateScope();
+        using var scope = host.Services.CreateScope();
 
-            // Invariant 1: Context ownership during operations
-            await KernelContextOwnershipInvariant.ValidateAsync(
-                scope,
-                async services =>
+        // Invariant 1: Context ownership during operations
+        await KernelContextOwnershipInvariant.ValidateAsync(
+            scope,
+            async services =>
+            {
+                var secretStore = services.GetRequiredService<ISecretStore>();
+                var configSource = services.GetRequiredService<IConfigSource>();
+
+                // Initial reads
+                var secret = await secretStore.GetSecretAsync(new SecretIdentifier(CanarySecretKey));
+                Assert.Equal(CanarySecretValue, secret.Value);
+
+                var config = await configSource.GetConfigValueAsync(CanaryConfigKey);
+                Assert.Equal(CanaryConfigValue, config);
+
+                // Cache reads (repeated operations)
+                for (int i = 0; i < 3; i++)
                 {
-                    var secretStore = services.GetRequiredService<ISecretStore>();
-                    var configSource = services.GetRequiredService<IConfigSource>();
+                    var cachedSecret = await secretStore.GetSecretAsync(new SecretIdentifier(CanarySecretKey));
+                    Assert.Equal(CanarySecretValue, cachedSecret.Value);
 
-                    // Initial reads
-                    var secret = await secretStore.GetSecretAsync(new SecretIdentifier(CanarySecretKey));
-                    Assert.Equal(CanarySecretValue, secret.Value);
+                    var cachedConfig = await configSource.GetConfigValueAsync(CanaryConfigKey);
+                    Assert.Equal(CanaryConfigValue, cachedConfig);
+                }
 
-                    var config = await configSource.GetConfigValueAsync(CanaryConfigKey);
-                    Assert.Equal(CanaryConfigValue, config);
+                // Note: Health/readiness contributors are not registered in off-grid mode
+                // They are tested separately via Invariant4 when full stack is available
+            });
 
-                    // Cache reads (repeated operations)
-                    for (int i = 0; i < 3; i++)
-                    {
-                        var cachedSecret = await secretStore.GetSecretAsync(new SecretIdentifier(CanarySecretKey));
-                        Assert.Equal(CanarySecretValue, cachedSecret.Value);
-
-                        var cachedConfig = await configSource.GetConfigValueAsync(CanaryConfigKey);
-                        Assert.Equal(CanaryConfigValue, cachedConfig);
-                    }
-
-                    // Note: Health/readiness contributors are not registered in off-grid mode
-                    // They are tested separately via Invariant4 when full stack is available
-                });
-        }
-        finally
-        {
-            await host.StopAsync();
-            host.Dispose();
-        }
+        await host.StopAsync();
     }
 
     private static IHost CreateHostWithKernelAndVault()

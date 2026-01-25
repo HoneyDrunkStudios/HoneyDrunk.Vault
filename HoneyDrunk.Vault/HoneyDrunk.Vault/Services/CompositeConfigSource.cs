@@ -57,11 +57,19 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
     /// <inheritdoc/>
     public async Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        var result = await TryGetConfigValueAsync(key, cancellationToken).ConfigureAwait(false);
+        var result = await TryGetConfigValueInternalAsync(key, cancellationToken).ConfigureAwait(false);
 
-        if (result != null)
+        if (result.Value != null)
         {
-            return result;
+            return result.Value;
+        }
+
+        // Distinguish between "not found" and "error occurred"
+        if (result.LastException != null && !result.IsNotFoundOnly)
+        {
+            throw new VaultOperationException(
+                $"Failed to retrieve configuration key '{key}': {result.LastException.Message}",
+                result.LastException);
         }
 
         throw new ConfigurationNotFoundException(key);
@@ -70,111 +78,8 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
     /// <inheritdoc/>
     public async Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
-
-        if (Providers.Count == 0)
-        {
-            _logger.LogWarning("No providers available to retrieve configuration key '{Key}'", key);
-            return null;
-        }
-
-        Exception? lastException = null;
-        var attemptedProviders = new List<string>();
-
-        foreach (var registered in Providers)
-        {
-            var providerName = registered.Provider.ProviderName;
-            attemptedProviders.Add(providerName);
-
-            try
-            {
-                var pipeline = _resilienceFactory.GetPipeline(providerName);
-
-                var value = await pipeline.ExecuteAsync(
-                    async ct =>
-                    {
-                        _logger.LogDebug(
-                            "Attempting to fetch configuration key '{Key}' from provider '{ProviderName}'",
-                            key,
-                            providerName);
-
-                        return await registered.Provider.TryGetConfigValueAsync(key, ct).ConfigureAwait(false);
-                    },
-                    cancellationToken).ConfigureAwait(false);
-
-                if (value != null)
-                {
-                    _logger.LogDebug(
-                        "Successfully retrieved configuration key '{Key}' from provider '{ProviderName}'",
-                        key,
-                        providerName);
-
-                    return value;
-                }
-
-                // Value not found in this provider - continue to next
-                _logger.LogDebug(
-                    "Configuration key '{Key}' not found in provider '{ProviderName}', trying next provider",
-                    key,
-                    providerName);
-            }
-            catch (Exception ex)
-            {
-                lastException = ex;
-                var classification = FailureClassifier.Classify(ex);
-
-                _logger.LogDebug(
-                    ex,
-                    "Provider '{ProviderName}' failed for configuration key '{Key}' with classification '{Classification}'",
-                    providerName,
-                    key,
-                    classification);
-
-                switch (classification)
-                {
-                    case FailureClassification.NotFound:
-                        // Continue to next provider
-                        continue;
-
-                    case FailureClassification.FatalConfiguration:
-                        // Fatal error - fail fast (return null to indicate not found)
-                        _logger.LogError(
-                            ex,
-                            "Fatal configuration error from provider '{ProviderName}' for key '{Key}'",
-                            providerName,
-                            key);
-                        return null;
-
-                    case FailureClassification.Transient:
-                        if (registered.Registration.IsRequired)
-                        {
-                            // Required provider failed - fail fast
-                            _logger.LogError(
-                                ex,
-                                "Required provider '{ProviderName}' failed transiently for key '{Key}'",
-                                providerName,
-                                key);
-                            return null;
-                        }
-
-                        // Optional provider - continue to next
-                        _logger.LogWarning(
-                            ex,
-                            "Optional provider '{ProviderName}' failed transiently for key '{Key}', trying next provider",
-                            providerName,
-                            key);
-                        continue;
-                }
-            }
-        }
-
-        // All providers exhausted
-        _logger.LogDebug(
-            "Configuration key '{Key}' not found in any provider. Attempted: {Providers}",
-            key,
-            string.Join(", ", attemptedProviders));
-
-        return null;
+        var result = await TryGetConfigValueInternalAsync(key, cancellationToken).ConfigureAwait(false);
+        return result.Value;
     }
 
     /// <inheritdoc/>
@@ -295,11 +200,11 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
                 return (T)(object)new Uri(value);
             }
 
-            // Try using the type converter as a fallback
+            // Try using the type converter as a fallback (invariant culture for consistency)
             var converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
             if (converter.CanConvertFrom(typeof(string)))
             {
-                return (T)converter.ConvertFromString(value)!;
+                return (T)converter.ConvertFromInvariantString(value)!;
             }
 
             throw new InvalidOperationException($"Cannot convert string to type {targetType.Name}");
@@ -310,5 +215,148 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
                 $"Failed to convert configuration value for key '{key}' to type {typeof(T).Name}",
                 ex);
         }
+    }
+
+    /// <summary>
+    /// Internal method that returns both the value and error information.
+    /// </summary>
+    private async Task<ConfigLookupResult> TryGetConfigValueInternalAsync(string key, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        if (Providers.Count == 0)
+        {
+            _logger.LogWarning("No providers available to retrieve configuration key '{Key}'", key);
+            return ConfigLookupResult.NotFound();
+        }
+
+        Exception? lastException = null;
+        var isNotFoundOnly = true;
+        var attemptedProviders = new List<string>();
+
+        foreach (var registered in Providers)
+        {
+            var providerName = registered.Provider.ProviderName;
+            attemptedProviders.Add(providerName);
+
+            try
+            {
+                var pipeline = _resilienceFactory.GetPipeline(providerName);
+
+                var value = await pipeline.ExecuteAsync(
+                    async ct =>
+                    {
+                        _logger.LogDebug(
+                            "Attempting to fetch configuration key '{Key}' from provider '{ProviderName}'",
+                            key,
+                            providerName);
+
+                        return await registered.Provider.TryGetConfigValueAsync(key, ct).ConfigureAwait(false);
+                    },
+                    cancellationToken).ConfigureAwait(false);
+
+                if (value != null)
+                {
+                    _logger.LogDebug(
+                        "Successfully retrieved configuration key '{Key}' from provider '{ProviderName}'",
+                        key,
+                        providerName);
+
+                    return ConfigLookupResult.Success(value);
+                }
+
+                // Value not found in this provider - continue to next
+                _logger.LogDebug(
+                    "Configuration key '{Key}' not found in provider '{ProviderName}', trying next provider",
+                    key,
+                    providerName);
+            }
+            catch (Exception ex)
+            {
+                var classification = FailureClassifier.Classify(ex);
+
+                _logger.LogDebug(
+                    ex,
+                    "Provider '{ProviderName}' failed for configuration key '{Key}' with classification '{Classification}'",
+                    providerName,
+                    key,
+                    classification);
+
+                switch (classification)
+                {
+                    case FailureClassification.NotFound:
+                        // Continue to next provider (still "not found only")
+                        lastException = ex;
+                        continue;
+
+                    case FailureClassification.FatalConfiguration:
+                        // Fatal error - fail fast with error tracking
+                        isNotFoundOnly = false;
+                        _logger.LogError(
+                            ex,
+                            "Fatal configuration error from provider '{ProviderName}' for key '{Key}'",
+                            providerName,
+                            key);
+                        return ConfigLookupResult.Error(ex, isNotFoundOnly: false);
+
+                    case FailureClassification.Transient:
+                        isNotFoundOnly = false;
+                        if (registered.Registration.IsRequired)
+                        {
+                            // Required provider failed - fail fast with error tracking
+                            _logger.LogError(
+                                ex,
+                                "Required provider '{ProviderName}' failed transiently for key '{Key}'",
+                                providerName,
+                                key);
+                            return ConfigLookupResult.Error(ex, isNotFoundOnly: false);
+                        }
+
+                        // Optional provider - continue to next
+                        _logger.LogWarning(
+                            ex,
+                            "Optional provider '{ProviderName}' failed transiently for key '{Key}', trying next provider",
+                            providerName,
+                            key);
+                        lastException = ex;
+                        continue;
+                }
+            }
+        }
+
+        // All providers exhausted
+        _logger.LogDebug(
+            "Configuration key '{Key}' not found in any provider. Attempted: {Providers}",
+            key,
+            string.Join(", ", attemptedProviders));
+
+        return ConfigLookupResult.NotFoundOrError(lastException, isNotFoundOnly);
+    }
+
+    /// <summary>
+    /// Internal result type that tracks both the value and error information.
+    /// </summary>
+    private readonly struct ConfigLookupResult
+    {
+        private ConfigLookupResult(string? value, Exception? lastException, bool isNotFoundOnly)
+        {
+            Value = value;
+            LastException = lastException;
+            IsNotFoundOnly = isNotFoundOnly;
+        }
+
+        public string? Value { get; }
+
+        public Exception? LastException { get; }
+
+        public bool IsNotFoundOnly { get; }
+
+        public static ConfigLookupResult Success(string value) => new(value, null, true);
+
+        public static ConfigLookupResult NotFound() => new(null, null, true);
+
+        public static ConfigLookupResult Error(Exception exception, bool isNotFoundOnly) => new(null, exception, isNotFoundOnly);
+
+        public static ConfigLookupResult NotFoundOrError(Exception? exception, bool isNotFoundOnly) => new(null, exception, isNotFoundOnly);
     }
 }

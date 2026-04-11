@@ -31,6 +31,8 @@
     <ProjectReference Include="..\HoneyDrunk.Vault.Providers.Configuration\HoneyDrunk.Vault.Providers.Configuration.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault.Providers.InMemory\HoneyDrunk.Vault.Providers.InMemory.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault.Providers.File\HoneyDrunk.Vault.Providers.File.csproj" />
+    <ProjectReference Include="..\HoneyDrunk.Vault.Providers.AppConfiguration\HoneyDrunk.Vault.Providers.AppConfiguration.csproj" />
+    <ProjectReference Include="..\HoneyDrunk.Vault.Providers.AzureKeyVault\HoneyDrunk.Vault.Providers.AzureKeyVault.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault\HoneyDrunk.Vault.csproj" />
   </ItemGroup>
 

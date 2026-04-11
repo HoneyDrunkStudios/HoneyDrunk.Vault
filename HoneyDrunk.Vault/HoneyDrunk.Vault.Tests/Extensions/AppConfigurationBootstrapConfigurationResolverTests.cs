@@ -1,0 +1,52 @@
+using HoneyDrunk.Vault.Providers.AppConfiguration.Extensions;
+using Microsoft.Extensions.Configuration;
+
+namespace HoneyDrunk.Vault.Tests.Extensions;
+
+/// <summary>
+/// Unit tests for App Configuration bootstrap resolution.
+/// </summary>
+public sealed class AppConfigurationBootstrapConfigurationResolverTests
+{
+    [Fact]
+    public void TryGetEndpoint_ReturnsTrue_WhenEndpointPresent()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AZURE_APPCONFIG_ENDPOINT"] = "https://appcs-hd-shared-prod.azconfig.io",
+            })
+            .Build();
+
+        var result = BootstrapConfigurationResolver.TryGetEndpoint(configuration, "AZURE_APPCONFIG_ENDPOINT", out var endpoint);
+
+        Assert.True(result);
+        Assert.NotNull(endpoint);
+    }
+
+    [Fact]
+    public void IsDevelopment_ReturnsTrue_WhenEnvironmentIsDevelopment()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["DOTNET_ENVIRONMENT"] = "Development",
+            })
+            .Build();
+
+        var isDevelopment = BootstrapConfigurationResolver.IsDevelopment(configuration, "ASPNETCORE_ENVIRONMENT", "DOTNET_ENVIRONMENT");
+
+        Assert.True(isDevelopment);
+    }
+
+    [Fact]
+    public void TryGetEndpoint_ReturnsFalse_WhenEndpointMissing()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+
+        var result = BootstrapConfigurationResolver.TryGetEndpoint(configuration, "AZURE_APPCONFIG_ENDPOINT", out var endpoint);
+
+        Assert.False(result);
+        Assert.Null(endpoint);
+    }
+}

@@ -10,10 +10,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.Configuration</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>.NET Configuration provider for HoneyDrunk.Vault. Enables reading secrets and configuration from standard .NET configuration sources (appsettings.json, environment variables, user secrets).</Description>
-    <PackageReleaseNotes>v0.2.0: Maintenance release aligned with core library version. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.2.1: Maintenance release aligned with core library version. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;configuration;secrets;appsettings;environment-variables;user-secrets;dotnet-config</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

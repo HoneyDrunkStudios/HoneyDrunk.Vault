@@ -10,10 +10,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.Aws</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>AWS Secrets Manager provider for HoneyDrunk.Vault. Provides secure secret management using AWS Secrets Manager with support for IAM roles, access keys, and EC2 instance profiles.</Description>
-    <PackageReleaseNotes>v0.2.0: Maintenance release aligned with core library version. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.2.1: Maintenance release aligned with core library version. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;secrets;aws;secrets-manager;iam;access-keys;instance-profile;ec2;authentication</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

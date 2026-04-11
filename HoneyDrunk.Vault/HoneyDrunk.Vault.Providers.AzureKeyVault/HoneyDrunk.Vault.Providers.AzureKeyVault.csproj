@@ -37,7 +37,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HoneyDrunk.Vault\HoneyDrunk.Vault.csproj" />
-    <ProjectReference Include="..\HoneyDrunk.Vault.Providers.File\HoneyDrunk.Vault.Providers.File.csproj" />
+    <ProjectReference Include="..\HoneyDrunk.Vault.Providers.File\HoneyDrunk.Vault.Providers.File.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>

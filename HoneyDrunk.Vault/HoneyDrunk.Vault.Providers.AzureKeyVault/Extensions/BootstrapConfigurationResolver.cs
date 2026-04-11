@@ -33,6 +33,11 @@ public static class BootstrapConfigurationResolver
     public static bool TryGetKeyVaultUri(IConfiguration configuration, string settingName, out Uri? vaultUri)
     {
         var value = configuration[settingName];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            value = Environment.GetEnvironmentVariable(settingName);
+        }
+
         var isValid = Uri.TryCreate(value, UriKind.Absolute, out var uri);
         vaultUri = uri;
         return isValid;

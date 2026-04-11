@@ -46,4 +46,26 @@ public sealed class AzureKeyVaultBootstrapConfigurationResolverTests
         Assert.False(result);
         Assert.Null(vaultUri);
     }
+
+    [Fact]
+    public void TryGetKeyVaultUri_ReadsEnvironmentVariable_WhenMissingFromConfiguration()
+    {
+        const string setting = "AZURE_KEYVAULT_URI";
+        var original = Environment.GetEnvironmentVariable(setting);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(setting, "https://kv-env.vault.azure.net/");
+            var configuration = new ConfigurationBuilder().Build();
+
+            var result = BootstrapConfigurationResolver.TryGetKeyVaultUri(configuration, setting, out var vaultUri);
+
+            Assert.True(result);
+            Assert.NotNull(vaultUri);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(setting, original);
+        }
+    }
 }

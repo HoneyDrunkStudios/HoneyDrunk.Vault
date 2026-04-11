@@ -33,6 +33,11 @@ public static class BootstrapConfigurationResolver
     public static bool TryGetEndpoint(IConfiguration configuration, string settingName, out Uri? endpoint)
     {
         var value = configuration[settingName];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            value = Environment.GetEnvironmentVariable(settingName);
+        }
+
         var isValid = Uri.TryCreate(value, UriKind.Absolute, out var parsed);
         endpoint = parsed;
         return isValid;

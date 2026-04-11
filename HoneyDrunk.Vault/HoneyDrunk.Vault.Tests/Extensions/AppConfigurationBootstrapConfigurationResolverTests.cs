@@ -49,4 +49,26 @@ public sealed class AppConfigurationBootstrapConfigurationResolverTests
         Assert.False(result);
         Assert.Null(endpoint);
     }
+
+    [Fact]
+    public void TryGetEndpoint_ReadsEnvironmentVariable_WhenMissingFromConfiguration()
+    {
+        const string setting = "AZURE_APPCONFIG_ENDPOINT";
+        var original = Environment.GetEnvironmentVariable(setting);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(setting, "https://appcs-env.azconfig.io");
+            var configuration = new ConfigurationBuilder().Build();
+
+            var result = BootstrapConfigurationResolver.TryGetEndpoint(configuration, setting, out var endpoint);
+
+            Assert.True(result);
+            Assert.NotNull(endpoint);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(setting, original);
+        }
+    }
 }

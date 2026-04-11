@@ -10,10 +10,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.File</PackageId>
-    <Version>0.2.1</Version>
+    <Version>0.3.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>File-based secrets and configuration provider for HoneyDrunk.Vault. Ideal for local development and testing with support for file watching and optional encryption.</Description>
-    <PackageReleaseNotes>v0.2.1: Maintenance release aligned with core library version. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.3.0: Maintenance release aligned with core library version. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;secrets;configuration;file;development;testing;file-watcher</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

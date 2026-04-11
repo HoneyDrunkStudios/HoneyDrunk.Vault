@@ -5,11 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-04-11
+
+### Added
+- Added bootstrap extension surface across provider packages for env-var-driven Key Vault and App Configuration discovery.
+- Added `HoneyDrunk.Vault.Providers.AppConfiguration` package integration to the solution and tests.
+
 ## [0.2.0] - 2026-01-25
 
 ### Added
-- Added ADR-0005 bootstrap extension surface across provider packages for env-var-driven Key Vault and App Configuration discovery.
-- Added `HoneyDrunk.Vault.Providers.AppConfiguration` package integration to the solution and tests.
 - Architecture canary tests for enforcing Kernel context ownership invariants
 - `CanaryInvariantException` for reporting invariant violations
 - `KernelContextOwnershipInvariant` - validates context stability during Vault operations

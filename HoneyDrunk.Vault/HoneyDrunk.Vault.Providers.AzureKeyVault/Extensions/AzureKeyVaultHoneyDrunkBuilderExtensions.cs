@@ -16,9 +16,9 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
     private const string DotNetEnvironmentSetting = "DOTNET_ENVIRONMENT";
 
     /// <summary>
-    /// Adds Vault bootstrap wiring using ADR-0005 environment-variable discovery.
+    /// Adds Vault bootstrap wiring using environment-variable discovery.
     /// Reads <c>AZURE_KEYVAULT_URI</c> from <see cref="IConfiguration"/> and wires Azure Key Vault with
-    /// <see cref="Azure.Identity.DefaultAzureCredential"/> when present (ADR-0005, invariants 17 and 18).
+    /// <see cref="Azure.Identity.DefaultAzureCredential"/> when present.
     /// If the setting is missing in Development, falls back to file-based secrets. If missing outside
     /// Development, throws a descriptive bootstrap exception.
     /// </summary>
@@ -60,6 +60,6 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
 
         throw new InvalidOperationException(
             $"Missing required bootstrap setting '{KeyVaultUriSetting}'. " +
-            "ADR-0005 requires deployable Nodes to receive AZURE_KEYVAULT_URI via environment configuration.");
+            "Deployable services must receive AZURE_KEYVAULT_URI via environment configuration.");
     }
 }

@@ -10,10 +10,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Secrets and configuration management library for .NET. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel for lifecycle management, health reporting, and distributed telemetry.</Description>
-    <PackageReleaseNotes>v0.2.0: Added architecture canary tests for enforcing Kernel context ownership invariants. Improved provider boundary validation. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.2.1: Added bootstrap-related provider integration updates and changelog cleanup. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;secrets;configuration;provider;cache;resilience;circuit-breaker;retry;azure-keyvault;aws;kernel;grid;distributed-tracing</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

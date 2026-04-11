@@ -9,7 +9,7 @@ using Microsoft.FeatureManagement;
 namespace HoneyDrunk.Vault.Providers.AppConfiguration.Extensions;
 
 /// <summary>
-/// ADR-0005 bootstrap extensions for Azure App Configuration.
+/// Bootstrap extensions for Azure App Configuration.
 /// </summary>
 public static class AppConfigurationBootstrapExtensions
 {
@@ -22,7 +22,7 @@ public static class AppConfigurationBootstrapExtensions
     /// Adds Azure App Configuration using env-var-driven bootstrap discovery.
     /// Reads <c>AZURE_APPCONFIG_ENDPOINT</c> and <c>HONEYDRUNK_NODE_ID</c> via <see cref="IConfiguration"/>,
     /// applies per-Node label partitioning, enables unlabeled shared fallback keys, resolves Key Vault references,
-    /// and registers feature management services (ADR-0005, invariants 17-18).
+    /// and registers feature management services.
     /// </summary>
     /// <param name="builder">The HoneyDrunk builder.</param>
     /// <param name="configure">Optional bootstrap configuration.</param>
@@ -44,7 +44,7 @@ public static class AppConfigurationBootstrapExtensions
             {
                 throw new InvalidOperationException(
                     $"Missing required bootstrap setting '{NodeIdSetting}'. " +
-                    "ADR-0005 requires HONEYDRUNK_NODE_ID for App Configuration label partitioning.");
+                    "HONEYDRUNK_NODE_ID is required for App Configuration label partitioning.");
             }
 
             if (configuration is not IConfigurationManager manager)
@@ -88,6 +88,6 @@ public static class AppConfigurationBootstrapExtensions
 
         throw new InvalidOperationException(
             $"Missing required bootstrap setting '{AppConfigurationEndpointSetting}'. " +
-            "ADR-0005 requires deployable Nodes to receive AZURE_APPCONFIG_ENDPOINT via environment configuration.");
+            "Deployable services must receive AZURE_APPCONFIG_ENDPOINT via environment configuration.");
     }
 }

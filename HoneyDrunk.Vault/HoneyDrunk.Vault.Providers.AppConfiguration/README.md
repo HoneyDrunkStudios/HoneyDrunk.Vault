@@ -1,6 +1,6 @@
 # HoneyDrunk.Vault.Providers.AppConfiguration
 
-ADR-0005 bootstrap extensions for wiring Azure App Configuration from environment variables.
+Bootstrap extensions for wiring Azure App Configuration from environment variables.
 
 ## Bootstrap settings
 

@@ -1,7 +1,7 @@
 namespace HoneyDrunk.Vault.Providers.AzureKeyVault.Configuration;
 
 /// <summary>
-/// Configures ADR-0005 bootstrap behavior for Key Vault provider selection.
+/// Configures bootstrap behavior for Key Vault provider selection.
 /// </summary>
 public sealed class AzureKeyVaultBootstrapOptions
 {

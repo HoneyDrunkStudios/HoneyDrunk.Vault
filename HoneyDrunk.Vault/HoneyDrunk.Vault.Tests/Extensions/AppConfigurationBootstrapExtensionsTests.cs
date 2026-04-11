@@ -1,7 +1,6 @@
 using HoneyDrunk.Kernel.Abstractions.Hosting;
 using HoneyDrunk.Vault.Providers.AppConfiguration.Extensions;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.AzureAppConfiguration;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;

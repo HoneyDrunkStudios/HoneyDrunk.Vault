@@ -47,22 +47,25 @@ public static class AppConfigurationBootstrapExtensions
                     "ADR-0005 requires HONEYDRUNK_NODE_ID for App Configuration label partitioning.");
             }
 
-            var credential = new DefaultAzureCredential();
-            if (configuration is IConfigurationManager manager)
+            if (configuration is not IConfigurationManager manager)
             {
-                manager.AddAzureAppConfiguration(appConfigOptions =>
-                {
-                    appConfigOptions.Connect(endpointUri, credential);
-                    appConfigOptions.Select(KeyFilter.Any, nodeId);
-
-                    if (options.IncludeUnlabeledKeys)
-                    {
-                        appConfigOptions.Select(KeyFilter.Any, LabelFilter.Null);
-                    }
-
-                    appConfigOptions.ConfigureKeyVault(keyVault => keyVault.SetCredential(credential));
-                });
+                throw new InvalidOperationException(
+                    "App Configuration bootstrap requires a mutable IConfigurationManager instance on the service collection.");
             }
+
+            var credential = new DefaultAzureCredential();
+            manager.AddAzureAppConfiguration(appConfigOptions =>
+            {
+                appConfigOptions.Connect(endpointUri, credential);
+                appConfigOptions.Select(KeyFilter.Any, nodeId);
+
+                if (options.IncludeUnlabeledKeys)
+                {
+                    appConfigOptions.Select(KeyFilter.Any, LabelFilter.Null);
+                }
+
+                appConfigOptions.ConfigureKeyVault(keyVault => keyVault.SetCredential(credential));
+            });
 
             builder.Services.AddAzureAppConfiguration();
             builder.Services.AddFeatureManagement();
@@ -71,10 +74,13 @@ public static class AppConfigurationBootstrapExtensions
 
         if (BootstrapConfigurationResolver.IsDevelopment(configuration, AspNetCoreEnvironmentSetting, DotNetEnvironmentSetting))
         {
-            if (configuration is IConfigurationManager manager)
+            if (configuration is not IConfigurationManager manager)
             {
-                manager.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
+                throw new InvalidOperationException(
+                    "Development bootstrap requires a mutable IConfigurationManager to apply appsettings.Development.json fallback.");
             }
+
+            manager.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
 
             builder.Services.AddFeatureManagement();
             return builder;

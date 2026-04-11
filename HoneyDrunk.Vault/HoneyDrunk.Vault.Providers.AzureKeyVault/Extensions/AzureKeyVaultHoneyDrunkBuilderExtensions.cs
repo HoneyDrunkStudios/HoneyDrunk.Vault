@@ -25,7 +25,7 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
     /// <param name="builder">The HoneyDrunk builder.</param>
     /// <param name="configure">Optional bootstrap customization.</param>
     /// <returns>The builder for chaining.</returns>
-    public static IHoneyDrunkBuilder AddVault(
+    public static IHoneyDrunkBuilder AddVaultWithAzureKeyVaultBootstrap(
         this IHoneyDrunkBuilder builder,
         Action<AzureKeyVaultBootstrapOptions>? configure)
     {
@@ -34,7 +34,7 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
         var bootstrapOptions = new AzureKeyVaultBootstrapOptions();
         configure?.Invoke(bootstrapOptions);
 
-        builder.AddVault(_ => { });
+        builder.AddVault();
 
         var configuration = BootstrapConfigurationResolver.Resolve(builder.Services);
         if (BootstrapConfigurationResolver.TryGetKeyVaultUri(configuration, KeyVaultUriSetting, out var vaultUri))

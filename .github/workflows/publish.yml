@@ -70,108 +70,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout Actions
+        uses: actions/checkout@v4
+        with:
+          repository: HoneyDrunkStudios/HoneyDrunk.Actions
+          ref: main
+          path: .actions
+
+      - name: Generate Release Notes
+        id: notes
+        uses: ./.actions/.github/actions/release/generate-notes
+        with:
+          version: ${{ needs.prepare.outputs.version }}
+          product-name: HoneyDrunk.Vault
+          product-description: 'Secrets and configuration management for .NET 10 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory).'
+          nuget-packages: |
+            HoneyDrunk.Vault
+            HoneyDrunk.Vault.Providers.File
+            HoneyDrunk.Vault.Providers.AzureKeyVault
+            HoneyDrunk.Vault.Providers.Aws
+            HoneyDrunk.Vault.Providers.Configuration
+            HoneyDrunk.Vault.Providers.InMemory
+            HoneyDrunk.Vault.Providers.AppConfiguration
+          docs-url: 'https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault#readme'
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.version-tag }}
           name: HoneyDrunk.Vault ${{ needs.prepare.outputs.version-tag }}
-          body: |
-            ## HoneyDrunk.Vault ${{ needs.prepare.outputs.version-tag }}
-
-            Secrets and configuration management library for .NET 10. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel for lifecycle management, health reporting, and distributed telemetry.
-
-            ### Package Core
-
-            **HoneyDrunk.Vault** - Core library with abstractions and orchestration
-
-            ```xml
-            <PackageReference Include="HoneyDrunk.Vault" Version="${{ needs.prepare.outputs.version }}" />
-            ```
-
-            ### Providers
-
-            **HoneyDrunk.Vault.Providers.File** - File-based provider for development
-
-            ```xml
-            <PackageReference Include="HoneyDrunk.Vault.Providers.File" Version="${{ needs.prepare.outputs.version }}" />
-            ```
-
-            **HoneyDrunk.Vault.Providers.AzureKeyVault** - Azure Key Vault provider for production
-
-            ```xml
-            <PackageReference Include="HoneyDrunk.Vault.Providers.AzureKeyVault" Version="${{ needs.prepare.outputs.version }}" />
-            ```
-
-            **HoneyDrunk.Vault.Providers.Aws** - AWS Secrets Manager provider for production
-
-            ```xml
-            <PackageReference Include="HoneyDrunk.Vault.Providers.Aws" Version="${{ needs.prepare.outputs.version }}" />
-            ```
-
-            **HoneyDrunk.Vault.Providers.Configuration** - .NET Configuration provider
-
-            ```xml
-            <PackageReference Include="HoneyDrunk.Vault.Providers.Configuration" Version="${{ needs.prepare.outputs.version }}" />
-            ```
-
-            **HoneyDrunk.Vault.Providers.InMemory** - In-memory provider for testing
-
-            ```xml
-            <PackageReference Include="HoneyDrunk.Vault.Providers.InMemory" Version="${{ needs.prepare.outputs.version }}" />
-            ```
-
-            ### Links
-
-            - [NuGet: HoneyDrunk.Vault](https://www.nuget.org/packages/HoneyDrunk.Vault/${{ needs.prepare.outputs.version }})
-            - [NuGet: HoneyDrunk.Vault.Providers.File](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.File/${{ needs.prepare.outputs.version }})
-            - [NuGet: HoneyDrunk.Vault.Providers.AzureKeyVault](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.AzureKeyVault/${{ needs.prepare.outputs.version }})
-            - [NuGet: HoneyDrunk.Vault.Providers.Aws](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.Aws/${{ needs.prepare.outputs.version }})
-            - [NuGet: HoneyDrunk.Vault.Providers.Configuration](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.Configuration/${{ needs.prepare.outputs.version }})
-            - [NuGet: HoneyDrunk.Vault.Providers.InMemory](https://www.nuget.org/packages/HoneyDrunk.Vault.Providers.InMemory/${{ needs.prepare.outputs.version }})
-            - [Documentation](https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault#readme)
-
-            ### Quick Start
-
-            ```csharp
-            using HoneyDrunk.Vault.Extensions;
-
-            var builder = WebApplication.CreateBuilder(args);
-
-            // Add vault with Azure Key Vault provider
-            builder.Services.AddVault(options =>
-            {
-                options.Cache.Enabled = true;
-                options.Cache.DefaultTtl = TimeSpan.FromMinutes(15);
-                
-                options.AddAzureKeyVaultProvider(akv =>
-                {
-                    akv.VaultUri = new Uri(builder.Configuration["KeyVault:Uri"]!);
-                    akv.UseManagedIdentity = true;
-                });
-            });
-
-            var app = builder.Build();
-
-            // Use secrets in your handlers
-            app.MapGet("/config", async (ISecretStore secretStore) =>
-            {
-                var secret = await secretStore.GetSecretAsync(
-                    new SecretIdentifier("my-secret"));
-                return Results.Ok(new { secret = secret.Value });
-            });
-
-            app.Run();
-            ```
-
-            ### Features
-
-            - **Multiple Providers**: File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory
-            - **Caching**: Built-in caching with configurable TTL and size limits
-            - **Resilience**: Retry and circuit breaker policies
-            - **Health Checks**: Integrated health check support
-            - **Telemetry**: Distributed tracing without leaking secrets
-            - **Kernel Integration**: Full HoneyDrunk.Kernel integration
-
-            See [CHANGELOG.md](https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/blob/main/CHANGELOG.md) for detailed changes.
+          body: ${{ steps.notes.outputs.body }}
+          generate_release_notes: ${{ steps.notes.outputs.has-changelog == 'false' }}
           draft: false
           prerelease: false

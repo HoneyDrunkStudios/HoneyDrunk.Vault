@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Env-var bootstrap extension `AddVaultWithAzureKeyVaultBootstrap(IHoneyDrunkBuilder, Action<AzureKeyVaultBootstrapOptions>?)`.
 - Bootstrap behavior: `AZURE_KEYVAULT_URI` + `DefaultAzureCredential`, Development fallback to `secrets/dev-secrets.json`, non-Development throw with clear guidance.
 
+## [0.2.0] - 2026-01-25
+
+### Changed
+- Maintenance release aligned with core library version
+- No functional changes
+
 ## [0.1.0] - 2025-01-01
 
 ### Added

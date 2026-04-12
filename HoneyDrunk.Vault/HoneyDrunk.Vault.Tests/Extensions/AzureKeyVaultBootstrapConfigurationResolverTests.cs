@@ -6,6 +6,7 @@ namespace HoneyDrunk.Vault.Tests.Extensions;
 /// <summary>
 /// Tests for Azure Key Vault bootstrap configuration resolution.
 /// </summary>
+[Collection("EnvironmentVariables")]
 public sealed class AzureKeyVaultBootstrapConfigurationResolverTests
 {
     /// <summary>

@@ -6,6 +6,7 @@ namespace HoneyDrunk.Vault.Tests.Extensions;
 /// <summary>
 /// Unit tests for App Configuration bootstrap resolution.
 /// </summary>
+[Collection("EnvironmentVariables")]
 public sealed class AppConfigurationBootstrapConfigurationResolverTests
 {
     /// <summary>

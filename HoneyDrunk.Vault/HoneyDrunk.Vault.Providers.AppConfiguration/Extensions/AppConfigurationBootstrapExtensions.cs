@@ -39,7 +39,8 @@ public static class AppConfigurationBootstrapExtensions
         var configuration = BootstrapConfigurationResolver.Resolve(builder.Services);
         if (BootstrapConfigurationResolver.TryGetEndpoint(configuration, AppConfigurationEndpointSetting, out var endpointUri))
         {
-            var nodeId = configuration[NodeIdSetting];
+            var nodeId = configuration[NodeIdSetting]
+                ?? Environment.GetEnvironmentVariable(NodeIdSetting);
             if (string.IsNullOrWhiteSpace(nodeId))
             {
                 throw new InvalidOperationException(

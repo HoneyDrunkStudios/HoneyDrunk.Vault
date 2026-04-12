@@ -10,6 +10,7 @@ using HoneyDrunk.Vault.Providers.File.Configuration;
 using HoneyDrunk.Vault.Providers.File.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace HoneyDrunk.Vault.Providers.AzureKeyVault.Extensions;
@@ -66,9 +67,9 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
 
     private static void RegisterAzureKeyVaultProviders(IServiceCollection services, Uri vaultUri)
     {
-        services.AddSingleton(sp => new SecretClient(vaultUri, new DefaultAzureCredential()));
-        services.AddSingleton<AzureKeyVaultSecretStore>();
-        services.AddSingleton<AzureKeyVaultConfigSource>();
+        services.TryAddSingleton(sp => new SecretClient(vaultUri, new DefaultAzureCredential()));
+        services.TryAddSingleton<AzureKeyVaultSecretStore>();
+        services.TryAddSingleton<AzureKeyVaultConfigSource>();
 
         services.AddSecretProvider(
             sp => sp.GetRequiredService<AzureKeyVaultSecretStore>(),
@@ -85,7 +86,7 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
             sp => new DelegatingConfigSourceProvider(
                 "azure-key-vault",
                 sp.GetRequiredService<AzureKeyVaultConfigSource>(),
-                () => sp.GetRequiredService<AzureKeyVaultSecretStore>().CheckHealthAsync()),
+                ct => sp.GetRequiredService<AzureKeyVaultSecretStore>().CheckHealthAsync(ct)),
             new ProviderRegistration
             {
                 Name = "azure-key-vault",
@@ -124,7 +125,7 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
             sp => new DelegatingConfigSourceProvider(
                 "file",
                 sp.GetRequiredService<FileConfigSource>(),
-                () => sp.GetRequiredService<FileSecretStore>().CheckHealthAsync()),
+                ct => sp.GetRequiredService<FileSecretStore>().CheckHealthAsync(ct)),
             new ProviderRegistration
             {
                 Name = "file",
@@ -138,16 +139,16 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
     private sealed class DelegatingConfigSourceProvider(
         string providerName,
         IConfigSource inner,
-        Func<Task<bool>> healthCheck) : IConfigSourceProvider
+        Func<CancellationToken, Task<bool>> healthCheck) : IConfigSourceProvider
     {
         private readonly IConfigSource _inner = inner;
-        private readonly Func<Task<bool>> _healthCheck = healthCheck;
+        private readonly Func<CancellationToken, Task<bool>> _healthCheck = healthCheck;
 
         public string ProviderName { get; } = providerName;
 
         public bool IsAvailable => true;
 
-        public Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default) => _healthCheck();
+        public Task<bool> CheckHealthAsync(CancellationToken cancellationToken = default) => _healthCheck(cancellationToken);
 
         public Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default) =>
             _inner.GetConfigValueAsync(key, cancellationToken);

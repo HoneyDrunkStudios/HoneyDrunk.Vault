@@ -13,5 +13,15 @@ jobs:
   pr-core:
     name: PR Core
     uses: HoneyDrunkStudios/HoneyDrunk.Actions/.github/workflows/pr-core.yml@main
+    with:
+      dotnet-version: '10.0.x'
+      configuration: 'Release'
+      runs-on: 'ubuntu-latest'
+      working-directory: 'HoneyDrunk.Vault'
+      project-path: 'HoneyDrunk.Vault/HoneyDrunk.Vault.slnx'
+      enable-secret-scan: true
+      enable-accessibility-check: false
+      post-pr-summary: true
+      actions-ref: 'main'
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}

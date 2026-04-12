@@ -142,6 +142,45 @@ public sealed class SecretCacheTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that invalidating one secret leaves other entries intact.
+    /// </summary>
+    [Fact]
+    public void Invalidate_RemovesOnlyRequestedEntry()
+    {
+        // Arrange
+        var first = new SecretValue(new SecretIdentifier("first-secret"), "first-value", "v1");
+        var second = new SecretValue(new SecretIdentifier("second-secret"), "second-value", "v1");
+        _cache.Set("first-secret", first);
+        _cache.Set("second-secret", second);
+
+        // Act
+        _cache.Invalidate("first-secret");
+
+        // Assert
+        Assert.False(_cache.TryGet("first-secret", out _));
+        Assert.True(_cache.TryGet("second-secret", out var remaining));
+        Assert.Equal("second-value", remaining!.Value);
+    }
+
+    /// <summary>
+    /// Verifies that invalidating all secrets clears the cache.
+    /// </summary>
+    [Fact]
+    public void InvalidateAll_ClearsCache()
+    {
+        // Arrange
+        _cache.Set("first-secret", new SecretValue(new SecretIdentifier("first-secret"), "first-value", "v1"));
+        _cache.Set("second-secret", new SecretValue(new SecretIdentifier("second-secret"), "second-value", "v1"));
+
+        // Act
+        _cache.InvalidateAll();
+
+        // Assert
+        Assert.False(_cache.TryGet("first-secret", out _));
+        Assert.False(_cache.TryGet("second-secret", out _));
+    }
+
+    /// <summary>
     /// Disposes of resources.
     /// </summary>
     public void Dispose()

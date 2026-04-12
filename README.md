@@ -43,6 +43,7 @@ dotnet add package HoneyDrunk.Vault.Providers.AzureKeyVault     # For Azure
 dotnet add package HoneyDrunk.Vault.Providers.Aws               # For AWS
 dotnet add package HoneyDrunk.Vault.Providers.InMemory          # For testing
 dotnet add package HoneyDrunk.Vault.Providers.Configuration     # Bridge to IConfiguration
+dotnet add package HoneyDrunk.Vault.EventGrid                   # Azure Event Grid webhook invalidation
 ```
 
 ## Quick Start
@@ -356,7 +357,8 @@ Providers (Separate Packages)
 ├── HoneyDrunk.Vault.Providers.AzureKeyVault
 ├── HoneyDrunk.Vault.Providers.Aws
 ├── HoneyDrunk.Vault.Providers.InMemory
-└── HoneyDrunk.Vault.Providers.Configuration
+├── HoneyDrunk.Vault.Providers.Configuration
+└── HoneyDrunk.Vault.EventGrid
 ```
 
 ## Documentation

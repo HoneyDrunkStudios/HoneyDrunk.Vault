@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added bootstrap extension surface across provider packages for env-var-driven Key Vault and App Configuration discovery.
 - Added `HoneyDrunk.Vault.Providers.AppConfiguration` package integration to the solution and tests.
+- Added `ISecretCacheInvalidator` and explicit `SecretCache` invalidation support so rotated secrets can propagate independently of TTL per ADR-0006 Tier 3.
+- Added optional `HoneyDrunk.Vault.EventGrid` webhook helpers for Event Grid subscription validation, shared-secret auth, and `SecretNewVersionCreated` cache invalidation.
 
 ## [0.2.0] - 2026-01-25
 

@@ -83,7 +83,7 @@ jobs:
         with:
           version: ${{ needs.prepare.outputs.version }}
           product-name: HoneyDrunk.Vault
-          product-description: 'Secrets and configuration management for .NET 10 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory).'
+          product-description: 'Secrets and configuration management for .NET 10 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory, App Configuration).'
           nuget-packages: |
             HoneyDrunk.Vault
             HoneyDrunk.Vault.Providers.File

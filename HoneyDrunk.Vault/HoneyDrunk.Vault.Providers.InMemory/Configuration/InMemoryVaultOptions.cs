@@ -8,12 +8,12 @@ public sealed class InMemoryVaultOptions
     /// <summary>
     /// Gets the dictionary of secrets. Key is the secret name, value is the secret value.
     /// </summary>
-    public Dictionary<string, string> Secrets { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> Secrets { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the dictionary of configuration values. Key is the configuration key, value is the configuration value.
     /// </summary>
-    public Dictionary<string, string> ConfigurationValues { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> ConfigurationValues { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Adds a secret to the in-memory store.

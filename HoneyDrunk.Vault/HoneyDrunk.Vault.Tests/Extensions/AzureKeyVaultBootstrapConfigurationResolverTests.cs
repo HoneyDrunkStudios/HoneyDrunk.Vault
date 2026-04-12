@@ -3,8 +3,14 @@ using Microsoft.Extensions.Configuration;
 
 namespace HoneyDrunk.Vault.Tests.Extensions;
 
+/// <summary>
+/// Tests for Azure Key Vault bootstrap configuration resolution.
+/// </summary>
 public sealed class AzureKeyVaultBootstrapConfigurationResolverTests
 {
+    /// <summary>
+    /// Verifies that TryGetKeyVaultUri returns true when a valid URI is present.
+    /// </summary>
     [Fact]
     public void TryGetKeyVaultUri_ReturnsTrue_WhenUriPresent()
     {
@@ -21,6 +27,9 @@ public sealed class AzureKeyVaultBootstrapConfigurationResolverTests
         Assert.NotNull(vaultUri);
     }
 
+    /// <summary>
+    /// Verifies that IsDevelopment returns true for a Development environment.
+    /// </summary>
     [Fact]
     public void IsDevelopment_ReturnsTrue_WhenEnvironmentIsDevelopment()
     {
@@ -36,6 +45,9 @@ public sealed class AzureKeyVaultBootstrapConfigurationResolverTests
         Assert.True(isDevelopment);
     }
 
+    /// <summary>
+    /// Verifies that TryGetKeyVaultUri returns false when the URI is missing.
+    /// </summary>
     [Fact]
     public void TryGetKeyVaultUri_ReturnsFalse_WhenUriMissing()
     {
@@ -47,6 +59,9 @@ public sealed class AzureKeyVaultBootstrapConfigurationResolverTests
         Assert.Null(vaultUri);
     }
 
+    /// <summary>
+    /// Verifies that TryGetKeyVaultUri falls back to reading an environment variable.
+    /// </summary>
     [Fact]
     public void TryGetKeyVaultUri_ReadsEnvironmentVariable_WhenMissingFromConfiguration()
     {

@@ -53,19 +53,26 @@ public static class AppConfigurationBootstrapExtensions
                     "App Configuration bootstrap requires a mutable IConfigurationManager instance on the service collection.");
             }
 
-            var credential = new DefaultAzureCredential();
-            manager.AddAzureAppConfiguration(appConfigOptions =>
-            {
-                appConfigOptions.Connect(endpointUri, credential);
-                appConfigOptions.Select(KeyFilter.Any, nodeId);
-
-                if (options.IncludeUnlabeledKeys)
+            var credential = options.Credential ?? new DefaultAzureCredential();
+            manager.AddAzureAppConfiguration(
+                appConfigOptions =>
                 {
-                    appConfigOptions.Select(KeyFilter.Any, LabelFilter.Null);
-                }
+                    appConfigOptions.Connect(endpointUri, credential);
+                    appConfigOptions.Select(KeyFilter.Any, nodeId);
 
-                appConfigOptions.ConfigureKeyVault(keyVault => keyVault.SetCredential(credential));
-            });
+                    if (options.IncludeUnlabeledKeys)
+                    {
+                        appConfigOptions.Select(KeyFilter.Any, LabelFilter.Null);
+                    }
+
+                    appConfigOptions.ConfigureKeyVault(keyVault => keyVault.SetCredential(credential));
+
+                    if (options.StartupTimeout.HasValue)
+                    {
+                        appConfigOptions.ConfigureStartupOptions(startup => startup.Timeout = options.StartupTimeout.Value);
+                    }
+                },
+                optional: options.Optional);
 
             builder.Services.AddAzureAppConfiguration();
             builder.Services.AddFeatureManagement();

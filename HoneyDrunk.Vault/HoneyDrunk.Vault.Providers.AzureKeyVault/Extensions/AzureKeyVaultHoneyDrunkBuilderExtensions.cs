@@ -1,13 +1,13 @@
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using HoneyDrunk.Kernel.Abstractions.Hosting;
 using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Configuration;
 using HoneyDrunk.Vault.Extensions;
-using HoneyDrunk.Vault.Providers.AzureKeyVault.Services;
 using HoneyDrunk.Vault.Providers.AzureKeyVault.Configuration;
+using HoneyDrunk.Vault.Providers.AzureKeyVault.Services;
 using HoneyDrunk.Vault.Providers.File.Configuration;
 using HoneyDrunk.Vault.Providers.File.Services;
-using Azure.Identity;
-using Azure.Security.KeyVault.Secrets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

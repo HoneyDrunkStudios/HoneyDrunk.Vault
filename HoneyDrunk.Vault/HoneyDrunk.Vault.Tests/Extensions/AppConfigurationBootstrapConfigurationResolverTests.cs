@@ -8,6 +8,9 @@ namespace HoneyDrunk.Vault.Tests.Extensions;
 /// </summary>
 public sealed class AppConfigurationBootstrapConfigurationResolverTests
 {
+    /// <summary>
+    /// Verifies that TryGetEndpoint returns true when a valid endpoint is present.
+    /// </summary>
     [Fact]
     public void TryGetEndpoint_ReturnsTrue_WhenEndpointPresent()
     {
@@ -24,6 +27,9 @@ public sealed class AppConfigurationBootstrapConfigurationResolverTests
         Assert.NotNull(endpoint);
     }
 
+    /// <summary>
+    /// Verifies that IsDevelopment returns true for a Development environment.
+    /// </summary>
     [Fact]
     public void IsDevelopment_ReturnsTrue_WhenEnvironmentIsDevelopment()
     {
@@ -39,6 +45,9 @@ public sealed class AppConfigurationBootstrapConfigurationResolverTests
         Assert.True(isDevelopment);
     }
 
+    /// <summary>
+    /// Verifies that TryGetEndpoint returns false when the endpoint is missing.
+    /// </summary>
     [Fact]
     public void TryGetEndpoint_ReturnsFalse_WhenEndpointMissing()
     {
@@ -50,6 +59,9 @@ public sealed class AppConfigurationBootstrapConfigurationResolverTests
         Assert.Null(endpoint);
     }
 
+    /// <summary>
+    /// Verifies that TryGetEndpoint falls back to reading an environment variable.
+    /// </summary>
     [Fact]
     public void TryGetEndpoint_ReadsEnvironmentVariable_WhenMissingFromConfiguration()
     {

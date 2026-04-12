@@ -100,6 +100,6 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.version-tag }}
           name: HoneyDrunk.Vault ${{ needs.prepare.outputs.version-tag }}
           body: ${{ steps.notes.outputs.body }}
-          generate_release_notes: ${{ steps.notes.outputs.has-changelog == 'false' }}
+          generate_release_notes: ${{ steps.notes.outputs['has-changelog'] == 'false' }}
           draft: false
           prerelease: false

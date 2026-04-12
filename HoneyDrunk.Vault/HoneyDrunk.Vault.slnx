@@ -28,6 +28,7 @@
     <File Path="../.github/workflows/publish.yml" />
     <File Path="../.github/workflows/validate-pr.yml" />
   </Folder>
+  <Project Path="HoneyDrunk.Vault.Providers.AppConfiguration/HoneyDrunk.Vault.Providers.AppConfiguration.csproj" />
   <Project Path="HoneyDrunk.Vault.Providers.Aws/HoneyDrunk.Vault.Providers.Aws.csproj" Id="a2e5c3b1-8f4d-4e2a-9c6b-7d8e1f2a3b4c" />
   <Project Path="HoneyDrunk.Vault.Providers.AzureKeyVault/HoneyDrunk.Vault.Providers.AzureKeyVault.csproj" Id="9b1a636f-63cc-415d-b568-77217cb13573" />
   <Project Path="HoneyDrunk.Vault.Providers.Configuration/HoneyDrunk.Vault.Providers.Configuration.csproj" Id="4be0d3da-4d23-420a-b013-d8db47bf7604" />

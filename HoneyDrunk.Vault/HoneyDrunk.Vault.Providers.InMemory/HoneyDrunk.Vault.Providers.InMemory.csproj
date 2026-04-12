@@ -10,10 +10,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.InMemory</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>In-memory provider for HoneyDrunk.Vault. Ideal for unit testing and integration testing with fast, thread-safe secret and configuration storage.</Description>
-    <PackageReleaseNotes>v0.2.0: InMemoryConfigSource now implements IConfigSourceProvider for full composite stack support. Added ProviderName, IsAvailable, and CheckHealthAsync members. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.3.0: Package metadata and release documentation alignment update. See CHANGELOG.md for version-specific details.</PackageReleaseNotes>
     <PackageTags>vault;provider;secrets;testing;unit-testing;in-memory;mock;development</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

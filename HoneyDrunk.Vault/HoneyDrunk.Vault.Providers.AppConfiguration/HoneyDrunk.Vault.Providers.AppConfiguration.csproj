@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,31 +8,32 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
 
-    <!-- Package Metadata -->
-    <PackageId>HoneyDrunk.Vault.Providers.Configuration</PackageId>
+    <PackageId>HoneyDrunk.Vault.Providers.AppConfiguration</PackageId>
     <Version>0.3.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
-    <Description>.NET Configuration provider for HoneyDrunk.Vault. Enables reading secrets and configuration from standard .NET configuration sources (appsettings.json, environment variables, user secrets).</Description>
-    <PackageReleaseNotes>v0.3.0: Maintenance release aligned with the core library version and provider packaging metadata.</PackageReleaseNotes>
-    <PackageTags>vault;provider;configuration;secrets;appsettings;environment-variables;user-secrets;dotnet-config</PackageTags>
+    <Description>Azure App Configuration bootstrap extensions for HoneyDrunk.Vault using environment variable discovery.</Description>
+    <PackageReleaseNotes>v0.3.0: Initial release with env-var-driven bootstrap for Azure App Configuration.</PackageReleaseNotes>
+    <PackageTags>vault;provider;app-configuration;azure;feature-flags;configuration;bootstrap</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</PackageProjectUrl>
 
-    <!-- Symbol Package Configuration -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.2" />
+    <PackageReference Include="Azure.Identity" Version="1.17.1" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.6">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Azure.AppConfiguration.AspNetCore" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
+    <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>

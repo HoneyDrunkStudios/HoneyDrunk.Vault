@@ -11,6 +11,8 @@ namespace HoneyDrunk.Vault.EventGrid.Extensions;
 /// </summary>
 public static class VaultInvalidationEndpointRouteBuilderExtensions
 {
+    private const long MaxRequestBodyBytes = 256 * 1024;
+
     /// <summary>
     /// Maps a POST webhook endpoint that validates Event Grid requests and invalidates Vault cache entries.
     /// </summary>
@@ -29,8 +31,26 @@ public static class VaultInvalidationEndpointRouteBuilderExtensions
             var handler = context.RequestServices.GetRequiredService<VaultInvalidationWebhookHandler>();
             var request = context.Request;
 
+            if (!request.Headers.ContainsKey(Constants.VaultInvalidationWebhookConstants.SharedSecretHeaderName))
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            if (request.ContentLength is > MaxRequestBodyBytes)
+            {
+                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                return;
+            }
+
             using var reader = new StreamReader(request.Body, leaveOpen: true);
             var body = await reader.ReadToEndAsync(context.RequestAborted).ConfigureAwait(false);
+
+            if (body.Length > MaxRequestBodyBytes)
+            {
+                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                return;
+            }
 
             var headers = request.Headers.ToDictionary(
                 pair => pair.Key,

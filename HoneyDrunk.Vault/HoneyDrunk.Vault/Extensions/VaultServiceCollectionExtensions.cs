@@ -32,6 +32,10 @@ public static class VaultServiceCollectionExtensions
             return new ResiliencePipelineFactory(options.Value.Resilience, logger);
         });
 
+        // Register cache + invalidation contract so webhook hosts can resolve explicit invalidation without cache internals.
+        services.TryAddSingleton<SecretCache>();
+        services.TryAddSingleton<ISecretCacheInvalidator>(sp => sp.GetRequiredService<SecretCache>());
+
         // Register composite secret store (wraps all registered providers)
         services.TryAddSingleton<CompositeSecretStore>();
 

@@ -8,32 +8,31 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
 
-    <!-- Package Metadata -->
-    <PackageId>HoneyDrunk.Vault.Providers.Aws</PackageId>
+    <PackageId>HoneyDrunk.Vault.EventGrid</PackageId>
     <Version>0.3.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
-    <Description>AWS Secrets Manager provider for HoneyDrunk.Vault. Provides secure secret management using AWS Secrets Manager with support for IAM roles, access keys, and EC2 instance profiles.</Description>
-    <PackageReleaseNotes>v0.3.0: Maintenance release aligned with core library version. See CHANGELOG.md for details.</PackageReleaseNotes>
-    <PackageTags>vault;provider;secrets;aws;secrets-manager;iam;access-keys;instance-profile;ec2;authentication</PackageTags>
+    <Description>Event Grid webhook helpers for HoneyDrunk.Vault cache invalidation.</Description>
+    <PackageReleaseNotes>v0.3.0: Added Event Grid cache invalidation webhook support for ADR-0006 Tier 3 rotation propagation.</PackageReleaseNotes>
+    <PackageTags>vault;eventgrid;azure;webhook;secrets;cache;rotation</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault</PackageProjectUrl>
-
-    <!-- Symbol Package Configuration -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.4.17" />
-    <PackageReference Include="AWSSDK.SSO" Version="4.0.2.24" />
-    <PackageReference Include="AWSSDK.SSOOIDC" Version="4.0.3.25" />
+    <PackageReference Include="Azure.Messaging.EventGrid" Version="5.0.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.7">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

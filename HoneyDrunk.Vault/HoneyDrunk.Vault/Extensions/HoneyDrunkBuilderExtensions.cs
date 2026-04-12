@@ -3,7 +3,6 @@ using HoneyDrunk.Kernel.Abstractions.Lifecycle;
 using HoneyDrunk.Vault.Configuration;
 using HoneyDrunk.Vault.Health;
 using HoneyDrunk.Vault.Lifecycle;
-using HoneyDrunk.Vault.Services;
 using HoneyDrunk.Vault.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -36,9 +35,6 @@ public static class HoneyDrunkBuilderExtensions
         var options = new VaultOptions();
         configure(options);
         services.AddSingleton(Microsoft.Extensions.Options.Options.Create(options));
-
-        // Register secret cache (always registered, respects Enabled flag internally)
-        services.TryAddSingleton<SecretCache>();
 
         // Register telemetry
         if (options.EnableTelemetry)

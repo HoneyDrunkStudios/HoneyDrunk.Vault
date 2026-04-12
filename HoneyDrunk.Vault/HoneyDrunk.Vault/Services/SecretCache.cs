@@ -1,3 +1,4 @@
+using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Configuration;
 using HoneyDrunk.Vault.Models;
 using Microsoft.Extensions.Caching.Memory;
@@ -8,8 +9,9 @@ namespace HoneyDrunk.Vault.Services;
 
 /// <summary>
 /// Provides caching for secret values with configurable TTL and max size.
+/// Supports explicit invalidation so ADR-0006 Tier 3 Event Grid notifications can demote TTL to a fallback path.
 /// </summary>
-public sealed class SecretCache : IDisposable
+public sealed class SecretCache : ISecretCacheInvalidator, IDisposable
 {
     private readonly MemoryCache _cache;
     private readonly VaultCacheOptions _options;
@@ -159,14 +161,36 @@ public sealed class SecretCache : IDisposable
     }
 
     /// <summary>
+    /// Invalidates the cached entry for the specified secret name.
+    /// This preserves invariant 21 by ensuring the next latest-version read rehydrates from the backing provider.
+    /// </summary>
+    /// <param name="secretName">The secret name.</param>
+    public void Invalidate(string secretName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(secretName);
+
+        var cacheKey = BuildCacheKey(secretName);
+        _cache.Remove(cacheKey);
+        _logger.LogDebug("Invalidated cached secret '{SecretName}'", secretName);
+    }
+
+    /// <summary>
+    /// Invalidates all cached secrets.
+    /// </summary>
+    public void InvalidateAll()
+    {
+        _cache.Compact(1.0);
+        _currentCount = 0;
+        _logger.LogInformation("Invalidated all cached secrets");
+    }
+
+    /// <summary>
     /// Removes a secret from the cache.
     /// </summary>
     /// <param name="key">The cache key.</param>
     public void Remove(string key)
     {
-        var cacheKey = BuildCacheKey(key);
-        _cache.Remove(cacheKey);
-        _logger.LogDebug("Removed secret '{Key}' from cache", key);
+        Invalidate(key);
     }
 
     /// <summary>
@@ -174,9 +198,7 @@ public sealed class SecretCache : IDisposable
     /// </summary>
     public void Clear()
     {
-        _cache.Compact(1.0);
-        _currentCount = 0;
-        _logger.LogInformation("Cleared all cached secrets");
+        InvalidateAll();
     }
 
     /// <summary>

@@ -85,7 +85,7 @@ public sealed class CachingSecretStore(
         ArgumentNullException.ThrowIfNull(identifier);
 
         var cacheKey = BuildCacheKey(identifier);
-        _cache.Remove(cacheKey);
+        _cache.Invalidate(cacheKey);
         _logger.LogDebug("Invalidated cache for secret '{SecretName}'", identifier.Name);
     }
 
@@ -94,7 +94,7 @@ public sealed class CachingSecretStore(
     /// </summary>
     public void ClearCache()
     {
-        _cache.Clear();
+        _cache.InvalidateAll();
         _logger.LogInformation("Cleared all cached secrets");
     }
 

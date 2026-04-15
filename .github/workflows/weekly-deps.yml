@@ -1,13 +1,16 @@
-name: Nightly Dependencies
+name: Weekly Dependencies
 
 on:
   schedule:
     - cron: '0 3 * * 1'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  nightly-deps:
-    name: Nightly Dependencies
+  weekly-deps:
+    name: Weekly Dependencies
     uses: HoneyDrunkStudios/HoneyDrunk.Actions/.github/workflows/nightly-deps.yml@main
     with:
       check-dotnet-deps: true

@@ -15,6 +15,6 @@ jobs:
     uses: HoneyDrunkStudios/HoneyDrunk.Actions/.github/workflows/nightly-deps.yml@main
     with:
       check-dotnet-deps: true
-      create-update-prs: false
+      create-update-prs: true
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}

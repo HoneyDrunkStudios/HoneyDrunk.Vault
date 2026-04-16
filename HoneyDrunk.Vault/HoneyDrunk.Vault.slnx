@@ -26,8 +26,11 @@
     <File Path="../docs/Testing.md" />
   </Folder>
   <Folder Name="/Pipelines/">
+    <File Path="../.github/workflows/hive-field-mirror.yml" />
+    <File Path="../.github/workflows/nightly-security.yml" />
     <File Path="../.github/workflows/publish.yml" />
     <File Path="../.github/workflows/validate-pr.yml" />
+    <File Path="../.github/workflows/weekly-deps.yml" />
   </Folder>
   <Project Path="HoneyDrunk.Vault.EventGrid/HoneyDrunk.Vault.EventGrid.csproj" />
   <Project Path="HoneyDrunk.Vault.Providers.AppConfiguration/HoneyDrunk.Vault.Providers.AppConfiguration.csproj" />

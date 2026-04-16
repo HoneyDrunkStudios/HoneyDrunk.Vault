@@ -20,4 +20,4 @@ jobs:
       enable-secret-scan: true
       create-issues: true
     secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}
+      github-token: ${{ secrets.HIVE_FIELD_MIRROR_TOKEN }}

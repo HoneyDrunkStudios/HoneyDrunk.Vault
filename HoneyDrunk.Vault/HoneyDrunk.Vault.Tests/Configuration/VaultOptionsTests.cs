@@ -25,7 +25,8 @@ public sealed class VaultOptionsTests
 
         // Assert
         Assert.True(options.Providers.TryGetValue("test-provider", out var registration));
-        Assert.Equal(10, registration!.Priority);
+        Assert.NotNull(registration);
+        Assert.Equal(10, registration.Priority);
     }
 
     /// <summary>
@@ -46,7 +47,8 @@ public sealed class VaultOptionsTests
 
         // Assert
         Assert.True(options.Providers.TryGetValue("file", out var registration));
-        Assert.Equal(ProviderType.File, registration!.ProviderType);
+        Assert.NotNull(registration);
+        Assert.Equal(ProviderType.File, registration.ProviderType);
     }
 
     /// <summary>
@@ -68,7 +70,8 @@ public sealed class VaultOptionsTests
 
         // Assert
         Assert.True(options.Providers.TryGetValue("azure-keyvault", out var registration));
-        Assert.Equal(vaultUri, registration!.Settings["VaultUri"]);
+        Assert.NotNull(registration);
+        Assert.Equal(vaultUri, registration.Settings["VaultUri"]);
     }
 
     /// <summary>
@@ -89,7 +92,8 @@ public sealed class VaultOptionsTests
 
         // Assert
         Assert.True(options.Providers.TryGetValue("aws-secretsmanager", out var registration));
-        Assert.Equal("us-east-1", registration!.Settings["Region"]);
+        Assert.NotNull(registration);
+        Assert.Equal("us-east-1", registration.Settings["Region"]);
     }
 
     /// <summary>
@@ -111,7 +115,8 @@ public sealed class VaultOptionsTests
 
         // Assert
         Assert.True(options.Providers.TryGetValue("in-memory", out var registration));
-        Assert.Equal("value1", registration!.Settings["Secret:key1"]);
+        Assert.NotNull(registration);
+        Assert.Equal("value1", registration.Settings["Secret:key1"]);
     }
 
     /// <summary>

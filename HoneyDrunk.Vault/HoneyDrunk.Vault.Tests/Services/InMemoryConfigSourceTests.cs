@@ -161,8 +161,8 @@ public sealed class InMemoryConfigSourceTests
         _source.SetConfigValue("new-key", "new-value");
 
         // Assert
-        Assert.True(_configValues.ContainsKey("new-key"));
-        Assert.Equal("new-value", _configValues["new-key"]);
+        Assert.True(_configValues.TryGetValue("new-key", out var value));
+        Assert.Equal("new-value", value);
     }
 
     /// <summary>

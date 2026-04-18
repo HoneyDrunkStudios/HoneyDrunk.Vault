@@ -24,8 +24,8 @@ public sealed class VaultOptionsTests
         });
 
         // Assert
-        Assert.True(options.Providers.ContainsKey("test-provider"));
-        Assert.Equal(10, options.Providers["test-provider"].Priority);
+        Assert.True(options.Providers.TryGetValue("test-provider", out var registration));
+        Assert.Equal(10, registration!.Priority);
     }
 
     /// <summary>
@@ -45,8 +45,8 @@ public sealed class VaultOptionsTests
         });
 
         // Assert
-        Assert.True(options.Providers.ContainsKey("file"));
-        Assert.Equal(ProviderType.File, options.Providers["file"].ProviderType);
+        Assert.True(options.Providers.TryGetValue("file", out var registration));
+        Assert.Equal(ProviderType.File, registration!.ProviderType);
     }
 
     /// <summary>
@@ -67,8 +67,8 @@ public sealed class VaultOptionsTests
         });
 
         // Assert
-        Assert.True(options.Providers.ContainsKey("azure-keyvault"));
-        Assert.Equal(vaultUri, options.Providers["azure-keyvault"].Settings["VaultUri"]);
+        Assert.True(options.Providers.TryGetValue("azure-keyvault", out var registration));
+        Assert.Equal(vaultUri, registration!.Settings["VaultUri"]);
     }
 
     /// <summary>
@@ -88,8 +88,8 @@ public sealed class VaultOptionsTests
         });
 
         // Assert
-        Assert.True(options.Providers.ContainsKey("aws-secretsmanager"));
-        Assert.Equal("us-east-1", options.Providers["aws-secretsmanager"].Settings["Region"]);
+        Assert.True(options.Providers.TryGetValue("aws-secretsmanager", out var registration));
+        Assert.Equal("us-east-1", registration!.Settings["Region"]);
     }
 
     /// <summary>
@@ -110,8 +110,8 @@ public sealed class VaultOptionsTests
         });
 
         // Assert
-        Assert.True(options.Providers.ContainsKey("in-memory"));
-        Assert.Equal("value1", options.Providers["in-memory"].Settings["Secret:key1"]);
+        Assert.True(options.Providers.TryGetValue("in-memory", out var registration));
+        Assert.Equal("value1", registration!.Settings["Secret:key1"]);
     }
 
     /// <summary>

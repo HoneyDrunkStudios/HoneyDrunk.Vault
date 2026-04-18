@@ -52,18 +52,13 @@ public static class ProviderBoundaryInvariant
     {
         var referencedAssemblies = providerAssembly.GetReferencedAssemblies();
 
-        foreach (var reference in referencedAssemblies)
+        foreach (var refName in referencedAssemblies.Select(r => r.Name ?? string.Empty))
         {
-            var refName = reference.Name ?? string.Empty;
-
-            foreach (var forbidden in ForbiddenAssemblyPrefixes)
+            if (ForbiddenAssemblyPrefixes.Any(f => refName.StartsWith(f, StringComparison.OrdinalIgnoreCase)))
             {
-                if (refName.StartsWith(forbidden, StringComparison.OrdinalIgnoreCase))
-                {
-                    var message = $"Provider assembly '{assemblyName}' references forbidden assembly '{refName}'. Provider packages must not depend on HoneyDrunk.Kernel or HoneyDrunk.Kernel.Abstractions.";
+                var message = $"Provider assembly '{assemblyName}' references forbidden assembly '{refName}'. Provider packages must not depend on HoneyDrunk.Kernel or HoneyDrunk.Kernel.Abstractions.";
 
-                    throw new CanaryInvariantException(InvariantName, message);
-                }
+                throw new CanaryInvariantException(InvariantName, message);
             }
         }
     }
@@ -99,14 +94,11 @@ public static class ProviderBoundaryInvariant
 
     private static void ValidateMethodParameters(MethodBase method, string assemblyName, string typeName)
     {
-        foreach (var param in method.GetParameters())
+        foreach (var param in method.GetParameters().Where(p => IsForbiddenType(p.ParameterType)))
         {
-            if (IsForbiddenType(param.ParameterType))
-            {
-                var message = $"Provider assembly '{assemblyName}' has public API '{typeName}.{method.Name}' with parameter '{param.Name}' of forbidden type '{param.ParameterType.FullName}'. Provider packages must not accept Kernel types in public APIs.";
+            var message = $"Provider assembly '{assemblyName}' has public API '{typeName}.{method.Name}' with parameter '{param.Name}' of forbidden type '{param.ParameterType.FullName}'. Provider packages must not accept Kernel types in public APIs.";
 
-                throw new CanaryInvariantException(InvariantName, message);
-            }
+            throw new CanaryInvariantException(InvariantName, message);
         }
     }
 
@@ -135,24 +127,15 @@ public static class ProviderBoundaryInvariant
         // Check the type's namespace
         var ns = type.Namespace ?? string.Empty;
 
-        foreach (var forbidden in ForbiddenNamespacePrefixes)
+        if (ForbiddenNamespacePrefixes.Any(f => ns.StartsWith(f, StringComparison.OrdinalIgnoreCase)))
         {
-            if (ns.StartsWith(forbidden, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         // Check generic type arguments
-        if (type.IsGenericType)
+        if (type.IsGenericType && type.GetGenericArguments().Any(IsForbiddenType))
         {
-            foreach (var arg in type.GetGenericArguments())
-            {
-                if (IsForbiddenType(arg))
-                {
-                    return true;
-                }
-            }
+            return true;
         }
 
         // Check array element type

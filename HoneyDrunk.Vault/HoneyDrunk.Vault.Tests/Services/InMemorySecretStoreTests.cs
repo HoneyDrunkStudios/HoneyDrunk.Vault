@@ -108,8 +108,8 @@ public sealed class InMemorySecretStoreTests
         _store.SetSecret(secretName, secretValue);
 
         // Assert
-        Assert.True(_secrets.ContainsKey(secretName));
-        Assert.Equal(secretValue, _secrets[secretName]);
+        Assert.True(_secrets.TryGetValue(secretName, out var value));
+        Assert.Equal(secretValue, value);
     }
 
     /// <summary>

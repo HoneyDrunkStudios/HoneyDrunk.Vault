@@ -237,8 +237,6 @@ public sealed class CompositeSecretStore : ISecretStore
             throw new VaultOperationException($"No providers available to list versions for secret '{secretName}'");
         }
 
-        Exception? lastException = null;
-
         foreach (var registered in Providers)
         {
             var providerName = registered.Provider.ProviderName;
@@ -264,7 +262,6 @@ public sealed class CompositeSecretStore : ISecretStore
             }
             catch (Exception ex)
             {
-                lastException = ex;
                 var classification = FailureClassifier.Classify(ex);
 
                 if (classification == FailureClassification.NotFound)

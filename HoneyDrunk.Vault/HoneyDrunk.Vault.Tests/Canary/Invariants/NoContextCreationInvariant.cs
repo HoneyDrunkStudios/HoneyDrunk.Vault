@@ -423,20 +423,11 @@ public static class NoContextCreationInvariant
         var typeName = type.Name;
         var ns = type.Namespace ?? string.Empty;
 
-        // Check if type name matches forbidden context types
-        foreach (var forbiddenName in ForbiddenConstructionTypeNames)
+        // Type name matches a forbidden name AND it's from the Kernel namespace
+        if (ForbiddenConstructionTypeNames.Any(n => typeName.Equals(n, StringComparison.Ordinal))
+            && ForbiddenTypeNamespacePrefixes.Any(n => ns.StartsWith(n, StringComparison.OrdinalIgnoreCase)))
         {
-            if (typeName.Equals(forbiddenName, StringComparison.Ordinal))
-            {
-                // Verify it's from the Kernel namespace
-                foreach (var forbiddenNs in ForbiddenTypeNamespacePrefixes)
-                {
-                    if (ns.StartsWith(forbiddenNs, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-            }
+            return true;
         }
 
         return false;

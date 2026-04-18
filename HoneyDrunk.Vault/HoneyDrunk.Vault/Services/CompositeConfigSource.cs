@@ -291,7 +291,6 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
 
                     case FailureClassification.FatalConfiguration:
                         // Fatal error - fail fast with error tracking
-                        isNotFoundOnly = false;
                         _logger.LogError(
                             ex,
                             "Fatal configuration error from provider '{ProviderName}' for key '{Key}'",

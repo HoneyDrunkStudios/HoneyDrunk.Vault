@@ -103,13 +103,10 @@ public sealed class VaultInvalidationWebhookHandler(
         string key,
         out string? value)
     {
-        foreach (var pair in headers)
+        foreach (var pair in headers.Where(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)))
         {
-            if (string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                value = pair.Value;
-                return true;
-            }
+            value = pair.Value;
+            return true;
         }
 
         value = null;

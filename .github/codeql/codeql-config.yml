@@ -1,0 +1,23 @@
+name: "HoneyDrunk.Vault CodeQL config"
+
+# HoneyDrunk.Vault is composed almost entirely of boundary types whose contract
+# is to convert exceptions into structured results (ISecretStore,
+# IConfigurationProvider, CachingSecretStore, CompositeConfigSource, startup
+# hooks, health contributors, provider integrations for Azure Key Vault /
+# File / InMemory). For these boundaries a top-level `catch (Exception)` is
+# the correct design, not a smell. Every current hit of this rule has been
+# reviewed and confirmed to be at a legitimate boundary. Excluding the rule
+# repo-wide rather than suppressing per-site because the rule is structurally
+# misaligned with this repo's architecture.
+query-filters:
+  - exclude:
+      id: cs/catch-of-all-exceptions
+  # Vault's ConvertValue<T> pattern across each ConfigSource uses `(T)(object)value`
+  # to box value-type parse results (Guid/TimeSpan/DateTime/etc.) for generic return.
+  # This is the canonical C# idiom for generic boxing — the (object) cast is required
+  # because a direct cast from a value type to an unconstrained `T` fails to compile.
+  # CodeQL flags the upward leg as redundant without accounting for the generic
+  # downcast that depends on it. Excluded repo-wide because every current hit is
+  # this same structurally-misanalyzed pattern.
+  - exclude:
+      id: cs/useless-upcast

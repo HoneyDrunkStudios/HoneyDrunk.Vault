@@ -103,6 +103,10 @@ public sealed class VaultInvalidationWebhookHandler(
         string key,
         out string? value)
     {
+        // Manual case-insensitive iteration preserved intentionally: callers
+        // (Azure Functions handler, tests) pass plain Dictionary<string, string?>
+        // without a comparer, so direct TryGetValue would miss case-variant keys.
+        // Foreach over LINQ to keep this hot-path helper allocation-free.
         foreach (var pair in headers)
         {
             if (string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase))

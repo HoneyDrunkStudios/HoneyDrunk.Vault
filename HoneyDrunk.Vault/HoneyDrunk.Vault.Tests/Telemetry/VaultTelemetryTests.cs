@@ -86,9 +86,8 @@ public sealed class VaultTelemetryTests : IDisposable
         var tagFields = typeof(VaultTelemetryTags).GetFields();
 
         // Assert - None of the tag names should allow storing secret values
-        foreach (var field in tagFields)
+        foreach (var tagName in tagFields.Select(f => f.GetValue(null)?.ToString() ?? string.Empty))
         {
-            var tagName = field.GetValue(null)?.ToString() ?? string.Empty;
             Assert.DoesNotContain("value", tagName, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("password", tagName, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("secret", tagName, StringComparison.OrdinalIgnoreCase);

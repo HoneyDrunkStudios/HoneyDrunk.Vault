@@ -12,8 +12,8 @@ tenant-{tenantId}-{secretName}
 
 Examples:
 
-- `tenant-01H2X3Y4Z5ABCDEABCDEABCDE-resend-api-key`
-- `tenant-01H2X3Y4Z5ABCDEABCDEABCDE-twilio-auth-token`
+- `tenant-01H2X3Y4Z5ABCDEABCDEABCDEF-resend-api-key`
+- `tenant-01H2X3Y4Z5ABCDEABCDEABCDEF-twilio-auth-token`
 - `resend-api-key` — the node-standard shared path, with no tenant prefix
 
 `tenantId` is the canonical ULID string form of `HoneyDrunk.Kernel.Abstractions.Identity.TenantId`.

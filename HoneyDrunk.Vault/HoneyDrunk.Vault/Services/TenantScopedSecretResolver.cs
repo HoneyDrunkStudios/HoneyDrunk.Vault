@@ -1,5 +1,6 @@
 using HoneyDrunk.Kernel.Abstractions.Identity;
 using HoneyDrunk.Vault.Abstractions;
+using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 
 namespace HoneyDrunk.Vault.Services;
@@ -57,13 +58,16 @@ public sealed class TenantScopedSecretResolver
             return await _secretStore.GetSecretAsync(new SecretIdentifier(secretName), cancellationToken).ConfigureAwait(false);
         }
 
-        var tenantScoped = await _secretStore.TryGetSecretAsync(
-            new SecretIdentifier(FormatTenantScopedName(tenantId, secretName)),
-            cancellationToken).ConfigureAwait(false);
-
-        return tenantScoped.IsSuccess
-            ? tenantScoped.Value!
-            : await _secretStore.GetSecretAsync(new SecretIdentifier(secretName), cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await _secretStore.GetSecretAsync(
+                new SecretIdentifier(FormatTenantScopedName(tenantId, secretName)),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (SecretNotFoundException)
+        {
+            return await _secretStore.GetSecretAsync(new SecretIdentifier(secretName), cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -85,12 +89,21 @@ public sealed class TenantScopedSecretResolver
             return await _secretStore.TryGetSecretAsync(new SecretIdentifier(secretName), cancellationToken).ConfigureAwait(false);
         }
 
-        var tenantScoped = await _secretStore.TryGetSecretAsync(
-            new SecretIdentifier(FormatTenantScopedName(tenantId, secretName)),
-            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var tenantScoped = await _secretStore.GetSecretAsync(
+                new SecretIdentifier(FormatTenantScopedName(tenantId, secretName)),
+                cancellationToken).ConfigureAwait(false);
 
-        return tenantScoped.IsSuccess
-            ? tenantScoped
-            : await _secretStore.TryGetSecretAsync(new SecretIdentifier(secretName), cancellationToken).ConfigureAwait(false);
+            return VaultResult.Success(tenantScoped);
+        }
+        catch (SecretNotFoundException)
+        {
+            return await _secretStore.TryGetSecretAsync(new SecretIdentifier(secretName), cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return VaultResult.Failure<SecretValue>($"Failed to retrieve tenant-scoped secret '{secretName}': {ex.Message}");
+        }
     }
 }

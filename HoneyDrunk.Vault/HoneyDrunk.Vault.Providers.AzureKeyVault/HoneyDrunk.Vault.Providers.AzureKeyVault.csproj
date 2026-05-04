@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -10,10 +10,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.AzureKeyVault</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Azure Key Vault provider for HoneyDrunk.Vault. Provides enterprise-grade secret management using Azure Key Vault with support for Managed Identity and Service Principal authentication.</Description>
-    <PackageReleaseNotes>v0.3.0: Added environment-variable bootstrap API updates and naming fixes. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.4.0: Version alignment with ADR-0026 Vault tenancy support in the core package. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;secrets;azure;key-vault;managed-identity;service-principal;authentication;enterprise</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

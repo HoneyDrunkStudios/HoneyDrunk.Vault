@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -10,10 +10,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Secrets and configuration management library for .NET. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel for lifecycle management, health reporting, and distributed telemetry.</Description>
-    <PackageReleaseNotes>v0.3.0: Added bootstrap-related provider integration updates and changelog cleanup. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.4.0: Added ADR-0026 tenant-scoped secret resolver and tenancy documentation. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;secrets;configuration;provider;cache;resilience;circuit-breaker;retry;azure-keyvault;aws;kernel;grid;distributed-tracing</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,8 +27,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HoneyDrunk.Kernel" Version="0.4.0" />
-    <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.4.0" />
+    <PackageReference Include="HoneyDrunk.Kernel" Version="0.5.0" />
+    <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.5.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.7">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

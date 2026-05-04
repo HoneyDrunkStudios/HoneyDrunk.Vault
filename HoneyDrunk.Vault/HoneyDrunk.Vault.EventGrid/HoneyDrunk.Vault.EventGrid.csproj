@@ -9,10 +9,10 @@
     <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
 
     <PackageId>HoneyDrunk.Vault.EventGrid</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Event Grid webhook helpers for HoneyDrunk.Vault cache invalidation.</Description>
-    <PackageReleaseNotes>v0.3.0: Added Event Grid cache invalidation webhook support for ADR-0006 Tier 3 rotation propagation.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.4.0: Version alignment with ADR-0026 Vault tenancy support in the core package. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;eventgrid;azure;webhook;secrets;cache;rotation</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

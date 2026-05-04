@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-05-04
+
+### Added
+
+- Documented ADR-0026 tenant-scoped Vault naming in `docs/Tenancy.md`.
+- Added `TenantScopedSecretResolver` in `HoneyDrunk.Vault` for `tenant-{tenantId}-{secretName}` lookup with standard-path fallback for internal tenants and missing tenant secrets.
 ## [0.3.0] - 2026-04-11
 
 ### Added
@@ -52,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health, telemetry, and lifecycle integration with HoneyDrunk.Kernel
 - Resilience options (retry and circuit breaker)
 
+[0.4.0]: https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/releases/tag/v0.4.0
 [0.3.0]: https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/releases/tag/v0.3.0
 [0.2.0]: https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/releases/tag/v0.2.0
 [0.1.0]: https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/releases/tag/v0.1.0

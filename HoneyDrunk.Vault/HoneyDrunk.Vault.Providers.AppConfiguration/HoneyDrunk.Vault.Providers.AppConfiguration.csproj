@@ -9,10 +9,10 @@
     <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
 
     <PackageId>HoneyDrunk.Vault.Providers.AppConfiguration</PackageId>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Azure App Configuration bootstrap extensions for HoneyDrunk.Vault using environment variable discovery.</Description>
-    <PackageReleaseNotes>v0.3.0: Initial release with env-var-driven bootstrap for Azure App Configuration.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.4.0: Version alignment with ADR-0026 Vault tenancy support in the core package. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;app-configuration;azure;feature-flags;configuration;bootstrap</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

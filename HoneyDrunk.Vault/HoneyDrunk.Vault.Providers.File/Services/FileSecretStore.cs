@@ -2,6 +2,7 @@ using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Providers.File.Configuration;
+using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
@@ -84,15 +85,7 @@ public sealed class FileSecretStore : ISecretStore, ISecretProvider, IDisposable
     {
         ArgumentNullException.ThrowIfNull(identifier);
 
-        try
-        {
-            var result = await GetSecretAsync(identifier, cancellationToken).ConfigureAwait(false);
-            return VaultResult.Success(result);
-        }
-        catch (SecretNotFoundException)
-        {
-            return VaultResult.Failure<SecretValue>($"Secret '{identifier.Name}' not found");
-        }
+        return await SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, _logger, "file store", cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -120,19 +113,19 @@ public sealed class FileSecretStore : ISecretStore, ISecretProvider, IDisposable
     /// <inheritdoc/>
     public Task<SecretValue> FetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
     {
-        return GetSecretAsync(new SecretIdentifier(key, version), cancellationToken);
+        return SecretStoreFacade.FetchSecretAsync(GetSecretAsync, key, version, cancellationToken);
     }
 
     /// <inheritdoc/>
     public async Task<VaultResult<SecretValue>> TryFetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
     {
-        return await TryGetSecretAsync(new SecretIdentifier(key, version), cancellationToken).ConfigureAwait(false);
+        return await SecretStoreFacade.TryFetchSecretAsync(TryGetSecretAsync, key, version, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<SecretVersion>> ListVersionsAsync(string key, CancellationToken cancellationToken = default)
     {
-        return ListSecretVersionsAsync(key, cancellationToken);
+        return SecretStoreFacade.ListVersionsAsync(ListSecretVersionsAsync, key, cancellationToken);
     }
 
     /// <inheritdoc/>

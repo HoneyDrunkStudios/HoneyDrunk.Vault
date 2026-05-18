@@ -1,6 +1,7 @@
 using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
+using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
 
 namespace HoneyDrunk.Vault.Providers.AzureKeyVault.Services;
@@ -24,10 +25,7 @@ public sealed class AzureKeyVaultConfigSource(
     /// <inheritdoc/>
     public async Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("Key cannot be null or whitespace.", nameof(key));
-        }
+        ConfigSourceFacade.ValidateKey(key);
 
         _logger.LogDebug("Getting configuration value for key '{Key}' from Azure Key Vault", key);
 
@@ -47,10 +45,7 @@ public sealed class AzureKeyVaultConfigSource(
     /// <inheritdoc/>
     public async Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("Key cannot be null or whitespace.", nameof(key));
-        }
+        ConfigSourceFacade.ValidateKey(key);
 
         _logger.LogDebug("Attempting to get configuration value for key '{Key}' from Azure Key Vault", key);
 
@@ -70,58 +65,13 @@ public sealed class AzureKeyVaultConfigSource(
     /// <inheritdoc/>
     public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
     {
-        var value = await GetConfigValueAsync(key, cancellationToken).ConfigureAwait(false);
-        return ConvertValue<T>(value, key);
+        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
     public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var value = await TryGetConfigValueAsync(key, cancellationToken).ConfigureAwait(false);
-
-            if (value == null)
-            {
-                return defaultValue;
-            }
-
-            return ConvertValue<T>(value, key);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error converting configuration key '{Key}', returning default value", key);
-            return defaultValue;
-        }
-    }
-
-    private static T ConvertValue<T>(string value, string key)
-    {
-        try
-        {
-            var targetType = typeof(T);
-
-            if (targetType == typeof(string))
-            {
-                return (T)(object)value;
-            }
-
-            var converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
-            if (converter.CanConvertFrom(typeof(string)))
-            {
-                var result = converter.ConvertFromInvariantString(value);
-                if (result != null)
-                {
-                    return (T)result;
-                }
-            }
-
-            throw new InvalidOperationException($"Cannot convert value to type {targetType.Name}");
-        }
-        catch (Exception ex)
-        {
-            throw new VaultOperationException($"Failed to convert configuration value for key '{key}' to type {typeof(T).Name}", ex);
-        }
+        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken, _logger).ConfigureAwait(false);
     }
 
     private static string NormalizeKeyForKeyVault(string key)

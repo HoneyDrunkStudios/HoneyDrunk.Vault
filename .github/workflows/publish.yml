@@ -92,6 +92,7 @@ jobs:
             HoneyDrunk.Vault.Providers.Configuration
             HoneyDrunk.Vault.Providers.InMemory
             HoneyDrunk.Vault.Providers.AppConfiguration
+            HoneyDrunk.Vault.EventGrid
           docs-url: 'https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault#readme'
 
       - name: Create GitHub Release

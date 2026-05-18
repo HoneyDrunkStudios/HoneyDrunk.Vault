@@ -62,6 +62,10 @@ public static class SecretStoreFacade
             logger?.LogError(ex, "Vault operation failed retrieving secret '{SecretName}' from {StoreName}", identifier.Name, storeName ?? "secret store");
             return VaultResult.Failure<SecretValue>(ex.Message);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Error retrieving secret '{SecretName}' from {StoreName}", identifier.Name, storeName ?? "secret store");

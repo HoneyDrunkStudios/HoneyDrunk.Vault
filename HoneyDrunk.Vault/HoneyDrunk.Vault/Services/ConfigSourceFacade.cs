@@ -1,4 +1,5 @@
 using HoneyDrunk.Vault.Exceptions;
+using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
@@ -93,12 +94,14 @@ public static class ConfigSourceFacade
     /// <param name="key">The configuration key.</param>
     /// <param name="defaultValue">The fallback value.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="logger">The optional logger.</param>
     /// <returns>The converted value, or <paramref name="defaultValue"/> when missing or invalid.</returns>
     public static async Task<T> TryGetValueAsync<T>(
         Func<string, CancellationToken, Task<string?>> tryGetValueAsync,
         string key,
         T defaultValue,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(tryGetValueAsync);
 
@@ -107,8 +110,13 @@ public static class ConfigSourceFacade
             var value = await tryGetValueAsync(key, cancellationToken).ConfigureAwait(false);
             return value == null ? defaultValue : ConvertValue<T>(value, key);
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to convert configuration value for key '{Key}' to type '{Type}', returning default", key, typeof(T).Name);
             return defaultValue;
         }
     }

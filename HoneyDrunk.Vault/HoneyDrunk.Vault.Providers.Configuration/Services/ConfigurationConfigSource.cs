@@ -1,5 +1,6 @@
 using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
+using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -23,10 +24,7 @@ public sealed class ConfigurationConfigSource(
     /// <inheritdoc/>
     public Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("Key cannot be null or whitespace.", nameof(key));
-        }
+        ConfigSourceFacade.ValidateKey(key);
 
         _logger.LogDebug("Getting configuration value for key '{Key}' from configuration", key);
 
@@ -46,10 +44,7 @@ public sealed class ConfigurationConfigSource(
     /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("Key cannot be null or whitespace.", nameof(key));
-        }
+        ConfigSourceFacade.ValidateKey(key);
 
         _logger.LogDebug("Attempting to get configuration value for key '{Key}' from configuration", key);
 
@@ -70,10 +65,7 @@ public sealed class ConfigurationConfigSource(
     /// <inheritdoc/>
     public Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("Key cannot be null or whitespace.", nameof(key));
-        }
+        ConfigSourceFacade.ValidateKey(key);
 
         _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}' from configuration", key, typeof(T).Name);
 
@@ -101,10 +93,7 @@ public sealed class ConfigurationConfigSource(
     /// <inheritdoc/>
     public Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("Key cannot be null or whitespace.", nameof(key));
-        }
+        ConfigSourceFacade.ValidateKey(key);
 
         _logger.LogDebug("Attempting to get typed configuration value for key '{Key}' as type '{Type}' from configuration", key, typeof(T).Name);
 

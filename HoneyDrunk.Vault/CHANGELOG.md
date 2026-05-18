@@ -13,8 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [HoneyDrunk.Vault.Providers.File CHANGELOG](HoneyDrunk.Vault.Providers.File/CHANGELOG.md)
 - [HoneyDrunk.Vault.Providers.InMemory CHANGELOG](HoneyDrunk.Vault.Providers.InMemory/CHANGELOG.md)
 - [HoneyDrunk.Vault.Providers.AppConfiguration CHANGELOG](HoneyDrunk.Vault.Providers.AppConfiguration/CHANGELOG.md)
+- [HoneyDrunk.Vault.EventGrid CHANGELOG](HoneyDrunk.Vault.EventGrid/CHANGELOG.md)
 
 ---
+
+## [0.5.0] - 2026-05-18
+
+### Changed
+- Aligned Vault package versions and Kernel references with `HoneyDrunk.Kernel`/`HoneyDrunk.Kernel.Abstractions` v0.7.0.
+- Centralized provider bootstrap configuration resolution, secret-store facade wrappers, and config-source value conversion/orchestration to reduce duplicate provider helper logic.
 
 ## [0.4.0] - 2026-05-04
 
@@ -58,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health, telemetry, and lifecycle integration with HoneyDrunk.Kernel
 - Resilience options (retry and circuit breaker)
 
+[0.5.0]: https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/releases/tag/v0.5.0
 [0.4.0]: https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/releases/tag/v0.4.0
 [0.3.0]: https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/releases/tag/v0.3.0
 [0.2.0]: https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault/releases/tag/v0.2.0

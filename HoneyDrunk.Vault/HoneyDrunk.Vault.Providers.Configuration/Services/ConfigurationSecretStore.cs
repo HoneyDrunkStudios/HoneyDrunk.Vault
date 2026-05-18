@@ -1,6 +1,7 @@
 using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
+using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -50,21 +51,7 @@ public sealed class ConfigurationSecretStore(
 
         _logger.LogDebug("Attempting to get secret '{SecretName}' from configuration", identifier.Name);
 
-        try
-        {
-            var secretValue = await GetSecretAsync(identifier, cancellationToken).ConfigureAwait(false);
-            return VaultResult.Success(secretValue);
-        }
-        catch (SecretNotFoundException ex)
-        {
-            _logger.LogDebug("Secret '{SecretName}' not found in configuration", identifier.Name);
-            return VaultResult.Failure<SecretValue>($"Secret '{identifier.Name}' not found: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving secret '{SecretName}' from configuration", identifier.Name);
-            return VaultResult.Failure<SecretValue>($"Failed to retrieve secret '{identifier.Name}': {ex.Message}");
-        }
+        return await SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, _logger, "configuration", cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>

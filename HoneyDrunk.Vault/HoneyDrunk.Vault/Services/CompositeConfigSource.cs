@@ -85,32 +85,13 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
     /// <inheritdoc/>
     public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
     {
-        var stringValue = await GetConfigValueAsync(key, cancellationToken).ConfigureAwait(false);
-        return ConvertValue<T>(stringValue, key);
+        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
     public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
-        var stringValue = await TryGetConfigValueAsync(key, cancellationToken).ConfigureAwait(false);
-
-        if (stringValue == null)
-        {
-            return defaultValue;
-        }
-
-        try
-        {
-            return ConvertValue<T>(stringValue, key);
-        }
-        catch
-        {
-            _logger.LogWarning(
-                "Failed to convert configuration value for key '{Key}' to type '{Type}', returning default",
-                key,
-                typeof(T).Name);
-            return defaultValue;
-        }
+        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken).ConfigureAwait(false);
     }
 
     // IConfigProvider implementation - delegates to IConfigSource methods
@@ -137,84 +118,6 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
     Task<T> IConfigProvider.GetValueAsync<T>(string key, CancellationToken cancellationToken)
     {
         return GetConfigValueAsync<T>(key, cancellationToken);
-    }
-
-    private static T ConvertValue<T>(string value, string key)
-    {
-        try
-        {
-            var targetType = typeof(T);
-
-            if (targetType == typeof(string))
-            {
-                return (T)(object)value;
-            }
-
-            if (targetType == typeof(int))
-            {
-                return (T)(object)int.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(long))
-            {
-                return (T)(object)long.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(double))
-            {
-                return (T)(object)double.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(decimal))
-            {
-                return (T)(object)decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(bool))
-            {
-                return (T)(object)bool.Parse(value);
-            }
-
-            if (targetType == typeof(Guid))
-            {
-                return (T)(object)Guid.Parse(value);
-            }
-
-            if (targetType == typeof(TimeSpan))
-            {
-                return (T)(object)TimeSpan.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(DateTime))
-            {
-                return (T)(object)DateTime.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(DateTimeOffset))
-            {
-                return (T)(object)DateTimeOffset.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(Uri))
-            {
-                return (T)(object)new Uri(value);
-            }
-
-            // Try using the type converter as a fallback (invariant culture for consistency)
-            var converter = System.ComponentModel.TypeDescriptor.GetConverter(targetType);
-            if (converter.CanConvertFrom(typeof(string)))
-            {
-                return (T)converter.ConvertFromInvariantString(value)!;
-            }
-
-            throw new InvalidOperationException($"Cannot convert string to type {targetType.Name}");
-        }
-        catch (Exception ex) when (ex is not InvalidOperationException)
-        {
-            throw new VaultOperationException(
-                $"Failed to convert configuration value for key '{key}' to type {typeof(T).Name}",
-                ex);
-        }
     }
 
     /// <summary>

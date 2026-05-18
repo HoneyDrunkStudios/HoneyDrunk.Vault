@@ -9,10 +9,10 @@
     <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
 
     <PackageId>HoneyDrunk.Vault.Providers.AppConfiguration</PackageId>
-    <Version>0.4.0</Version>
+    <Version>0.5.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Azure App Configuration bootstrap extensions for HoneyDrunk.Vault using environment variable discovery.</Description>
-    <PackageReleaseNotes>v0.4.0: Version alignment with ADR-0026 Vault tenancy support in the core package. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.5.0: Align Kernel references to v0.7.0 and consolidate Vault provider bootstrap, secret-store facade, and config-source helpers. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;app-configuration;azure;feature-flags;configuration;bootstrap</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -32,7 +32,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Azure.AppConfiguration.AspNetCore" Version="8.5.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="8.5.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.6" />
     <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" Version="4.4.0" />
   </ItemGroup>
 

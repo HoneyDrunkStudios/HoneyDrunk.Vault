@@ -1,6 +1,7 @@
 using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Providers.File.Configuration;
+using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
@@ -58,10 +59,7 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     /// <inheritdoc/>
     public Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("Key cannot be null or whitespace.", nameof(key));
-        }
+        ConfigSourceFacade.ValidateKey(key);
 
         _logger.LogDebug("Getting configuration value for key '{Key}' from file store", key);
 
@@ -78,10 +76,7 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(key))
-        {
-            throw new ArgumentException("Key cannot be null or whitespace.", nameof(key));
-        }
+        ConfigSourceFacade.ValidateKey(key);
 
         _configValues.TryGetValue(key, out var value);
         return Task.FromResult(value);
@@ -90,27 +85,13 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     /// <inheritdoc/>
     public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
     {
-        var value = await GetConfigValueAsync(key, cancellationToken).ConfigureAwait(false);
-        return ConvertValue<T>(value, key);
+        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
     public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
-        var value = await TryGetConfigValueAsync(key, cancellationToken).ConfigureAwait(false);
-        if (value == null)
-        {
-            return defaultValue;
-        }
-
-        try
-        {
-            return ConvertValue<T>(value, key);
-        }
-        catch
-        {
-            return defaultValue;
-        }
+        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken).ConfigureAwait(false);
     }
 
     // IConfigProvider implementation
@@ -152,47 +133,6 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
         _watcher?.Dispose();
         _lock.Dispose();
         _disposed = true;
-    }
-
-    private static T ConvertValue<T>(string value, string key)
-    {
-        var targetType = typeof(T);
-
-        if (targetType == typeof(string))
-        {
-            return (T)(object)value;
-        }
-
-        try
-        {
-            if (targetType == typeof(int) || targetType == typeof(int?))
-            {
-                return (T)(object)int.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(bool) || targetType == typeof(bool?))
-            {
-                return (T)(object)bool.Parse(value);
-            }
-
-            if (targetType == typeof(double) || targetType == typeof(double?))
-            {
-                return (T)(object)double.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            if (targetType == typeof(long) || targetType == typeof(long?))
-            {
-                return (T)(object)long.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            // Try JSON deserialization for complex types
-            return JsonSerializer.Deserialize<T>(value)
-                ?? throw new InvalidOperationException($"Failed to deserialize configuration value for key '{key}'");
-        }
-        catch (Exception ex)
-        {
-            throw new VaultOperationException($"Failed to convert configuration value for key '{key}' to type '{typeof(T).Name}'", ex);
-        }
     }
 
     private async Task LoadConfigAsync()

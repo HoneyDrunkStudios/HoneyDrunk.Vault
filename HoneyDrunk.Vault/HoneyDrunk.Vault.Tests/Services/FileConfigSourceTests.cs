@@ -20,7 +20,8 @@ public sealed class FileConfigSourceTests : IDisposable
     /// </summary>
     public FileConfigSourceTests()
     {
-        _tempFilePath = Path.Combine(Path.GetTempPath(), $"test-config-{Guid.NewGuid():N}.json");
+        _tempFilePath = Path.GetTempFileName();
+        File.Delete(_tempFilePath);
     }
 
     /// <summary>

@@ -52,7 +52,10 @@ public sealed class VaultTelemetryBehaviorTests : IDisposable
         Assert.Equal("api-key", GetTag(activity, "vault.key"));
         Assert.Equal("success", GetTag(activity, "vault.result"));
         Assert.Contains(GetTag(activity, "vault.cache"), new[] { "hit", "miss" });
-        Assert.DoesNotContain("secret-value", activity.Tags.Select(t => t.Value), StringComparer.Ordinal);
+        foreach (var tagValue in activity.Tags.Select(tag => tag.Value).Where(value => value is not null))
+        {
+            Assert.DoesNotContain("secret-value", tagValue, StringComparison.Ordinal);
+        }
     }
 
     /// <summary>

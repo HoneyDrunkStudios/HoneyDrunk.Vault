@@ -5,7 +5,7 @@ using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Providers.InMemory.Services;
 using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
+using NSubstitute;
 using System.Collections.Concurrent;
 
 namespace HoneyDrunk.Vault.Tests.Services;
@@ -116,17 +116,17 @@ public sealed class TenantScopedSecretResolverTests
     {
         // Arrange
         var tenantId = TenantId.NewId();
-        var store = new Mock<ISecretStore>();
-        store.Setup(s => s.GetSecretAsync(
-                It.Is<SecretIdentifier>(id => id.Name.StartsWith("tenant-", StringComparison.Ordinal)),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("provider offline"));
+        var store = Substitute.For<ISecretStore>();
+        store.GetSecretAsync(
+                Arg.Is<SecretIdentifier>(id => id.Name.StartsWith("tenant-", StringComparison.Ordinal)),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<SecretValue>(new InvalidOperationException("provider offline")));
 
-        var resolver = new TenantScopedSecretResolver(store.Object);
+        var resolver = new TenantScopedSecretResolver(store);
 
         // Act + Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() => resolver.ResolveAsync(tenantId, "resend-api-key"));
-        store.Verify(s => s.GetSecretAsync(It.Is<SecretIdentifier>(id => id.Name == "resend-api-key"), It.IsAny<CancellationToken>()), Times.Never);
+        await store.DidNotReceive().GetSecretAsync(Arg.Is<SecretIdentifier>(id => id.Name == "resend-api-key"), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -139,17 +139,17 @@ public sealed class TenantScopedSecretResolverTests
         // Arrange
         var tenantId = TenantId.NewId();
         var shared = new SecretValue(new SecretIdentifier("resend-api-key"), "shared-value", "v1");
-        var store = new Mock<ISecretStore>();
-        store.Setup(s => s.GetSecretAsync(
-                It.Is<SecretIdentifier>(id => id.Name.StartsWith("tenant-", StringComparison.Ordinal)),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new SecretNotFoundException("tenant-secret"));
-        store.Setup(s => s.GetSecretAsync(
-                It.Is<SecretIdentifier>(id => id.Name == "resend-api-key"),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(shared);
+        var store = Substitute.For<ISecretStore>();
+        store.GetSecretAsync(
+                Arg.Is<SecretIdentifier>(id => id.Name.StartsWith("tenant-", StringComparison.Ordinal)),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<SecretValue>(new SecretNotFoundException("tenant-secret")));
+        store.GetSecretAsync(
+                Arg.Is<SecretIdentifier>(id => id.Name == "resend-api-key"),
+                Arg.Any<CancellationToken>())
+            .Returns(shared);
 
-        var resolver = new TenantScopedSecretResolver(store.Object);
+        var resolver = new TenantScopedSecretResolver(store);
 
         // Act
         var result = await resolver.ResolveAsync(tenantId, "resend-api-key");
@@ -167,13 +167,13 @@ public sealed class TenantScopedSecretResolverTests
     {
         // Arrange
         var tenantId = TenantId.NewId();
-        var store = new Mock<ISecretStore>();
-        store.Setup(s => s.GetSecretAsync(
-                It.Is<SecretIdentifier>(id => id.Name.StartsWith("tenant-", StringComparison.Ordinal)),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("provider offline"));
+        var store = Substitute.For<ISecretStore>();
+        store.GetSecretAsync(
+                Arg.Is<SecretIdentifier>(id => id.Name.StartsWith("tenant-", StringComparison.Ordinal)),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<SecretValue>(new InvalidOperationException("provider offline")));
 
-        var resolver = new TenantScopedSecretResolver(store.Object);
+        var resolver = new TenantScopedSecretResolver(store);
 
         // Act
         var result = await resolver.TryResolveAsync(tenantId, "resend-api-key");
@@ -181,6 +181,6 @@ public sealed class TenantScopedSecretResolverTests
         // Assert
         Assert.False(result.IsSuccess);
         Assert.Contains("provider offline", result.ErrorMessage, StringComparison.Ordinal);
-        store.Verify(s => s.TryGetSecretAsync(It.Is<SecretIdentifier>(id => id.Name == "resend-api-key"), It.IsAny<CancellationToken>()), Times.Never);
+        await store.DidNotReceive().TryGetSecretAsync(Arg.Is<SecretIdentifier>(id => id.Name == "resend-api-key"), Arg.Any<CancellationToken>());
     }
 }

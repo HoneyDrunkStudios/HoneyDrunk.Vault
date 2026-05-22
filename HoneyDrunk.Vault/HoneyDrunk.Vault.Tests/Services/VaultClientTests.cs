@@ -3,7 +3,8 @@ using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace HoneyDrunk.Vault.Tests.Services;
 
@@ -12,8 +13,8 @@ namespace HoneyDrunk.Vault.Tests.Services;
 /// </summary>
 public sealed class VaultClientTests
 {
-    private readonly Mock<ISecretStore> _mockSecretStore;
-    private readonly Mock<IConfigSource> _mockConfigSource;
+    private readonly ISecretStore _secretStore;
+    private readonly IConfigSource _configSource;
     private readonly VaultClient _vaultClient;
 
     /// <summary>
@@ -21,11 +22,11 @@ public sealed class VaultClientTests
     /// </summary>
     public VaultClientTests()
     {
-        _mockSecretStore = new Mock<ISecretStore>();
-        _mockConfigSource = new Mock<IConfigSource>();
+        _secretStore = Substitute.For<ISecretStore>();
+        _configSource = Substitute.For<IConfigSource>();
         _vaultClient = new VaultClient(
-            _mockSecretStore.Object,
-            _mockConfigSource.Object,
+            _secretStore,
+            _configSource,
             NullLogger<VaultClient>.Instance);
     }
 
@@ -39,16 +40,16 @@ public sealed class VaultClientTests
         // Arrange
         var identifier = new SecretIdentifier("test-secret");
         var expectedValue = new SecretValue(identifier, "secret-value", "v1");
-        _mockSecretStore
-            .Setup(s => s.GetSecretAsync(identifier, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedValue);
+        _secretStore
+            .GetSecretAsync(identifier, Arg.Any<CancellationToken>())
+            .Returns(expectedValue);
 
         // Act
         var result = await _vaultClient.GetSecretAsync(identifier);
 
         // Assert
         Assert.Equal(expectedValue, result);
-        _mockSecretStore.Verify(s => s.GetSecretAsync(identifier, It.IsAny<CancellationToken>()), Times.Once);
+        await _secretStore.Received(1).GetSecretAsync(identifier, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -60,8 +61,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         var identifier = new SecretIdentifier("missing-secret");
-        _mockSecretStore
-            .Setup(s => s.GetSecretAsync(identifier, It.IsAny<CancellationToken>()))
+        _secretStore
+            .GetSecretAsync(identifier, Arg.Any<CancellationToken>())
             .ThrowsAsync(new SecretNotFoundException("missing-secret"));
 
         // Act & Assert
@@ -78,8 +79,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         var identifier = new SecretIdentifier("error-secret");
-        _mockSecretStore
-            .Setup(s => s.GetSecretAsync(identifier, It.IsAny<CancellationToken>()))
+        _secretStore
+            .GetSecretAsync(identifier, Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Something went wrong"));
 
         // Act & Assert
@@ -99,9 +100,9 @@ public sealed class VaultClientTests
         // Arrange
         var identifier = new SecretIdentifier("test-secret");
         var expectedValue = new SecretValue(identifier, "secret-value", "v1");
-        _mockSecretStore
-            .Setup(s => s.TryGetSecretAsync(identifier, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(VaultResult.Success(expectedValue));
+        _secretStore
+            .TryGetSecretAsync(identifier, Arg.Any<CancellationToken>())
+            .Returns(VaultResult.Success(expectedValue));
 
         // Act
         var result = await _vaultClient.TryGetSecretAsync(identifier);
@@ -120,9 +121,9 @@ public sealed class VaultClientTests
     {
         // Arrange
         var identifier = new SecretIdentifier("missing-secret");
-        _mockSecretStore
-            .Setup(s => s.TryGetSecretAsync(identifier, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(VaultResult.Failure<SecretValue>("Not found"));
+        _secretStore
+            .TryGetSecretAsync(identifier, Arg.Any<CancellationToken>())
+            .Returns(VaultResult.Failure<SecretValue>("Not found"));
 
         // Act
         var result = await _vaultClient.TryGetSecretAsync(identifier);
@@ -141,8 +142,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         var identifier = new SecretIdentifier("error-secret");
-        _mockSecretStore
-            .Setup(s => s.TryGetSecretAsync(identifier, It.IsAny<CancellationToken>()))
+        _secretStore
+            .TryGetSecretAsync(identifier, Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Error"));
 
         // Act
@@ -163,9 +164,9 @@ public sealed class VaultClientTests
         // Arrange
         const string key = "config-key";
         const string expectedValue = "config-value";
-        _mockConfigSource
-            .Setup(s => s.GetConfigValueAsync(key, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedValue);
+        _configSource
+            .GetConfigValueAsync(key, Arg.Any<CancellationToken>())
+            .Returns(expectedValue);
 
         // Act
         var result = await _vaultClient.GetConfigValueAsync(key);
@@ -183,8 +184,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         const string key = "missing-key";
-        _mockConfigSource
-            .Setup(s => s.GetConfigValueAsync(key, It.IsAny<CancellationToken>()))
+        _configSource
+            .GetConfigValueAsync(key, Arg.Any<CancellationToken>())
             .ThrowsAsync(new ConfigurationNotFoundException(key));
 
         // Act & Assert
@@ -201,8 +202,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         const string key = "error-key";
-        _mockConfigSource
-            .Setup(s => s.GetConfigValueAsync(key, It.IsAny<CancellationToken>()))
+        _configSource
+            .GetConfigValueAsync(key, Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Error"));
 
         // Act & Assert
@@ -221,9 +222,9 @@ public sealed class VaultClientTests
         // Arrange
         const string key = "config-key";
         const string expectedValue = "config-value";
-        _mockConfigSource
-            .Setup(s => s.TryGetConfigValueAsync(key, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedValue);
+        _configSource
+            .TryGetConfigValueAsync(key, Arg.Any<CancellationToken>())
+            .Returns(expectedValue);
 
         // Act
         var result = await _vaultClient.TryGetConfigValueAsync(key);
@@ -241,8 +242,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         const string key = "error-key";
-        _mockConfigSource
-            .Setup(s => s.TryGetConfigValueAsync(key, It.IsAny<CancellationToken>()))
+        _configSource
+            .TryGetConfigValueAsync(key, Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Error"));
 
         // Act
@@ -261,9 +262,9 @@ public sealed class VaultClientTests
     {
         // Arrange
         const string key = "int-key";
-        _mockConfigSource
-            .Setup(s => s.GetConfigValueAsync<int>(key, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(42);
+        _configSource
+            .GetConfigValueAsync<int>(key, Arg.Any<CancellationToken>())
+            .Returns(42);
 
         // Act
         var result = await _vaultClient.GetConfigValueAsync<int>(key);
@@ -281,8 +282,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         const string key = "error-key";
-        _mockConfigSource
-            .Setup(s => s.GetConfigValueAsync<int>(key, It.IsAny<CancellationToken>()))
+        _configSource
+            .GetConfigValueAsync<int>(key, Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Conversion error"));
 
         // Act & Assert
@@ -300,9 +301,9 @@ public sealed class VaultClientTests
     {
         // Arrange
         const string key = "int-key";
-        _mockConfigSource
-            .Setup(s => s.TryGetConfigValueAsync(key, 0, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(42);
+        _configSource
+            .TryGetConfigValueAsync(key, 0, Arg.Any<CancellationToken>())
+            .Returns(42);
 
         // Act
         var result = await _vaultClient.TryGetConfigValueAsync(key, 0);
@@ -320,8 +321,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         const string key = "error-key";
-        _mockConfigSource
-            .Setup(s => s.TryGetConfigValueAsync(key, 100, It.IsAny<CancellationToken>()))
+        _configSource
+            .TryGetConfigValueAsync(key, 100, Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Error"));
 
         // Act
@@ -345,9 +346,9 @@ public sealed class VaultClientTests
             new("v1", DateTimeOffset.UtcNow.AddDays(-1)),
             new("v2", DateTimeOffset.UtcNow),
         };
-        _mockSecretStore
-            .Setup(s => s.ListSecretVersionsAsync(secretName, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedVersions);
+        _secretStore
+            .ListSecretVersionsAsync(secretName, Arg.Any<CancellationToken>())
+            .Returns(expectedVersions);
 
         // Act
         var result = await _vaultClient.ListSecretVersionsAsync(secretName);
@@ -367,8 +368,8 @@ public sealed class VaultClientTests
     {
         // Arrange
         const string secretName = "error-secret";
-        _mockSecretStore
-            .Setup(s => s.ListSecretVersionsAsync(secretName, It.IsAny<CancellationToken>()))
+        _secretStore
+            .ListSecretVersionsAsync(secretName, Arg.Any<CancellationToken>())
             .ThrowsAsync(new InvalidOperationException("Error"));
 
         // Act & Assert
@@ -386,7 +387,7 @@ public sealed class VaultClientTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new VaultClient(
             null!,
-            _mockConfigSource.Object,
+            _configSource,
             NullLogger<VaultClient>.Instance));
     }
 
@@ -398,7 +399,7 @@ public sealed class VaultClientTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new VaultClient(
-            _mockSecretStore.Object,
+            _secretStore,
             null!,
             NullLogger<VaultClient>.Instance));
     }
@@ -411,8 +412,8 @@ public sealed class VaultClientTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new VaultClient(
-            _mockSecretStore.Object,
-            _mockConfigSource.Object,
+            _secretStore,
+            _configSource,
             null!));
     }
 }

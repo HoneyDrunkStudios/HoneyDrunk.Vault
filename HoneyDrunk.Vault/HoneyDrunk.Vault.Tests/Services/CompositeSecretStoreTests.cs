@@ -5,7 +5,7 @@ using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Resilience;
 using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
+using NSubstitute;
 
 namespace HoneyDrunk.Vault.Tests.Services;
 
@@ -46,8 +46,8 @@ public sealed class CompositeSecretStoreTests
 
         var providers = new[]
         {
-            new RegisteredSecretProvider(lowPriorityProvider.Object, CreateRegistration("low", priority: 100)),
-            new RegisteredSecretProvider(highPriorityProvider.Object, CreateRegistration("high", priority: 1)),
+            new RegisteredSecretProvider(lowPriorityProvider, CreateRegistration("low", priority: 100)),
+            new RegisteredSecretProvider(highPriorityProvider, CreateRegistration("high", priority: 1)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -58,8 +58,8 @@ public sealed class CompositeSecretStoreTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("secret-value-high", result.Value!.Value);
-        highPriorityProvider.Verify(p => p.FetchSecretAsync("test-secret", null, It.IsAny<CancellationToken>()), Times.Once);
-        lowPriorityProvider.Verify(p => p.FetchSecretAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+        await highPriorityProvider.Received(1).FetchSecretAsync("test-secret", null, Arg.Any<CancellationToken>());
+        await lowPriorityProvider.DidNotReceive().FetchSecretAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -75,8 +75,8 @@ public sealed class CompositeSecretStoreTests
 
         var providers = new[]
         {
-            new RegisteredSecretProvider(highPriorityProvider.Object, CreateRegistration("high", priority: 1)),
-            new RegisteredSecretProvider(lowPriorityProvider.Object, CreateRegistration("low", priority: 100)),
+            new RegisteredSecretProvider(highPriorityProvider, CreateRegistration("high", priority: 1)),
+            new RegisteredSecretProvider(lowPriorityProvider, CreateRegistration("low", priority: 100)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -87,8 +87,8 @@ public sealed class CompositeSecretStoreTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("secret-value-low", result.Value!.Value);
-        highPriorityProvider.Verify(p => p.FetchSecretAsync("test-secret", null, It.IsAny<CancellationToken>()), Times.Once);
-        lowPriorityProvider.Verify(p => p.FetchSecretAsync("test-secret", null, It.IsAny<CancellationToken>()), Times.Once);
+        await highPriorityProvider.Received(1).FetchSecretAsync("test-secret", null, Arg.Any<CancellationToken>());
+        await lowPriorityProvider.Received(1).FetchSecretAsync("test-secret", null, Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -98,9 +98,9 @@ public sealed class CompositeSecretStoreTests
     public void Constructor_OrdersProvidersByPriority()
     {
         // Arrange
-        var provider1 = CreateMockProvider("provider-1").Object;
-        var provider2 = CreateMockProvider("provider-2").Object;
-        var provider3 = CreateMockProvider("provider-3").Object;
+        var provider1 = CreateMockProvider("provider-1");
+        var provider2 = CreateMockProvider("provider-2");
+        var provider3 = CreateMockProvider("provider-3");
 
         var providers = new[]
         {
@@ -132,8 +132,8 @@ public sealed class CompositeSecretStoreTests
 
         var providers = new[]
         {
-            new RegisteredSecretProvider(requiredProvider.Object, CreateRegistration("required", priority: 1, isRequired: true)),
-            new RegisteredSecretProvider(fallbackProvider.Object, CreateRegistration("fallback", priority: 100)),
+            new RegisteredSecretProvider(requiredProvider, CreateRegistration("required", priority: 1, isRequired: true)),
+            new RegisteredSecretProvider(fallbackProvider, CreateRegistration("fallback", priority: 100)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -144,7 +144,7 @@ public sealed class CompositeSecretStoreTests
         // Assert - Should fail fast, not fall back
         Assert.False(result.IsSuccess);
         Assert.Contains("Required provider", result.ErrorMessage);
-        fallbackProvider.Verify(p => p.FetchSecretAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+        await fallbackProvider.DidNotReceive().FetchSecretAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -160,8 +160,8 @@ public sealed class CompositeSecretStoreTests
 
         var providers = new[]
         {
-            new RegisteredSecretProvider(optionalProvider.Object, CreateRegistration("optional", priority: 1, isRequired: false)),
-            new RegisteredSecretProvider(fallbackProvider.Object, CreateRegistration("fallback", priority: 100)),
+            new RegisteredSecretProvider(optionalProvider, CreateRegistration("optional", priority: 1, isRequired: false)),
+            new RegisteredSecretProvider(fallbackProvider, CreateRegistration("fallback", priority: 100)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -187,8 +187,8 @@ public sealed class CompositeSecretStoreTests
 
         var providers = new[]
         {
-            new RegisteredSecretProvider(requiredProvider.Object, CreateRegistration("required", priority: 1, isRequired: true)),
-            new RegisteredSecretProvider(fallbackProvider.Object, CreateRegistration("fallback", priority: 100)),
+            new RegisteredSecretProvider(requiredProvider, CreateRegistration("required", priority: 1, isRequired: true)),
+            new RegisteredSecretProvider(fallbackProvider, CreateRegistration("fallback", priority: 100)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -214,8 +214,8 @@ public sealed class CompositeSecretStoreTests
 
         var providers = new[]
         {
-            new RegisteredSecretProvider(fatalProvider.Object, CreateRegistration("fatal", priority: 1)),
-            new RegisteredSecretProvider(fallbackProvider.Object, CreateRegistration("fallback", priority: 100)),
+            new RegisteredSecretProvider(fatalProvider, CreateRegistration("fatal", priority: 1)),
+            new RegisteredSecretProvider(fallbackProvider, CreateRegistration("fallback", priority: 100)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -226,7 +226,7 @@ public sealed class CompositeSecretStoreTests
         // Assert - Fatal config errors should fail fast
         Assert.False(result.IsSuccess);
         Assert.Contains("Fatal configuration error", result.ErrorMessage);
-        fallbackProvider.Verify(p => p.FetchSecretAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+        await fallbackProvider.DidNotReceive().FetchSecretAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
@@ -242,8 +242,8 @@ public sealed class CompositeSecretStoreTests
 
         var providers = new[]
         {
-            new RegisteredSecretProvider(provider1.Object, CreateRegistration("p1", priority: 1)),
-            new RegisteredSecretProvider(provider2.Object, CreateRegistration("p2", priority: 2)),
+            new RegisteredSecretProvider(provider1, CreateRegistration("p1", priority: 1)),
+            new RegisteredSecretProvider(provider2, CreateRegistration("p2", priority: 2)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -267,7 +267,7 @@ public sealed class CompositeSecretStoreTests
         var provider = CreateMockProvider("provider", throwsNotFound: true);
         var providers = new[]
         {
-            new RegisteredSecretProvider(provider.Object, CreateRegistration("p", priority: 1)),
+            new RegisteredSecretProvider(provider, CreateRegistration("p", priority: 1)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -288,7 +288,7 @@ public sealed class CompositeSecretStoreTests
         var provider = CreateMockProvider("provider", throwsFatalConfig: true);
         var providers = new[]
         {
-            new RegisteredSecretProvider(provider.Object, CreateRegistration("p", priority: 1)),
+            new RegisteredSecretProvider(provider, CreateRegistration("p", priority: 1)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -310,7 +310,7 @@ public sealed class CompositeSecretStoreTests
         var provider = CreateMockProvider("provider", throwsTransient: true);
         var providers = new[]
         {
-            new RegisteredSecretProvider(provider.Object, CreateRegistration("p", priority: 1, isRequired: true)),
+            new RegisteredSecretProvider(provider, CreateRegistration("p", priority: 1, isRequired: true)),
         };
 
         var store = CreateCompositeStore(providers);
@@ -346,8 +346,8 @@ public sealed class CompositeSecretStoreTests
     public void Constructor_FiltersOutDisabledProviders()
     {
         // Arrange
-        var enabledProvider = CreateMockProvider("enabled").Object;
-        var disabledProvider = CreateMockProvider("disabled").Object;
+        var enabledProvider = CreateMockProvider("enabled");
+        var disabledProvider = CreateMockProvider("disabled");
 
         var providers = new[]
         {
@@ -370,8 +370,8 @@ public sealed class CompositeSecretStoreTests
     public void Constructor_FiltersOutUnavailableProviders()
     {
         // Arrange
-        var availableProvider = CreateMockProvider("available", isAvailable: true).Object;
-        var unavailableProvider = CreateMockProvider("unavailable", isAvailable: false).Object;
+        var availableProvider = CreateMockProvider("available", isAvailable: true);
+        var unavailableProvider = CreateMockProvider("unavailable", isAvailable: false);
 
         var providers = new[]
         {
@@ -402,7 +402,7 @@ public sealed class CompositeSecretStoreTests
         };
     }
 
-    private static Mock<ISecretProvider> CreateMockProvider(
+    private static ISecretProvider CreateMockProvider(
         string name,
         string? returnValue = null,
         bool throwsNotFound = false,
@@ -410,32 +410,32 @@ public sealed class CompositeSecretStoreTests
         bool throwsFatalConfig = false,
         bool isAvailable = true)
     {
-        var mock = new Mock<ISecretProvider>();
-        mock.Setup(p => p.ProviderName).Returns(name);
-        mock.Setup(p => p.IsAvailable).Returns(isAvailable);
+        var provider = Substitute.For<ISecretProvider>();
+        provider.ProviderName.Returns(name);
+        provider.IsAvailable.Returns(isAvailable);
 
         if (throwsNotFound)
         {
-            mock.Setup(p => p.FetchSecretAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new SecretNotFoundException("test-secret"));
+            provider.FetchSecretAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromException<SecretValue>(new SecretNotFoundException("test-secret")));
         }
         else if (throwsTransient)
         {
-            mock.Setup(p => p.FetchSecretAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new HttpRequestException("Transient network error"));
+            provider.FetchSecretAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromException<SecretValue>(new HttpRequestException("Transient network error")));
         }
         else if (throwsFatalConfig)
         {
-            mock.Setup(p => p.FetchSecretAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new InvalidOperationException("Missing required configuration"));
+            provider.FetchSecretAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromException<SecretValue>(new InvalidOperationException("Missing required configuration")));
         }
         else if (returnValue != null)
         {
-            mock.Setup(p => p.FetchSecretAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new SecretValue(new SecretIdentifier("test-secret"), returnValue, "v1"));
+            provider.FetchSecretAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                .Returns(new SecretValue(new SecretIdentifier("test-secret"), returnValue, "v1"));
         }
 
-        return mock;
+        return provider;
     }
 
     private CompositeSecretStore CreateCompositeStore(IEnumerable<RegisteredSecretProvider> providers)

@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Internal
+- Migrated Vault tests from Moq to NSubstitute, adopted HoneyDrunk.Standards.Tests 0.2.9, and refreshed HoneyDrunk.Standards to 0.2.9 across package projects for ADR-0047 testing alignment.
 - Backfilled Vault test coverage above the Grid PR coverage gate floor and seeded the coverage baseline ratchet artifact.
 
 ## [0.5.0] - 2026-05-18

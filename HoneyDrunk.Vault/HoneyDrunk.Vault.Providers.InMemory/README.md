@@ -215,7 +215,7 @@ public class MyServiceTests
 }
 ```
 
-### Testing with Moq
+### Testing with NSubstitute
 
 ```csharp
 public class MyServiceTests
@@ -224,27 +224,25 @@ public class MyServiceTests
     public async Task MyMethod_WithDependency_CallsSecretStore()
     {
         // Arrange
-        var secretStoreMock = new Mock<ISecretStore>();
-        secretStoreMock
-            .Setup(s => s.GetSecretAsync(
-                It.IsAny<SecretIdentifier>(), 
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SecretValue(
-                new SecretIdentifier("key"), 
-                "value", 
+        var secretStore = Substitute.For<ISecretStore>();
+        secretStore
+            .GetSecretAsync(
+                Arg.Any<SecretIdentifier>(),
+                Arg.Any<CancellationToken>())
+            .Returns(new SecretValue(
+                new SecretIdentifier("key"),
+                "value",
                 "1"));
 
-        var service = new MyService(secretStoreMock.Object);
+        var service = new MyService(secretStore);
 
         // Act
         var result = await service.MyMethodAsync();
 
         // Assert
-        secretStoreMock.Verify(
-            s => s.GetSecretAsync(
-                It.IsAny<SecretIdentifier>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+        await secretStore.Received(1).GetSecretAsync(
+            Arg.Any<SecretIdentifier>(),
+            Arg.Any<CancellationToken>());
     }
 }
 ```

@@ -5,7 +5,7 @@ using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Moq;
+using NSubstitute;
 
 namespace HoneyDrunk.Vault.Tests.Extensions;
 
@@ -75,8 +75,8 @@ public sealed class AzureKeyVaultHoneyDrunkBuilderExtensionsTests
 
     private static IHoneyDrunkBuilder CreateBuilder(IServiceCollection services)
     {
-        var builderMock = new Mock<IHoneyDrunkBuilder>();
-        builderMock.SetupGet(static b => b.Services).Returns(services);
-        return builderMock.Object;
+        var builder = Substitute.For<IHoneyDrunkBuilder>();
+        builder.Services.Returns(services);
+        return builder;
     }
 }

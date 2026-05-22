@@ -4,7 +4,7 @@ using HoneyDrunk.Vault.Providers.AppConfiguration.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
+using NSubstitute;
 
 namespace HoneyDrunk.Vault.Tests.Extensions;
 
@@ -26,15 +26,11 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         services.AddSingleton<IConfiguration>(configuration);
 
         var builder = CreateBuilder(services);
-        var mockCredential = new Mock<TokenCredential>();
-        mockCredential
-            .Setup(c => c.GetTokenAsync(It.IsAny<TokenRequestContext>(), It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask<AccessToken>(new AccessToken("fake-token", DateTimeOffset.MaxValue)));
 
         var result = builder.AddAppConfiguration(o =>
         {
             o.Optional = true;
-            o.Credential = mockCredential.Object;
+            o.Credential = new StaticTokenCredential();
             o.StartupTimeout = TimeSpan.FromMilliseconds(1);
         });
 
@@ -79,8 +75,26 @@ public sealed class AppConfigurationBootstrapExtensionsTests
 
     private static IHoneyDrunkBuilder CreateBuilder(IServiceCollection services)
     {
-        var builderMock = new Mock<IHoneyDrunkBuilder>();
-        builderMock.SetupGet(static b => b.Services).Returns(services);
-        return builderMock.Object;
+        var builder = Substitute.For<IHoneyDrunkBuilder>();
+        builder.Services.Returns(services);
+        return builder;
+    }
+
+    private sealed class StaticTokenCredential : TokenCredential
+    {
+        public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken)
+        {
+            return CreateToken();
+        }
+
+        public override ValueTask<AccessToken> GetTokenAsync(TokenRequestContext requestContext, CancellationToken cancellationToken)
+        {
+            return new ValueTask<AccessToken>(CreateToken());
+        }
+
+        private static AccessToken CreateToken()
+        {
+            return new AccessToken("fake-token", DateTimeOffset.MaxValue);
+        }
     }
 }

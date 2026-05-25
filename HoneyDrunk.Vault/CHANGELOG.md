@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Internal
-- Onboarded Vault to SonarQube Cloud (ADR-0011 D11). Added `sonar-project.properties` at the inner project subdir and wired a `sonarcloud` job in `pr.yml` that calls `HoneyDrunk.Actions/.github/workflows/job-sonarcloud.yml` after `pr-core`. Sources cover runtime + EventGrid + all six providers (AppConfiguration, Aws, AzureKeyVault, Configuration, File, InMemory); tests cover both `HoneyDrunk.Vault.Tests` and the `HoneyDrunk.Vault.Canary` cross-Node verification project. Branch-protection requirement added separately after the first successful run lands.
+- Onboarded Vault to SonarQube Cloud (ADR-0011 D11). Added `sonar-project.properties` at the inner project subdir and wired a `sonarcloud` job in `pr.yml` that calls `HoneyDrunk.Actions/.github/workflows/job-sonarcloud.yml` after `pr-core`. Sources cover runtime + EventGrid + all six providers (AppConfiguration, Aws, AzureKeyVault, Configuration, File, InMemory); tests cover `HoneyDrunk.Vault.Tests` (which contains the Canary cross-Node tests as a subfolder). Branch-protection requirement added separately after the first successful run lands.
 - Enabled ADR-0044 OpenClaw/Codex Grid Review Runner request generation for Vault PRs.
 - Migrated Vault tests from Moq to NSubstitute, adopted HoneyDrunk.Standards.Tests 0.2.9, and refreshed HoneyDrunk.Standards to 0.2.9 across package projects for ADR-0047 testing alignment.
 - Backfilled Vault test coverage above the Grid PR coverage gate floor and seeded the coverage baseline ratchet artifact.

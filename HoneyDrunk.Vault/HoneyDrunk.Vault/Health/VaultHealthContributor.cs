@@ -39,39 +39,27 @@ public sealed class VaultHealthContributor(
     {
         _logger.LogDebug("Performing vault health check with deep provider probes");
 
-        var healthy = new HashSet<string>(StringComparer.Ordinal);
-        var unhealthy = new HashSet<string>(StringComparer.Ordinal);
+        var buckets = new HealthBuckets(
+            new HashSet<string>(StringComparer.Ordinal),
+            new HashSet<string>(StringComparer.Ordinal));
 
-        foreach (var provider in _secretProviders.Where(p => p.Registration.IsEnabled).Select(registered => registered.Provider))
-        {
-            await RecordOutcomeAsync("Secret", provider.ProviderName, provider.CheckHealthAsync, healthy, unhealthy, cancellationToken).ConfigureAwait(false);
-        }
+        await ProviderProbe.ProbeAllAsync(_secretProviders, _configProviders, buckets, Classify, cancellationToken).ConfigureAwait(false);
 
-        foreach (var provider in _configProviders.Where(p => p.Registration.IsEnabled).Select(registered => registered.Provider))
-        {
-            await RecordOutcomeAsync("Config", provider.ProviderName, provider.CheckHealthAsync, healthy, unhealthy, cancellationToken).ConfigureAwait(false);
-        }
-
-        return Summarize(healthy, unhealthy);
+        return Summarize(buckets.Healthy, buckets.Unhealthy);
     }
 
-    private async Task RecordOutcomeAsync(
-        string providerKind,
-        string providerName,
-        Func<CancellationToken, Task<bool>> probe,
-        HashSet<string> healthy,
-        HashSet<string> unhealthy,
-        CancellationToken cancellationToken)
+    private void Classify(string providerKind, string providerName, bool isRequired, ProbeOutcome outcome, HealthBuckets buckets)
     {
-        var outcome = await ProviderProbe.RunAsync(probe, cancellationToken).ConfigureAwait(false);
+        _ = isRequired; // Health is unaffected by required-ness; readiness is the gate that cares.
+
         if (outcome.IsHealthy)
         {
-            healthy.Add(providerName);
+            buckets.Healthy.Add(providerName);
             _logger.LogDebug("{Kind} provider '{ProviderName}' is healthy", providerKind, providerName);
             return;
         }
 
-        unhealthy.Add(providerName);
+        buckets.Unhealthy.Add(providerName);
         if (outcome.Exception is null)
         {
             _logger.LogWarning("{Kind} provider '{ProviderName}' health check returned unhealthy", providerKind, providerName);
@@ -111,4 +99,6 @@ public sealed class VaultHealthContributor(
         _logger.LogDebug("All vault providers are healthy: {Providers}", string.Join(", ", healthy));
         return (status: HealthStatus.Healthy, message: $"All providers healthy: {string.Join(", ", healthy)}");
     }
+
+    private readonly record struct HealthBuckets(HashSet<string> Healthy, HashSet<string> Unhealthy);
 }

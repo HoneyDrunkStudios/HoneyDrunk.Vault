@@ -42,28 +42,13 @@ public sealed class VaultReadinessContributor(
             new HashSet<string>(StringComparer.Ordinal),
             new HashSet<string>(StringComparer.Ordinal));
 
-        foreach (var entry in _secretProviders.Where(p => p.Registration.IsEnabled))
-        {
-            await RecordOutcomeAsync("Secret", entry.Provider.ProviderName, entry.Registration.IsRequired, entry.Provider.CheckHealthAsync, buckets, cancellationToken).ConfigureAwait(false);
-        }
-
-        foreach (var entry in _configProviders.Where(p => p.Registration.IsEnabled))
-        {
-            await RecordOutcomeAsync("Config", entry.Provider.ProviderName, entry.Registration.IsRequired, entry.Provider.CheckHealthAsync, buckets, cancellationToken).ConfigureAwait(false);
-        }
+        await ProviderProbe.ProbeAllAsync(_secretProviders, _configProviders, buckets, Classify, cancellationToken).ConfigureAwait(false);
 
         return Summarize(buckets.Ready, buckets.NotReady, buckets.RequiredNotReady);
     }
 
-    private async Task RecordOutcomeAsync(
-        string providerKind,
-        string providerName,
-        bool isRequired,
-        Func<CancellationToken, Task<bool>> probe,
-        ReadinessBuckets buckets,
-        CancellationToken cancellationToken)
+    private void Classify(string providerKind, string providerName, bool isRequired, ProbeOutcome outcome, ReadinessBuckets buckets)
     {
-        var outcome = await ProviderProbe.RunAsync(probe, cancellationToken).ConfigureAwait(false);
         if (outcome.IsHealthy)
         {
             buckets.Ready.Add(providerName);

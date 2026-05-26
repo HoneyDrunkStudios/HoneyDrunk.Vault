@@ -41,65 +41,59 @@ public sealed class VaultReadinessContributor(
         var notReadyProviders = new HashSet<string>(StringComparer.Ordinal);
         var requiredNotReadyProviders = new HashSet<string>(StringComparer.Ordinal);
 
+        var buckets = new ReadinessBuckets(readyProviders, notReadyProviders, requiredNotReadyProviders);
+
         foreach (var entry in _secretProviders.Where(p => p.Registration.IsEnabled))
         {
-            await ProbeAsync("Secret", entry.Provider.ProviderName, entry.Registration.IsRequired, entry.Provider.CheckHealthAsync, readyProviders, notReadyProviders, requiredNotReadyProviders, cancellationToken).ConfigureAwait(false);
+            await ProbeAsync(new ProbeRequest("Secret", entry.Provider.ProviderName, entry.Registration.IsRequired, entry.Provider.CheckHealthAsync), buckets, cancellationToken).ConfigureAwait(false);
         }
 
         foreach (var entry in _configProviders.Where(p => p.Registration.IsEnabled))
         {
-            await ProbeAsync("Config", entry.Provider.ProviderName, entry.Registration.IsRequired, entry.Provider.CheckHealthAsync, readyProviders, notReadyProviders, requiredNotReadyProviders, cancellationToken).ConfigureAwait(false);
+            await ProbeAsync(new ProbeRequest("Config", entry.Provider.ProviderName, entry.Registration.IsRequired, entry.Provider.CheckHealthAsync), buckets, cancellationToken).ConfigureAwait(false);
         }
 
         return Summarize(readyProviders, notReadyProviders, requiredNotReadyProviders);
     }
 
-    private async Task ProbeAsync(
-        string providerKind,
-        string providerName,
-        bool isRequired,
-        Func<CancellationToken, Task<bool>> probe,
-        HashSet<string> ready,
-        HashSet<string> notReady,
-        HashSet<string> requiredNotReady,
-        CancellationToken cancellationToken)
+    private async Task ProbeAsync(ProbeRequest request, ReadinessBuckets buckets, CancellationToken cancellationToken)
     {
         try
         {
-            var isHealthy = await probe(cancellationToken).ConfigureAwait(false);
+            var isHealthy = await request.Probe(cancellationToken).ConfigureAwait(false);
             if (isHealthy)
             {
-                ready.Add(providerName);
-                _logger.LogDebug("{Kind} provider '{ProviderName}' is ready", providerKind, providerName);
+                buckets.Ready.Add(request.ProviderName);
+                _logger.LogDebug("{Kind} provider '{ProviderName}' is ready", request.ProviderKind, request.ProviderName);
                 return;
             }
 
-            notReady.Add(providerName);
-            if (isRequired)
+            buckets.NotReady.Add(request.ProviderName);
+            if (request.IsRequired)
             {
-                requiredNotReady.Add(providerName);
+                buckets.RequiredNotReady.Add(request.ProviderName);
             }
 
             _logger.LogWarning(
                 "{Kind} provider '{ProviderName}' is not ready (required: {IsRequired})",
-                providerKind,
-                providerName,
-                isRequired);
+                request.ProviderKind,
+                request.ProviderName,
+                request.IsRequired);
         }
         catch (Exception ex)
         {
-            notReady.Add(providerName);
-            if (isRequired)
+            buckets.NotReady.Add(request.ProviderName);
+            if (request.IsRequired)
             {
-                requiredNotReady.Add(providerName);
+                buckets.RequiredNotReady.Add(request.ProviderName);
             }
 
             _logger.LogWarning(
                 ex,
                 "{Kind} provider '{ProviderName}' readiness check failed (required: {IsRequired})",
-                providerKind,
-                providerName,
-                isRequired);
+                request.ProviderKind,
+                request.ProviderName,
+                request.IsRequired);
         }
     }
 
@@ -139,4 +133,8 @@ public sealed class VaultReadinessContributor(
         _logger.LogError("Vault not ready: no providers available");
         return (isReady: false, message: "No providers available");
     }
+
+    private readonly record struct ProbeRequest(string ProviderKind, string ProviderName, bool IsRequired, Func<CancellationToken, Task<bool>> Probe);
+
+    private readonly record struct ReadinessBuckets(HashSet<string> Ready, HashSet<string> NotReady, HashSet<string> RequiredNotReady);
 }

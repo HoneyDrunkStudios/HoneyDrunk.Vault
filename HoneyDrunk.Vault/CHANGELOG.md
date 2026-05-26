@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-26
+
 ### Changed (breaking)
 
 - **`ConfigSourceFacade.TryGetValueAsync<T>` parameter order** updated to put `CancellationToken cancellationToken = default` last (after `ILogger? logger = null`) per .NET conventions and Roslyn `CA1068`. **Migration:** any direct caller using positional args `(tryGetValueAsync, key, defaultValue, cancellationToken, logger)` must swap the last two positions; in-repo provider callers (`AzureKeyVaultConfigSource`, `ConfigurationConfigSource`, `FileConfigSource`, `InMemoryConfigSource`, `CompositeConfigSource`) have been updated.

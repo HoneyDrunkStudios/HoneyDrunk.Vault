@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-26
+
 ### Changed
-- Refreshed HoneyDrunk.Standards to 0.2.9 for ADR-0047 testing tooling alignment.
+- Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release.
+- Restored SDK-generated `AssemblyVersion` (removed `GenerateAssemblyInfo=false` and `CA1016` `NoWarn`).
+- Switched `ConfigurationConfigSource.GetConfigValueAsync<T>` null-check to `EqualityComparer<T>.Default.Equals(value!, default!)` so value-type generics return correctly (Sonar).
+- Reordered `GetConfigValueAsync` / `TryGetConfigValueAsync` overloads to be adjacent (Sonar S4136).
+- Bumped `Microsoft.Extensions.Configuration.Abstractions` and `Microsoft.Extensions.Configuration.Binder` to `10.0.8`.
 
 ## [0.5.0] - 2026-05-18
 

@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-26
+
 ### Changed
-- Refreshed HoneyDrunk.Standards to 0.2.9 for ADR-0047 testing tooling alignment.
+- Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release.
+- Restored SDK-generated `AssemblyVersion` (removed `GenerateAssemblyInfo=false` and `CA1016` `NoWarn`).
+- Routed `ex` through `LogWarning` in `AzureKeyVaultSecretStore.GetSecretAsync` + `ListSecretVersionsAsync` 404 paths and in `AzureKeyVaultConfigSource.GetConfigValueAsync` not-found path (Sonar S2486).
+- Replaced the single-iteration `await foreach` in `AzureKeyVaultSecretStore.CheckHealthAsync` with an explicit one-step `IAsyncEnumerator` advance (Sonar bug).
+- Reordered `GetConfigValueAsync` / `TryGetConfigValueAsync` overloads in `AzureKeyVaultConfigSource` and the nested `DelegatingConfigSourceProvider` in `AzureKeyVaultHoneyDrunkBuilderExtensions` (Sonar S4136).
+- Bumped `Azure.Security.KeyVault.Secrets` to `4.11.0`.
 
 ## [0.5.0] - 2026-05-18
 

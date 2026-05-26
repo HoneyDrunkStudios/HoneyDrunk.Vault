@@ -10,4 +10,4 @@ namespace HoneyDrunk.Vault.Health;
 /// <param name="isRequired">Whether the registration marked the provider as required.</param>
 /// <param name="outcome">The captured probe outcome.</param>
 /// <param name="buckets">The caller's bucket container.</param>
-internal delegate void ProbeClassifier<TBuckets>(string providerKind, string providerName, bool isRequired, ProbeOutcome outcome, TBuckets buckets);
+internal delegate void ProbeClassifier<in TBuckets>(string providerKind, string providerName, bool isRequired, ProbeOutcome outcome, TBuckets buckets);

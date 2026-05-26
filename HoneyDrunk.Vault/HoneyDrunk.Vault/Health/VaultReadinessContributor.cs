@@ -73,9 +73,9 @@ public sealed class VaultReadinessContributor(
     }
 
     private (bool isReady, string? message) Summarize(
-        IReadOnlyCollection<string> ready,
-        IReadOnlyCollection<string> notReady,
-        IReadOnlyCollection<string> requiredNotReady)
+        HashSet<string> ready,
+        HashSet<string> notReady,
+        HashSet<string> requiredNotReady)
     {
         // HashSet enumeration order is unspecified — sort ordinally so readiness messages and
         // log output are stable across runs.

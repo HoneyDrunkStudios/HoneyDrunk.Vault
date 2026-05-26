@@ -70,7 +70,7 @@ public sealed class VaultHealthContributor(
         }
     }
 
-    private (HealthStatus status, string? message) Summarize(IReadOnlyCollection<string> healthy, IReadOnlyCollection<string> unhealthy)
+    private (HealthStatus status, string? message) Summarize(HashSet<string> healthy, HashSet<string> unhealthy)
     {
         // Healthy: at least one provider is reachable
         // Degraded: some providers are unhealthy but at least one is healthy

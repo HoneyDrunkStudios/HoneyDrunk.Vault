@@ -29,7 +29,7 @@ public sealed class VaultStartupHook(
     public int Priority => 100; // Run after core services are initialized
 
     /// <inheritdoc/>
-    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         _logger.LogInformation("Vault startup hook executing");
 

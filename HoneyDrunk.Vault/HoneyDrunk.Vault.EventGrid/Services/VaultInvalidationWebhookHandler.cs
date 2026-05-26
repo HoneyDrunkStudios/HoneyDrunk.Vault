@@ -103,21 +103,15 @@ public sealed class VaultInvalidationWebhookHandler(
         string key,
         out string? value)
     {
-        // Manual case-insensitive iteration preserved intentionally: callers
-        // (Azure Functions handler, tests) pass plain Dictionary<string, string?>
-        // without a comparer, so direct TryGetValue would miss case-variant keys.
-        // Foreach over LINQ to keep this hot-path helper allocation-free.
-        foreach (var pair in headers)
-        {
-            if (string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase))
-            {
-                value = pair.Value;
-                return true;
-            }
-        }
-
-        value = null;
-        return false;
+        // Case-insensitive header lookup: callers (Azure Functions handler, tests) pass
+        // plain Dictionary<string, string?> without an OrdinalIgnoreCase comparer, so
+        // direct TryGetValue would miss case-variant keys. FirstOrDefault on a
+        // KeyValuePair<string, string?> returns a default struct (Key == null) when no
+        // match is found — dictionary keys cannot legitimately be null, so Key serves
+        // as the presence sentinel.
+        var match = headers.FirstOrDefault(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase));
+        value = match.Value;
+        return match.Key is not null;
     }
 
     private static VaultInvalidationWebhookResponse BuildInvalidationResponse(int invalidatedCount)

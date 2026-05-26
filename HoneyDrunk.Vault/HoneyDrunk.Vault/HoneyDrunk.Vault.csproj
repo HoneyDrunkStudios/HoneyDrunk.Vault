@@ -5,15 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
+    <NoWarn>$(NoWarn);CA1873</NoWarn>
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault</PackageId>
-    <Version>0.5.0</Version>
+    <Version>0.6.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
-    <Description>Secrets and configuration management library for .NET. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel v0.7.0 for lifecycle management, health reporting, and distributed telemetry.</Description>
-    <PackageReleaseNotes>v0.5.0: Align Kernel references to v0.7.0 and consolidate Vault provider bootstrap, secret-store facade, and config-source helpers. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <Description>Secrets and configuration management library for .NET. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel v0.8.0 for lifecycle management, health reporting, and distributed telemetry.</Description>
+    <PackageReleaseNotes>v0.6.0: Sonar gate-cleanup (ADR-0011 D11). Enable AssemblyVersion generation, drop CA1016 suppression, reorder ConfigSourceFacade.TryGetValueAsync to put CancellationToken last (breaking), refactor health/readiness contributors for cognitive complexity, fix log-without-exception findings, reorder method overloads for adjacency, and align Kernel/Microsoft.Extensions/Azure/AWS SDK references. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;secrets;configuration;provider;cache;resilience;circuit-breaker;retry;azure-keyvault;aws;kernel;grid;distributed-tracing</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,15 +26,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HoneyDrunk.Kernel" Version="0.7.0" />
-    <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.7.0" />
+    <PackageReference Include="HoneyDrunk.Kernel" Version="0.8.0" />
+    <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.8.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.9">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.6" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.6" />
-    <PackageReference Include="Microsoft.Extensions.Resilience" Version="10.5.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Resilience" Version="10.6.0" />
   </ItemGroup>
 
   <ItemGroup>

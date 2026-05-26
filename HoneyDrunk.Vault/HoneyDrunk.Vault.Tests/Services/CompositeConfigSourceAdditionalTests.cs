@@ -148,11 +148,12 @@ public sealed class CompositeConfigSourceAdditionalTests
     {
         // Arrange
         var source = CreateSource([Register(new TestConfigProvider("provider", "42"))]);
+        var configSource = (IConfigSource)source;
         var provider = (IConfigProvider)source;
 
-        // Act & Assert
-        Assert.Equal(42, await source.GetConfigValueAsync<int>("answer"));
-        Assert.Equal(42, await source.TryGetConfigValueAsync("answer", 0));
+        // Act & Assert — typed overloads live on IConfigSource as default interface methods.
+        Assert.Equal(42, await configSource.GetConfigValueAsync<int>("answer"));
+        Assert.Equal(42, await configSource.TryGetConfigValueAsync("answer", 0));
         Assert.Equal("42", await provider.GetValueAsync("answer"));
         Assert.Equal("42", await provider.TryGetValueAsync("answer"));
         Assert.Equal(42, await provider.GetValueAsync<int>("answer"));

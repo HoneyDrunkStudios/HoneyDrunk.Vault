@@ -39,105 +39,71 @@ public sealed class VaultHealthContributor(
     {
         _logger.LogDebug("Performing vault health check with deep provider probes");
 
-        var healthyProviders = new List<string>();
-        var unhealthyProviders = new List<string>();
+        var buckets = new HealthBuckets(
+            new HashSet<string>(StringComparer.Ordinal),
+            new HashSet<string>(StringComparer.Ordinal));
 
-        // Check secret providers
-        foreach (var registered in _secretProviders.Where(p => p.Registration.IsEnabled))
+        await ProviderProbe.ProbeAllAsync(_secretProviders, _configProviders, buckets, Classify, cancellationToken).ConfigureAwait(false);
+
+        return Summarize(buckets.Healthy, buckets.Unhealthy);
+    }
+
+    private void Classify(string providerKind, string providerName, bool isRequired, ProbeOutcome outcome, HealthBuckets buckets)
+    {
+        _ = isRequired; // Health is unaffected by required-ness; readiness is the gate that cares.
+
+        if (outcome.IsHealthy)
         {
-            var providerName = registered.Provider.ProviderName;
-
-            try
-            {
-                var isHealthy = await registered.Provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
-
-                if (isHealthy)
-                {
-                    healthyProviders.Add(providerName);
-                    _logger.LogDebug("Secret provider '{ProviderName}' is healthy", providerName);
-                }
-                else
-                {
-                    unhealthyProviders.Add(providerName);
-                    _logger.LogWarning("Secret provider '{ProviderName}' health check returned unhealthy", providerName);
-                }
-            }
-            catch (Exception ex)
-            {
-                unhealthyProviders.Add(providerName);
-                _logger.LogWarning(ex, "Secret provider '{ProviderName}' health check failed", providerName);
-            }
+            buckets.Healthy.Add(providerName);
+            _logger.LogDebug("{Kind} provider '{ProviderName}' is healthy", providerKind, providerName);
+            return;
         }
 
-        // Check config providers
-        foreach (var registered in _configProviders.Where(p => p.Registration.IsEnabled))
+        buckets.Unhealthy.Add(providerName);
+        if (outcome.Exception is null)
         {
-            var providerName = registered.Provider.ProviderName;
-
-            try
-            {
-                var isHealthy = await registered.Provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
-
-                if (isHealthy)
-                {
-                    if (!healthyProviders.Contains(providerName))
-                    {
-                        healthyProviders.Add(providerName);
-                    }
-
-                    _logger.LogDebug("Config provider '{ProviderName}' is healthy", providerName);
-                }
-                else
-                {
-                    if (!unhealthyProviders.Contains(providerName))
-                    {
-                        unhealthyProviders.Add(providerName);
-                    }
-
-                    _logger.LogWarning("Config provider '{ProviderName}' health check returned unhealthy", providerName);
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!unhealthyProviders.Contains(providerName))
-                {
-                    unhealthyProviders.Add(providerName);
-                }
-
-                _logger.LogWarning(ex, "Config provider '{ProviderName}' health check failed", providerName);
-            }
+            _logger.LogWarning("{Kind} provider '{ProviderName}' health check returned unhealthy", providerKind, providerName);
         }
+        else
+        {
+            _logger.LogWarning(outcome.Exception, "{Kind} provider '{ProviderName}' health check failed", providerKind, providerName);
+        }
+    }
 
-        // Determine overall health status
+    private (HealthStatus status, string? message) Summarize(HashSet<string> healthy, HashSet<string> unhealthy)
+    {
         // Healthy: at least one provider is reachable
         // Degraded: some providers are unhealthy but at least one is healthy
         // Unhealthy: no providers are healthy
-        if (healthyProviders.Count == 0 && unhealthyProviders.Count == 0)
+        // HashSet enumeration order is unspecified — sort ordinally so log/health-message output
+        // is stable across runs and easy to diff in monitoring.
+        var healthyList = string.Join(", ", healthy.OrderBy(name => name, StringComparer.Ordinal));
+        var unhealthyList = string.Join(", ", unhealthy.OrderBy(name => name, StringComparer.Ordinal));
+
+        if (healthy.Count == 0 && unhealthy.Count == 0)
         {
             _logger.LogWarning("No vault providers are configured");
-            return (status: HealthStatus.Degraded, "No vault providers configured");
+            return (status: HealthStatus.Degraded, message: "No vault providers configured");
         }
 
-        if (healthyProviders.Count == 0)
+        if (healthy.Count == 0)
         {
-            _logger.LogError(
-                "All vault providers are unhealthy: {Providers}",
-                string.Join(", ", unhealthyProviders));
-            return (status: HealthStatus.Unhealthy, $"All providers unhealthy: {string.Join(", ", unhealthyProviders)}");
+            _logger.LogError("All vault providers are unhealthy: {Providers}", unhealthyList);
+            return (status: HealthStatus.Unhealthy, message: $"All providers unhealthy: {unhealthyList}");
         }
 
-        if (unhealthyProviders.Count > 0)
+        if (unhealthy.Count > 0)
         {
             _logger.LogWarning(
                 "Some vault providers are unhealthy. Healthy: {Healthy}, Unhealthy: {Unhealthy}",
-                string.Join(", ", healthyProviders),
-                string.Join(", ", unhealthyProviders));
-            return (status: HealthStatus.Degraded, $"Healthy: {string.Join(", ", healthyProviders)}; Unhealthy: {string.Join(", ", unhealthyProviders)}");
+                healthyList,
+                unhealthyList);
+            return (status: HealthStatus.Degraded, message: $"Healthy: {healthyList}; Unhealthy: {unhealthyList}");
         }
 
-        _logger.LogDebug(
-            "All vault providers are healthy: {Providers}",
-            string.Join(", ", healthyProviders));
-        return (status: HealthStatus.Healthy, $"All providers healthy: {string.Join(", ", healthyProviders)}");
+        _logger.LogDebug("All vault providers are healthy: {Providers}", healthyList);
+        return (status: HealthStatus.Healthy, message: $"All providers healthy: {healthyList}");
     }
+
+    private readonly record struct HealthBuckets(HashSet<string> Healthy, HashSet<string> Unhealthy);
 }

@@ -82,19 +82,7 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
         return result.Value;
     }
 
-    /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
-    public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken, _logger).ConfigureAwait(false);
-    }
-
-    // IConfigProvider implementation - delegates to IConfigSource methods
+    // IConfigProvider implementation — generic typed overloads come from the IConfigSource default interface methods.
 
     /// <inheritdoc/>
     Task<string> IConfigProvider.GetValueAsync(string key, CancellationToken cancellationToken)
@@ -105,7 +93,8 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
     /// <inheritdoc/>
     Task<T> IConfigProvider.GetValueAsync<T>(string path, T defaultValue, CancellationToken cancellationToken)
     {
-        return TryGetConfigValueAsync(path, defaultValue, cancellationToken);
+        // Generic typed overload lives on IConfigSource as a default interface method.
+        return ((IConfigSource)this).TryGetConfigValueAsync(path, defaultValue, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -117,7 +106,8 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
     /// <inheritdoc/>
     Task<T> IConfigProvider.GetValueAsync<T>(string key, CancellationToken cancellationToken)
     {
-        return GetConfigValueAsync<T>(key, cancellationToken);
+        // Generic typed overload lives on IConfigSource as a default interface method.
+        return ((IConfigSource)this).GetConfigValueAsync<T>(key, cancellationToken);
     }
 
     /// <summary>

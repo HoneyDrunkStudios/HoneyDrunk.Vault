@@ -13,7 +13,7 @@ namespace HoneyDrunk.Vault.Tests.Services;
 public sealed class FileConfigSourceTests : IDisposable
 {
     private readonly string _tempFilePath;
-    private FileConfigSource? _source;
+    private IConfigSource? _source;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FileConfigSourceTests"/> class.
@@ -167,7 +167,7 @@ public sealed class FileConfigSourceTests : IDisposable
     /// </summary>
     public void Dispose()
     {
-        _source?.Dispose();
+        (_source as IDisposable)?.Dispose();
         if (File.Exists(_tempFilePath))
         {
             File.Delete(_tempFilePath);

@@ -37,7 +37,7 @@ public sealed class VaultStartupHookTests
         var hook = CreateHook(new VaultOptions(), store);
 
         // Act
-        await hook.ExecuteAsync();
+        await hook.ExecuteAsync(CancellationToken.None);
 
         // Assert
         Assert.Empty(store.RequestedSecrets);
@@ -60,7 +60,7 @@ public sealed class VaultStartupHookTests
         var hook = CreateHook(options, new TestSecretStore());
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => hook.ExecuteAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => hook.ExecuteAsync(CancellationToken.None));
         Assert.Contains("requires VaultUri", ex.Message, StringComparison.Ordinal);
     }
 
@@ -80,8 +80,9 @@ public sealed class VaultStartupHookTests
         });
         var hook = CreateHook(options, new TestSecretStore());
 
-        // Act
-        await hook.ExecuteAsync();
+        // Act & Assert
+        var ex = await Record.ExceptionAsync(() => hook.ExecuteAsync(CancellationToken.None));
+        Assert.Null(ex);
     }
 
     /// <summary>
@@ -105,8 +106,9 @@ public sealed class VaultStartupHookTests
         });
         var hook = CreateHook(options, new TestSecretStore());
 
-        // Act
-        await hook.ExecuteAsync();
+        // Act & Assert
+        var ex = await Record.ExceptionAsync(() => hook.ExecuteAsync(CancellationToken.None));
+        Assert.Null(ex);
     }
 
     /// <summary>
@@ -125,7 +127,7 @@ public sealed class VaultStartupHookTests
         var hook = CreateHook(options, store);
 
         // Act
-        await hook.ExecuteAsync();
+        await hook.ExecuteAsync(CancellationToken.None);
 
         // Assert
         Assert.Equal(["api-key", "missing", "throwing"], store.RequestedSecrets);

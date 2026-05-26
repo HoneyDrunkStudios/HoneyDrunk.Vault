@@ -1,3 +1,4 @@
+using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Providers.InMemory.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -114,10 +115,11 @@ public sealed class InMemoryConfigSourceTests
         _configValues["bool-key"] = "true";
         _configValues["double-key"] = "3.14";
 
-        // Act & Assert
-        Assert.Equal(42, await _source.GetConfigValueAsync<int>("int-key"));
-        Assert.True(await _source.GetConfigValueAsync<bool>("bool-key"));
-        Assert.Equal(3.14, await _source.GetConfigValueAsync<double>("double-key"));
+        // Act & Assert — generic overloads come from the IConfigSource default interface methods.
+        IConfigSource source = _source;
+        Assert.Equal(42, await source.GetConfigValueAsync<int>("int-key"));
+        Assert.True(await source.GetConfigValueAsync<bool>("bool-key"));
+        Assert.Equal(3.14, await source.GetConfigValueAsync<double>("double-key"));
     }
 
     /// <summary>
@@ -127,8 +129,8 @@ public sealed class InMemoryConfigSourceTests
     [Fact]
     public async Task TryGetConfigValueAsync_Typed_ReturnsDefault_WhenNotExists()
     {
-        // Act
-        var result = await _source.TryGetConfigValueAsync("missing", 100);
+        // Act — generic overload comes from the IConfigSource default interface method.
+        var result = await ((IConfigSource)_source).TryGetConfigValueAsync("missing", 100);
 
         // Assert
         Assert.Equal(100, result);
@@ -144,8 +146,8 @@ public sealed class InMemoryConfigSourceTests
         // Arrange
         _configValues["timeout"] = "30";
 
-        // Act
-        var result = await _source.TryGetConfigValueAsync("timeout", 10);
+        // Act — generic overload comes from the IConfigSource default interface method.
+        var result = await ((IConfigSource)_source).TryGetConfigValueAsync("timeout", 10);
 
         // Assert
         Assert.Equal(30, result);

@@ -77,6 +77,40 @@ public sealed class ConfigurationProviderTests
     }
 
     /// <summary>
+    /// Verifies configured value-type defaults are returned instead of being mistaken for "not found".
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ConfigurationConfigSource_GetConfigValueAsync_Typed_ReturnsConfiguredZero()
+    {
+        // Arrange — 0 is a legitimate value, not "not found".
+        var source = CreateConfigSource(new Dictionary<string, string?> { ["Retries"] = "0" });
+
+        // Act
+        var value = await source.GetConfigValueAsync<int>("Retries");
+
+        // Assert
+        Assert.Equal(0, value);
+    }
+
+    /// <summary>
+    /// Verifies configured boolean `false` is returned instead of being mistaken for "not found".
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ConfigurationConfigSource_GetConfigValueAsync_Typed_ReturnsConfiguredFalse()
+    {
+        // Arrange — false is a legitimate value, not "not found".
+        var source = CreateConfigSource(new Dictionary<string, string?> { ["FeatureEnabled"] = "false" });
+
+        // Act
+        var value = await source.GetConfigValueAsync<bool>("FeatureEnabled");
+
+        // Assert
+        Assert.False(value);
+    }
+
+    /// <summary>
     /// Verifies typed try-get returns the default value when conversion fails.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>

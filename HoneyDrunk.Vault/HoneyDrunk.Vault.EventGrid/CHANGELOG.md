@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-26
+
 ### Changed
-- Refreshed HoneyDrunk.Standards to 0.2.9 for ADR-0047 testing tooling alignment.
+- Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release.
+- Replaced the manual case-insensitive header `foreach` in `VaultInvalidationWebhookHandler.TryGetHeader` with `headers.FirstOrDefault(...)` — satisfies Sonar S3267 (use LINQ) and S1751 (the previous `foreach + return-on-first-match` was a single-iteration loop). The `KeyValuePair<string, string?>` default struct (`Key == null`) acts as the not-found sentinel since dictionary keys cannot legitimately be null.
+- Restored SDK-generated `AssemblyVersion` (removed `GenerateAssemblyInfo=false` and `CA1016` `NoWarn`).
 
 ## [0.5.0] - 2026-05-18
 

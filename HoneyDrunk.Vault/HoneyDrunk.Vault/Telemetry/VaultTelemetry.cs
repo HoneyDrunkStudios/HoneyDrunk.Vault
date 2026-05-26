@@ -80,17 +80,12 @@ public sealed class VaultTelemetry(
         }
         catch (Exception ex)
         {
+            // Tag the activity with the failure context so downstream telemetry
+            // consumers can attribute it, then rethrow without logging (the
+            // caller is the one that owns logging — see Sonar S2139).
             resultStatus = "error";
             SetActivityTags(activity, resultStatus, cacheStatus);
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-
-            _logger.LogError(
-                ex,
-                "Vault operation '{Operation}' failed for key '{Key}' from provider '{Provider}'",
-                operationName,
-                key,
-                providerName);
-
             throw;
         }
     }

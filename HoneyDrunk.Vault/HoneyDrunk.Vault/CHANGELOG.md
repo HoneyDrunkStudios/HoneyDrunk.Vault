@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-26
+
+### Changed (breaking)
+- `ConfigSourceFacade.TryGetValueAsync<T>` parameter order: `ILogger? logger = null` now precedes `CancellationToken cancellationToken = default` (CA1068). All in-repo callers updated.
+- `VaultStartupHook.ExecuteAsync` drops the default value on its `CancellationToken` parameter to match the `IStartupHook` interface (Sonar S1006).
+
 ### Changed
-- Refreshed HoneyDrunk.Standards to 0.2.9 for ADR-0047 testing tooling alignment.
+- Restored SDK-generated `AssemblyVersion` (removed `GenerateAssemblyInfo=false` and `CA1016` `NoWarn`). Assemblies now report a version derived from `<Version>`.
+- Reordered `GetConfigValueAsync` / `TryGetConfigValueAsync` overloads to be adjacent across `IConfigSource`, `IConfigProvider`, `IVaultClient`, `VaultClient`, and `CompositeConfigSource` (Sonar S4136).
+- Routed `ex` through `LogDebug` in `SecretStoreFacade.TryGetSecretAsync` 404 path (Sonar S2486).
+- Refactored `VaultHealthContributor.CheckHealthAsync` and `VaultReadinessContributor.CheckReadinessAsync` to extract per-provider probe and summary helpers; cognitive complexity 25/41 → under 15.
+- Switched `ConfigurationConfigSource.GetConfigValueAsync<T>` presence detection to `IConfigurationSection.Exists()` + a `GetChildren().Any()` / `Value` check, then `section.Get<T>()` to bind. Legitimately configured value-type defaults (`0` / `false` / `DateTime.MinValue`) are now returned instead of being mistaken for "not found", and complex/object sections with children still bind correctly. The previous `value == null` check (Sonar's original complaint for value-type generics) is gone.
+- Extracted the `"vault.result"` literal in `CompositeSecretStore` to a `ResultTag` const (Sonar S1192).
+- Converted `TenantScopedSecretResolver` to a primary constructor.
+- Removed the dead `LogError` in `VaultTelemetry.ExecuteWithTelemetryAsync` catch block; the activity is still tagged `Error` and the exception rethrown for the caller to log (Sonar S2139).
+- Bumped `HoneyDrunk.Kernel` / `HoneyDrunk.Kernel.Abstractions` `0.7.0 → 0.8.0` (Vault doesn't consume the breaking surface).
+- Refreshed `Microsoft.Extensions.{Caching.Memory, Options}` to `10.0.8` and `Microsoft.Extensions.Resilience` to `10.6.0`.
 
 ## [0.5.0] - 2026-05-18
 

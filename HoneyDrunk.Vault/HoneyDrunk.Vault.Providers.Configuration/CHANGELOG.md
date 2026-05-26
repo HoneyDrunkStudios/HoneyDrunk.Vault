@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-26
+
 ### Changed
-- Refreshed HoneyDrunk.Standards to 0.2.9 for ADR-0047 testing tooling alignment.
+- Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release.
+- Restored SDK-generated `AssemblyVersion` (removed `GenerateAssemblyInfo=false` and `CA1016` `NoWarn`).
+- Switched `ConfigurationConfigSource.GetConfigValueAsync<T>` to detect presence via `IConfigurationSection.Exists()` plus a `GetChildren().Any()` / `.Value` check, then `section.Get<T>()` for binding. The previous `value == null` check (Sonar's original complaint) was wrong for value types; a `default(T)` comparison would have over-rotated the other way and treated legitimate configured `0` / `false` / `DateTime.MinValue` as "not found"; relying on `Exists()` alone would reject complex/object sections whose `Value` is null but whose children bind. The current shape covers all three: value-type defaults, complex sections, and genuinely-missing keys. Tests cover the value-type-default cases.
+- Reordered `GetConfigValueAsync` / `TryGetConfigValueAsync` overloads to be adjacent (Sonar S4136).
+- Bumped `Microsoft.Extensions.Configuration.Abstractions` and `Microsoft.Extensions.Configuration.Binder` to `10.0.8`.
 
 ## [0.5.0] - 2026-05-18
 

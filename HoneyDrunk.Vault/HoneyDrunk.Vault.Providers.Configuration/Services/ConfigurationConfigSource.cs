@@ -42,6 +42,40 @@ public sealed class ConfigurationConfigSource(
     }
 
     /// <inheritdoc/>
+    public Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        ConfigSourceFacade.ValidateKey(key);
+
+        _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}' from configuration", key, typeof(T).Name);
+
+        // Presence is decided via IConfigurationSection.Exists() so that legitimately
+        // configured value-type defaults (0, false, DateTime.MinValue) are returned instead of
+        // being mistaken for "not found", and complex/object sections (where Value is null but
+        // children exist) still bind via section.Get<T>(). For scalar leaves we additionally
+        // treat an empty Value as missing, since IConfigurationProvider entries with an empty
+        // string are typically placeholders rather than real values.
+        var section = _configuration.GetSection(key);
+        var hasChildren = section.GetChildren().Any();
+        if (!section.Exists() || (!hasChildren && string.IsNullOrEmpty(section.Value)))
+        {
+            _logger.LogWarning("Configuration key '{Key}' not found", key);
+            throw new ConfigurationNotFoundException(key);
+        }
+
+        try
+        {
+            var value = section.Get<T>()!;
+            _logger.LogDebug("Successfully retrieved typed configuration value for key '{Key}'", key);
+            return Task.FromResult(value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
+            throw new VaultOperationException($"Failed to retrieve configuration value for key '{key}' as type '{typeof(T).Name}'", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         ConfigSourceFacade.ValidateKey(key);
@@ -60,34 +94,6 @@ public sealed class ConfigurationConfigSource(
         }
 
         return Task.FromResult(value);
-    }
-
-    /// <inheritdoc/>
-    public Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        ConfigSourceFacade.ValidateKey(key);
-
-        _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}' from configuration", key, typeof(T).Name);
-
-        try
-        {
-            var value = _configuration.GetValue<T>(key);
-
-            if (value == null)
-            {
-                _logger.LogWarning("Configuration key '{Key}' not found", key);
-                throw new ConfigurationNotFoundException(key);
-            }
-
-            _logger.LogDebug("Successfully retrieved typed configuration value for key '{Key}'", key);
-
-            return Task.FromResult(value);
-        }
-        catch (Exception ex) when (ex is not ConfigurationNotFoundException)
-        {
-            _logger.LogError(ex, "Error retrieving typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
-            throw new VaultOperationException($"Failed to retrieve configuration value for key '{key}' as type '{typeof(T).Name}'", ex);
-        }
     }
 
     /// <inheritdoc/>

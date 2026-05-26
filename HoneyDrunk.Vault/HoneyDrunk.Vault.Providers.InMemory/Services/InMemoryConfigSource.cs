@@ -16,7 +16,7 @@ namespace HoneyDrunk.Vault.Providers.InMemory.Services;
 /// <param name="logger">The logger.</param>
 public sealed class InMemoryConfigSource(
     ConcurrentDictionary<string, string> configValues,
-    ILogger<InMemoryConfigSource> logger) : IConfigSource, IConfigSourceProvider
+    ILogger<InMemoryConfigSource> logger) : IConfigSourceProvider
 {
     private readonly ConcurrentDictionary<string, string> _configValues = configValues ?? throw new ArgumentNullException(nameof(configValues));
     private readonly ILogger<InMemoryConfigSource> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -82,20 +82,9 @@ public sealed class InMemoryConfigSource(
         return Task.FromResult(value);
     }
 
-    /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
-    public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken, _logger).ConfigureAwait(false);
-    }
-
     /// <summary>
-    /// Adds or updates a configuration value in the in-memory store.
+    /// Adds or updates a configuration value in the in-memory store. Generic typed overloads
+    /// come from the IConfigSource default interface methods.
     /// </summary>
     /// <param name="key">The configuration key.</param>
     /// <param name="value">The configuration value.</param>

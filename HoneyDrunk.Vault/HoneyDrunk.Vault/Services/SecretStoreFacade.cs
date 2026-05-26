@@ -54,7 +54,7 @@ public static class SecretStoreFacade
         }
         catch (SecretNotFoundException ex)
         {
-            logger?.LogDebug("Secret '{SecretName}' not found in {StoreName}", identifier.Name, storeName ?? "secret store");
+            logger?.LogDebug(ex, "Secret '{SecretName}' not found in {StoreName}", identifier.Name, storeName ?? "secret store");
             return VaultResult.Failure<SecretValue>($"Secret '{identifier.Name}' not found: {ex.Message}");
         }
         catch (VaultOperationException ex)

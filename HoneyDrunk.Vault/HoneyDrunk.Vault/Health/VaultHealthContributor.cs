@@ -39,23 +39,23 @@ public sealed class VaultHealthContributor(
     {
         _logger.LogDebug("Performing vault health check with deep provider probes");
 
-        var healthyProviders = new HashSet<string>(StringComparer.Ordinal);
-        var unhealthyProviders = new HashSet<string>(StringComparer.Ordinal);
+        var healthy = new HashSet<string>(StringComparer.Ordinal);
+        var unhealthy = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var provider in _secretProviders.Where(p => p.Registration.IsEnabled).Select(registered => registered.Provider))
         {
-            await ProbeAsync("Secret", provider.ProviderName, provider.CheckHealthAsync, healthyProviders, unhealthyProviders, cancellationToken).ConfigureAwait(false);
+            await RecordOutcomeAsync("Secret", provider.ProviderName, provider.CheckHealthAsync, healthy, unhealthy, cancellationToken).ConfigureAwait(false);
         }
 
         foreach (var provider in _configProviders.Where(p => p.Registration.IsEnabled).Select(registered => registered.Provider))
         {
-            await ProbeAsync("Config", provider.ProviderName, provider.CheckHealthAsync, healthyProviders, unhealthyProviders, cancellationToken).ConfigureAwait(false);
+            await RecordOutcomeAsync("Config", provider.ProviderName, provider.CheckHealthAsync, healthy, unhealthy, cancellationToken).ConfigureAwait(false);
         }
 
-        return Summarize(healthyProviders, unhealthyProviders);
+        return Summarize(healthy, unhealthy);
     }
 
-    private async Task ProbeAsync(
+    private async Task RecordOutcomeAsync(
         string providerKind,
         string providerName,
         Func<CancellationToken, Task<bool>> probe,
@@ -63,24 +63,22 @@ public sealed class VaultHealthContributor(
         HashSet<string> unhealthy,
         CancellationToken cancellationToken)
     {
-        try
+        var outcome = await ProviderProbe.RunAsync(probe, cancellationToken).ConfigureAwait(false);
+        if (outcome.IsHealthy)
         {
-            var isHealthy = await probe(cancellationToken).ConfigureAwait(false);
-            if (isHealthy)
-            {
-                healthy.Add(providerName);
-                _logger.LogDebug("{Kind} provider '{ProviderName}' is healthy", providerKind, providerName);
-            }
-            else
-            {
-                unhealthy.Add(providerName);
-                _logger.LogWarning("{Kind} provider '{ProviderName}' health check returned unhealthy", providerKind, providerName);
-            }
+            healthy.Add(providerName);
+            _logger.LogDebug("{Kind} provider '{ProviderName}' is healthy", providerKind, providerName);
+            return;
         }
-        catch (Exception ex)
+
+        unhealthy.Add(providerName);
+        if (outcome.Exception is null)
         {
-            unhealthy.Add(providerName);
-            _logger.LogWarning(ex, "{Kind} provider '{ProviderName}' health check failed", providerKind, providerName);
+            _logger.LogWarning("{Kind} provider '{ProviderName}' health check returned unhealthy", providerKind, providerName);
+        }
+        else
+        {
+            _logger.LogWarning(outcome.Exception, "{Kind} provider '{ProviderName}' health check failed", providerKind, providerName);
         }
     }
 

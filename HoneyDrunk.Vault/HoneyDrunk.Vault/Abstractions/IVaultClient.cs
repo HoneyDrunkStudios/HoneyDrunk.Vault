@@ -32,14 +32,6 @@ public interface IVaultClient
     Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Attempts to get a configuration value by key.
-    /// </summary>
-    /// <param name="key">The configuration key.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The configuration value if found, otherwise null.</returns>
-    Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets a typed configuration value by key.
     /// </summary>
     /// <typeparam name="T">The type to convert the value to.</typeparam>
@@ -47,6 +39,14 @@ public interface IVaultClient
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The typed configuration value.</returns>
     Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Attempts to get a configuration value by key.
+    /// </summary>
+    /// <param name="key">The configuration key.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The configuration value if found, otherwise null.</returns>
+    Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Attempts to get a typed configuration value by key.

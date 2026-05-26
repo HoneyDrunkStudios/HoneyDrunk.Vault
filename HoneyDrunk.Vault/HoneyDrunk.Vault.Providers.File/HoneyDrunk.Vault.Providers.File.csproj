@@ -5,15 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
+    <NoWarn>$(NoWarn);CA1873</NoWarn>
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.File</PackageId>
-    <Version>0.5.0</Version>
+    <Version>0.6.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>File-based secrets and configuration provider for HoneyDrunk.Vault. Ideal for local development and testing with support for file watching and optional encryption.</Description>
-    <PackageReleaseNotes>v0.5.0: Align Kernel references to v0.7.0 and consolidate Vault provider bootstrap, secret-store facade, and config-source helpers. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.6.0: Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;secrets;configuration;file;development;testing;file-watcher</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

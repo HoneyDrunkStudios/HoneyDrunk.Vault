@@ -153,11 +153,11 @@ public static class AzureKeyVaultHoneyDrunkBuilderExtensions
         public Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default) =>
             _inner.GetConfigValueAsync(key, cancellationToken);
 
-        public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default) =>
-            _inner.TryGetConfigValueAsync(key, cancellationToken);
-
         public Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default) =>
             _inner.GetConfigValueAsync<T>(key, cancellationToken);
+
+        public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default) =>
+            _inner.TryGetConfigValueAsync(key, cancellationToken);
 
         public Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default) =>
             _inner.TryGetConfigValueAsync(key, defaultValue, cancellationToken);

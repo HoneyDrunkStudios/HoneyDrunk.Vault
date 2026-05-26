@@ -76,6 +76,12 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
     }
 
     /// <inheritdoc/>
+    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
     public async Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         var result = await TryGetConfigValueInternalAsync(key, cancellationToken).ConfigureAwait(false);
@@ -83,15 +89,9 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
     }
 
     /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken, _logger).ConfigureAwait(false);
+        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, _logger, cancellationToken).ConfigureAwait(false);
     }
 
     // IConfigProvider implementation - delegates to IConfigSource methods

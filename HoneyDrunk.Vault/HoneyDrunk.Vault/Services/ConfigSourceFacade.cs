@@ -93,15 +93,15 @@ public static class ConfigSourceFacade
     /// <param name="tryGetValueAsync">The nullable string-value getter.</param>
     /// <param name="key">The configuration key.</param>
     /// <param name="defaultValue">The fallback value.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
     /// <param name="logger">The optional logger.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The converted value, or <paramref name="defaultValue"/> when missing or invalid.</returns>
     public static async Task<T> TryGetValueAsync<T>(
         Func<string, CancellationToken, Task<string?>> tryGetValueAsync,
         string key,
         T defaultValue,
-        CancellationToken cancellationToken = default,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tryGetValueAsync);
 

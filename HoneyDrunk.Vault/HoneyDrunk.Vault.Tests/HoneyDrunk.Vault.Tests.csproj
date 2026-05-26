@@ -5,19 +5,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-	<NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
+    <NoWarn>$(NoWarn);CA1873</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HoneyDrunk.Kernel" Version="0.7.0" />
+    <PackageReference Include="HoneyDrunk.Kernel" Version="0.8.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.9">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="HoneyDrunk.Standards.Tests" Version="0.2.9" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.6" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
   </ItemGroup>
 
   <ItemGroup>

@@ -74,6 +74,12 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     }
 
     /// <inheritdoc/>
+    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         ConfigSourceFacade.ValidateKey(key);
@@ -83,15 +89,9 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     }
 
     /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken, _logger).ConfigureAwait(false);
+        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, _logger, cancellationToken).ConfigureAwait(false);
     }
 
     // IConfigProvider implementation

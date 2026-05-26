@@ -52,7 +52,7 @@ public sealed class AzureKeyVaultSecretStore(
         }
         catch (RequestFailedException ex) when (ex.Status == 404)
         {
-            _logger.LogWarning("Secret '{SecretName}' not found in Azure Key Vault", identifier.Name);
+            _logger.LogWarning(ex, "Secret '{SecretName}' not found in Azure Key Vault", identifier.Name);
             throw new SecretNotFoundException(identifier.Name, ex);
         }
         catch (RequestFailedException ex)
@@ -107,7 +107,7 @@ public sealed class AzureKeyVaultSecretStore(
         }
         catch (RequestFailedException ex) when (ex.Status == 404)
         {
-            _logger.LogWarning("Secret '{SecretName}' not found in Azure Key Vault", secretName);
+            _logger.LogWarning(ex, "Secret '{SecretName}' not found in Azure Key Vault", secretName);
             throw new SecretNotFoundException(secretName, ex);
         }
         catch (RequestFailedException ex)
@@ -145,12 +145,16 @@ public sealed class AzureKeyVaultSecretStore(
     {
         try
         {
-            // Try to list secrets (with very limited results) to verify connectivity
-            await foreach (var secretProperties in _secretClient.GetPropertiesOfSecretsAsync(cancellationToken).ConfigureAwait(false))
+            // Verify connectivity by advancing the secrets enumerator one step instead of
+            // a single-iteration loop (Sonar S3267); the actual page is discarded.
+            var enumerator = _secretClient.GetPropertiesOfSecretsAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
+            try
             {
-                // Just need to verify we can connect - use the variable to avoid warning
-                _ = secretProperties.Name;
-                break;
+                _ = await enumerator.MoveNextAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
             }
 
             return true;

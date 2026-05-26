@@ -16,7 +16,7 @@ namespace HoneyDrunk.Vault.Providers.InMemory.Services;
 /// <param name="logger">The logger.</param>
 public sealed class InMemoryConfigSource(
     ConcurrentDictionary<string, string> configValues,
-    ILogger<InMemoryConfigSource> logger) : IConfigSource, IConfigSourceProvider
+    ILogger<InMemoryConfigSource> logger) : IConfigSourceProvider
 {
     private readonly ConcurrentDictionary<string, string> _configValues = configValues ?? throw new ArgumentNullException(nameof(configValues));
     private readonly ILogger<InMemoryConfigSource> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -62,6 +62,12 @@ public sealed class InMemoryConfigSource(
     }
 
     /// <inheritdoc/>
+    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         ConfigSourceFacade.ValidateKey(key);
@@ -83,15 +89,9 @@ public sealed class InMemoryConfigSource(
     }
 
     /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken, _logger).ConfigureAwait(false);
+        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, _logger, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

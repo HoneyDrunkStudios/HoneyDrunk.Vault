@@ -43,7 +43,7 @@ public sealed class ConfigSourceFacadeTests
                 static (_, cancellationToken) => Task.FromCanceled<string?>(cancellationToken),
                 "timeout",
                 30,
-                cts.Token,
-                NullLogger.Instance));
+                NullLogger.Instance,
+                cts.Token));
     }
 }

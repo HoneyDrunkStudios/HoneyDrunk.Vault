@@ -12,19 +12,11 @@ namespace HoneyDrunk.Vault.Services;
 /// Tenant-scoped secrets are looked up as <c>tenant-{tenantId}-{secretName}</c> first.
 /// Internal tenants and tenant misses fall back to the standard node-level secret name.
 /// </remarks>
-public sealed class TenantScopedSecretResolver
+/// <param name="secretStore">The secret store to resolve from.</param>
+public sealed class TenantScopedSecretResolver(ISecretStore secretStore)
 {
     private const string TenantSecretPrefix = "tenant-";
-    private readonly ISecretStore _secretStore;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="TenantScopedSecretResolver"/> class.
-    /// </summary>
-    /// <param name="secretStore">The secret store to resolve from.</param>
-    public TenantScopedSecretResolver(ISecretStore secretStore)
-    {
-        _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
-    }
+    private readonly ISecretStore _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
 
     /// <summary>
     /// Formats the ADR-0026 tenant-scoped secret name for a node-level secret name.

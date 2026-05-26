@@ -9,6 +9,7 @@ namespace HoneyDrunk.Vault.Tests.Telemetry;
 /// </summary>
 public sealed class VaultTelemetryBehaviorTests : IDisposable
 {
+    private static readonly string[] HitOrMiss = ["hit", "miss"];
     private readonly ActivityListener _listener;
     private readonly List<Activity> _stoppedActivities = [];
 
@@ -51,7 +52,7 @@ public sealed class VaultTelemetryBehaviorTests : IDisposable
         Assert.Equal("in-memory", GetTag(activity, "vault.provider"));
         Assert.Equal("api-key", GetTag(activity, "vault.key"));
         Assert.Equal("success", GetTag(activity, "vault.result"));
-        Assert.Contains(GetTag(activity, "vault.cache"), new[] { "hit", "miss" });
+        Assert.Contains(GetTag(activity, "vault.cache"), HitOrMiss);
         foreach (var tagValue in activity.Tags.Select(tag => tag.Value).Where(value => value is not null))
         {
             Assert.DoesNotContain("secret-value", tagValue, StringComparison.Ordinal);

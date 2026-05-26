@@ -5,15 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <NoWarn>$(NoWarn);CA1873;CA1016</NoWarn>
+    <NoWarn>$(NoWarn);CA1873</NoWarn>
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.AzureKeyVault</PackageId>
-    <Version>0.5.0</Version>
+    <Version>0.6.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Azure Key Vault provider for HoneyDrunk.Vault. Provides enterprise-grade secret management using Azure Key Vault with support for Managed Identity and Service Principal authentication.</Description>
-    <PackageReleaseNotes>v0.5.0: Align Kernel references to v0.7.0 and consolidate Vault provider bootstrap, secret-store facade, and config-source helpers. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.6.0: Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release. AzureKeyVaultSecretStore health check now uses an explicit single-step enumerator instead of a single-iteration loop. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;secrets;azure;key-vault;managed-identity;service-principal;authentication;enterprise</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -28,7 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
-    <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.9.0" />
+    <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.11.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.2.9">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

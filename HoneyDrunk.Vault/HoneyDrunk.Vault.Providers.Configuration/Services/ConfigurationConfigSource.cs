@@ -42,6 +42,36 @@ public sealed class ConfigurationConfigSource(
     }
 
     /// <inheritdoc/>
+    public Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        ConfigSourceFacade.ValidateKey(key);
+
+        _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}' from configuration", key, typeof(T).Name);
+
+        try
+        {
+            var value = _configuration.GetValue<T>(key);
+
+            // Use EqualityComparer<T>.Default so value-type generics
+            // (e.g. int returning 0) don't incorrectly satisfy a null check.
+            if (EqualityComparer<T>.Default.Equals(value!, default!))
+            {
+                _logger.LogWarning("Configuration key '{Key}' not found", key);
+                throw new ConfigurationNotFoundException(key);
+            }
+
+            _logger.LogDebug("Successfully retrieved typed configuration value for key '{Key}'", key);
+
+            return Task.FromResult(value!);
+        }
+        catch (Exception ex) when (ex is not ConfigurationNotFoundException)
+        {
+            _logger.LogError(ex, "Error retrieving typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
+            throw new VaultOperationException($"Failed to retrieve configuration value for key '{key}' as type '{typeof(T).Name}'", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         ConfigSourceFacade.ValidateKey(key);
@@ -60,34 +90,6 @@ public sealed class ConfigurationConfigSource(
         }
 
         return Task.FromResult(value);
-    }
-
-    /// <inheritdoc/>
-    public Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        ConfigSourceFacade.ValidateKey(key);
-
-        _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}' from configuration", key, typeof(T).Name);
-
-        try
-        {
-            var value = _configuration.GetValue<T>(key);
-
-            if (value == null)
-            {
-                _logger.LogWarning("Configuration key '{Key}' not found", key);
-                throw new ConfigurationNotFoundException(key);
-            }
-
-            _logger.LogDebug("Successfully retrieved typed configuration value for key '{Key}'", key);
-
-            return Task.FromResult(value);
-        }
-        catch (Exception ex) when (ex is not ConfigurationNotFoundException)
-        {
-            _logger.LogError(ex, "Error retrieving typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
-            throw new VaultOperationException($"Failed to retrieve configuration value for key '{key}' as type '{typeof(T).Name}'", ex);
-        }
     }
 
     /// <inheritdoc/>

@@ -37,9 +37,15 @@ public sealed class AzureKeyVaultConfigSource(
         }
         catch (SecretNotFoundException ex)
         {
-            _logger.LogWarning("Configuration key '{Key}' not found in Azure Key Vault", key);
+            _logger.LogWarning(ex, "Configuration key '{Key}' not found in Azure Key Vault", key);
             throw new ConfigurationNotFoundException(key, ex);
         }
+    }
+
+    /// <inheritdoc/>
+    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -63,15 +69,9 @@ public sealed class AzureKeyVaultConfigSource(
     }
 
     /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, cancellationToken, _logger).ConfigureAwait(false);
+        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, _logger, cancellationToken).ConfigureAwait(false);
     }
 
     private static string NormalizeKeyForKeyVault(string key)

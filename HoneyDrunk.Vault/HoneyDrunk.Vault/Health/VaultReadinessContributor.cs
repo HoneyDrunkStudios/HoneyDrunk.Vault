@@ -37,142 +37,106 @@ public sealed class VaultReadinessContributor(
     {
         _logger.LogDebug("Performing vault readiness check");
 
-        var readyProviders = new List<string>();
-        var notReadyProviders = new List<string>();
-        var requiredNotReadyProviders = new List<string>();
+        var readyProviders = new HashSet<string>(StringComparer.Ordinal);
+        var notReadyProviders = new HashSet<string>(StringComparer.Ordinal);
+        var requiredNotReadyProviders = new HashSet<string>(StringComparer.Ordinal);
 
-        // Check secret providers
-        foreach (var registered in _secretProviders.Where(p => p.Registration.IsEnabled))
+        foreach (var entry in _secretProviders.Where(p => p.Registration.IsEnabled))
         {
-            var providerName = registered.Provider.ProviderName;
-            var isRequired = registered.Registration.IsRequired;
-
-            try
-            {
-                var isHealthy = await registered.Provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
-
-                if (isHealthy)
-                {
-                    readyProviders.Add(providerName);
-                    _logger.LogDebug("Secret provider '{ProviderName}' is ready", providerName);
-                }
-                else
-                {
-                    notReadyProviders.Add(providerName);
-                    if (isRequired)
-                    {
-                        requiredNotReadyProviders.Add(providerName);
-                    }
-
-                    _logger.LogWarning(
-                        "Secret provider '{ProviderName}' is not ready (required: {IsRequired})",
-                        providerName,
-                        isRequired);
-                }
-            }
-            catch (Exception ex)
-            {
-                notReadyProviders.Add(providerName);
-                if (isRequired)
-                {
-                    requiredNotReadyProviders.Add(providerName);
-                }
-
-                _logger.LogWarning(
-                    ex,
-                    "Secret provider '{ProviderName}' readiness check failed (required: {IsRequired})",
-                    providerName,
-                    isRequired);
-            }
+            await ProbeAsync("Secret", entry.Provider.ProviderName, entry.Registration.IsRequired, entry.Provider.CheckHealthAsync, readyProviders, notReadyProviders, requiredNotReadyProviders, cancellationToken).ConfigureAwait(false);
         }
 
-        // Check config providers
-        foreach (var registered in _configProviders.Where(p => p.Registration.IsEnabled))
+        foreach (var entry in _configProviders.Where(p => p.Registration.IsEnabled))
         {
-            var providerName = registered.Provider.ProviderName;
-            var isRequired = registered.Registration.IsRequired;
-
-            try
-            {
-                var isHealthy = await registered.Provider.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
-
-                if (isHealthy)
-                {
-                    if (!readyProviders.Contains(providerName))
-                    {
-                        readyProviders.Add(providerName);
-                    }
-
-                    _logger.LogDebug("Config provider '{ProviderName}' is ready", providerName);
-                }
-                else
-                {
-                    if (!notReadyProviders.Contains(providerName))
-                    {
-                        notReadyProviders.Add(providerName);
-                    }
-
-                    if (isRequired && !requiredNotReadyProviders.Contains(providerName))
-                    {
-                        requiredNotReadyProviders.Add(providerName);
-                    }
-
-                    _logger.LogWarning(
-                        "Config provider '{ProviderName}' is not ready (required: {IsRequired})",
-                        providerName,
-                        isRequired);
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!notReadyProviders.Contains(providerName))
-                {
-                    notReadyProviders.Add(providerName);
-                }
-
-                if (isRequired && !requiredNotReadyProviders.Contains(providerName))
-                {
-                    requiredNotReadyProviders.Add(providerName);
-                }
-
-                _logger.LogWarning(
-                    ex,
-                    "Config provider '{ProviderName}' readiness check failed (required: {IsRequired})",
-                    providerName,
-                    isRequired);
-            }
+            await ProbeAsync("Config", entry.Provider.ProviderName, entry.Registration.IsRequired, entry.Provider.CheckHealthAsync, readyProviders, notReadyProviders, requiredNotReadyProviders, cancellationToken).ConfigureAwait(false);
         }
 
-        // Determine readiness
+        return Summarize(readyProviders, notReadyProviders, requiredNotReadyProviders);
+    }
+
+    private async Task ProbeAsync(
+        string providerKind,
+        string providerName,
+        bool isRequired,
+        Func<CancellationToken, Task<bool>> probe,
+        HashSet<string> ready,
+        HashSet<string> notReady,
+        HashSet<string> requiredNotReady,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var isHealthy = await probe(cancellationToken).ConfigureAwait(false);
+            if (isHealthy)
+            {
+                ready.Add(providerName);
+                _logger.LogDebug("{Kind} provider '{ProviderName}' is ready", providerKind, providerName);
+                return;
+            }
+
+            notReady.Add(providerName);
+            if (isRequired)
+            {
+                requiredNotReady.Add(providerName);
+            }
+
+            _logger.LogWarning(
+                "{Kind} provider '{ProviderName}' is not ready (required: {IsRequired})",
+                providerKind,
+                providerName,
+                isRequired);
+        }
+        catch (Exception ex)
+        {
+            notReady.Add(providerName);
+            if (isRequired)
+            {
+                requiredNotReady.Add(providerName);
+            }
+
+            _logger.LogWarning(
+                ex,
+                "{Kind} provider '{ProviderName}' readiness check failed (required: {IsRequired})",
+                providerKind,
+                providerName,
+                isRequired);
+        }
+    }
+
+    private (bool isReady, string? message) Summarize(
+        IReadOnlyCollection<string> ready,
+        IReadOnlyCollection<string> notReady,
+        IReadOnlyCollection<string> requiredNotReady)
+    {
         // Not ready if any required provider is not reachable
-        if (requiredNotReadyProviders.Count > 0)
+        if (requiredNotReady.Count > 0)
         {
             _logger.LogError(
                 "Vault not ready: required providers unavailable: {Providers}",
-                string.Join(", ", requiredNotReadyProviders));
-            return (false, $"Required providers not ready: {string.Join(", ", requiredNotReadyProviders)}");
+                string.Join(", ", requiredNotReady));
+            return (isReady: false, message: $"Required providers not ready: {string.Join(", ", requiredNotReady)}");
         }
 
         // Ready if no providers are configured (degenerate case)
-        if (readyProviders.Count == 0 && notReadyProviders.Count == 0)
+        if (ready.Count == 0 && notReady.Count == 0)
         {
             _logger.LogWarning("Vault ready but no providers configured");
-            return (true, "Vault ready (no providers configured)");
+            return (isReady: true, message: "Vault ready (no providers configured)");
         }
 
         // Ready if at least one provider is available (and no required providers are down)
-        if (readyProviders.Count > 0)
+        if (ready.Count > 0)
         {
-            var message = notReadyProviders.Count > 0
-                ? $"Ready: {string.Join(", ", readyProviders)}; Unavailable: {string.Join(", ", notReadyProviders)}"
-                : $"Ready: {string.Join(", ", readyProviders)}";
+            var summary = notReady.Count > 0
+                ? $"Ready: {string.Join(", ", ready)}; Unavailable: {string.Join(", ", notReady)}"
+                : $"Ready: {string.Join(", ", ready)}";
 
-            _logger.LogDebug("Vault readiness check passed: {Message}", message);
-            return (true, message);
+            _logger.LogDebug("Vault readiness check passed: {Message}", summary);
+            return (isReady: true, message: summary);
         }
 
         // No providers ready
         _logger.LogError("Vault not ready: no providers available");
-        return (false, "No providers available");
+        return (isReady: false, message: "No providers available");
     }
 }

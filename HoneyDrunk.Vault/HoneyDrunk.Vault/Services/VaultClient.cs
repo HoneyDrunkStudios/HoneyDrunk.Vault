@@ -87,6 +87,24 @@ public sealed class VaultClient(
     }
 
     /// <inheritdoc/>
+    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
+
+        try
+        {
+            var result = await _configSource.GetConfigValueAsync<T>(key, cancellationToken).ConfigureAwait(false);
+            _logger.LogDebug("Successfully retrieved typed configuration value for key '{Key}'", key);
+            return result;
+        }
+        catch (Exception ex) when (ex is not ConfigurationNotFoundException)
+        {
+            _logger.LogError(ex, "Error retrieving typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
+            throw new VaultOperationException($"Failed to retrieve configuration value for key '{key}' as type '{typeof(T).Name}'", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Attempting to get configuration value for key '{Key}'", key);
@@ -110,24 +128,6 @@ public sealed class VaultClient(
         {
             _logger.LogError(ex, "Error attempting to retrieve configuration value for key '{Key}'", key);
             return null;
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
-
-        try
-        {
-            var result = await _configSource.GetConfigValueAsync<T>(key, cancellationToken).ConfigureAwait(false);
-            _logger.LogDebug("Successfully retrieved typed configuration value for key '{Key}'", key);
-            return result;
-        }
-        catch (Exception ex) when (ex is not ConfigurationNotFoundException)
-        {
-            _logger.LogError(ex, "Error retrieving typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
-            throw new VaultOperationException($"Failed to retrieve configuration value for key '{key}' as type '{typeof(T).Name}'", ex);
         }
     }
 

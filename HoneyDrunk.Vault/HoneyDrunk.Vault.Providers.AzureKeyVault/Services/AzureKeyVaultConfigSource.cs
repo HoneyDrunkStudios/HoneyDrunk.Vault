@@ -43,12 +43,6 @@ public sealed class AzureKeyVaultConfigSource(
     }
 
     /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public async Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         ConfigSourceFacade.ValidateKey(key);
@@ -66,12 +60,6 @@ public sealed class AzureKeyVaultConfigSource(
             _logger.LogWarning(ex, "Error retrieving configuration key '{Key}' from Azure Key Vault", key);
             return null;
         }
-    }
-
-    /// <inheritdoc/>
-    public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, _logger, cancellationToken).ConfigureAwait(false);
     }
 
     private static string NormalizeKeyForKeyVault(string key)

@@ -62,12 +62,6 @@ public sealed class InMemoryConfigSource(
     }
 
     /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         ConfigSourceFacade.ValidateKey(key);
@@ -88,14 +82,9 @@ public sealed class InMemoryConfigSource(
         return Task.FromResult(value);
     }
 
-    /// <inheritdoc/>
-    public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, _logger, cancellationToken).ConfigureAwait(false);
-    }
-
     /// <summary>
-    /// Adds or updates a configuration value in the in-memory store.
+    /// Adds or updates a configuration value in the in-memory store. Generic typed overloads
+    /// come from the IConfigSource default interface methods.
     /// </summary>
     /// <param name="key">The configuration key.</param>
     /// <param name="value">The configuration value.</param>

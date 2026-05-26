@@ -74,12 +74,6 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     }
 
     /// <inheritdoc/>
-    public async Task<T> GetConfigValueAsync<T>(string key, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.GetValueAsync<T>(GetConfigValueAsync, key, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
         ConfigSourceFacade.ValidateKey(key);
@@ -88,13 +82,7 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
         return Task.FromResult(value);
     }
 
-    /// <inheritdoc/>
-    public async Task<T> TryGetConfigValueAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
-    {
-        return await ConfigSourceFacade.TryGetValueAsync(TryGetConfigValueAsync, key, defaultValue, _logger, cancellationToken).ConfigureAwait(false);
-    }
-
-    // IConfigProvider implementation
+    // IConfigProvider implementation — generic typed overloads come from the IConfigSource default interface methods.
 
     /// <inheritdoc/>
     public Task<string> GetValueAsync(string key, CancellationToken cancellationToken = default)
@@ -105,7 +93,8 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     /// <inheritdoc/>
     public Task<T> GetValueAsync<T>(string path, T defaultValue, CancellationToken cancellationToken = default)
     {
-        return TryGetConfigValueAsync(path, defaultValue, cancellationToken);
+        // Generic typed overload lives on IConfigSource as a default interface method.
+        return ((IConfigSource)this).TryGetConfigValueAsync(path, defaultValue, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -117,7 +106,8 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     /// <inheritdoc/>
     Task<T> IConfigProvider.GetValueAsync<T>(string key, CancellationToken cancellationToken)
     {
-        return GetConfigValueAsync<T>(key, cancellationToken);
+        // Generic typed overload lives on IConfigSource as a default interface method.
+        return ((IConfigSource)this).GetConfigValueAsync<T>(key, cancellationToken);
     }
 
     /// <summary>

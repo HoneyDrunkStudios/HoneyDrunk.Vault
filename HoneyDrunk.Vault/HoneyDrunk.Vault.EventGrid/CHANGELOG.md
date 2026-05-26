@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release.
-- Replaced the manual case-insensitive header `foreach` in `VaultInvalidationWebhookHandler.TryGetHeader` with `headers.Where(...)` (Sonar S3267).
+- Replaced the manual case-insensitive header `foreach` in `VaultInvalidationWebhookHandler.TryGetHeader` with `headers.FirstOrDefault(...)` — satisfies Sonar S3267 (use LINQ) and S1751 (the previous `foreach + return-on-first-match` was a single-iteration loop). The `KeyValuePair<string, string?>` default struct (`Key == null`) acts as the not-found sentinel since dictionary keys cannot legitimately be null.
 - Restored SDK-generated `AssemblyVersion` (removed `GenerateAssemblyInfo=false` and `CA1016` `NoWarn`).
 
 ## [0.5.0] - 2026-05-18

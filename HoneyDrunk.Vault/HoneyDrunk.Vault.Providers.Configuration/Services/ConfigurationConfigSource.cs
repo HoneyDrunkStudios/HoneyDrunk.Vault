@@ -48,11 +48,15 @@ public sealed class ConfigurationConfigSource(
 
         _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}' from configuration", key, typeof(T).Name);
 
-        // Presence is decided via IConfigurationSection.Exists() / Value so that legitimately
+        // Presence is decided via IConfigurationSection.Exists() so that legitimately
         // configured value-type defaults (0, false, DateTime.MinValue) are returned instead of
-        // being mistaken for "not found". A `default(T)` comparison would conflate the two.
+        // being mistaken for "not found", and complex/object sections (where Value is null but
+        // children exist) still bind via section.Get<T>(). For scalar leaves we additionally
+        // treat an empty Value as missing, since IConfigurationProvider entries with an empty
+        // string are typically placeholders rather than real values.
         var section = _configuration.GetSection(key);
-        if (!section.Exists() || string.IsNullOrEmpty(section.Value))
+        var hasChildren = section.GetChildren().Any();
+        if (!section.Exists() || (!hasChildren && string.IsNullOrEmpty(section.Value)))
         {
             _logger.LogWarning("Configuration key '{Key}' not found", key);
             throw new ConfigurationNotFoundException(key);

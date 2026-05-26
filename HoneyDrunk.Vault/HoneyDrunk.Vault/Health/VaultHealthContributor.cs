@@ -75,6 +75,11 @@ public sealed class VaultHealthContributor(
         // Healthy: at least one provider is reachable
         // Degraded: some providers are unhealthy but at least one is healthy
         // Unhealthy: no providers are healthy
+        // HashSet enumeration order is unspecified — sort ordinally so log/health-message output
+        // is stable across runs and easy to diff in monitoring.
+        var healthyList = string.Join(", ", healthy.OrderBy(name => name, StringComparer.Ordinal));
+        var unhealthyList = string.Join(", ", unhealthy.OrderBy(name => name, StringComparer.Ordinal));
+
         if (healthy.Count == 0 && unhealthy.Count == 0)
         {
             _logger.LogWarning("No vault providers are configured");
@@ -83,21 +88,21 @@ public sealed class VaultHealthContributor(
 
         if (healthy.Count == 0)
         {
-            _logger.LogError("All vault providers are unhealthy: {Providers}", string.Join(", ", unhealthy));
-            return (status: HealthStatus.Unhealthy, message: $"All providers unhealthy: {string.Join(", ", unhealthy)}");
+            _logger.LogError("All vault providers are unhealthy: {Providers}", unhealthyList);
+            return (status: HealthStatus.Unhealthy, message: $"All providers unhealthy: {unhealthyList}");
         }
 
         if (unhealthy.Count > 0)
         {
             _logger.LogWarning(
                 "Some vault providers are unhealthy. Healthy: {Healthy}, Unhealthy: {Unhealthy}",
-                string.Join(", ", healthy),
-                string.Join(", ", unhealthy));
-            return (status: HealthStatus.Degraded, message: $"Healthy: {string.Join(", ", healthy)}; Unhealthy: {string.Join(", ", unhealthy)}");
+                healthyList,
+                unhealthyList);
+            return (status: HealthStatus.Degraded, message: $"Healthy: {healthyList}; Unhealthy: {unhealthyList}");
         }
 
-        _logger.LogDebug("All vault providers are healthy: {Providers}", string.Join(", ", healthy));
-        return (status: HealthStatus.Healthy, message: $"All providers healthy: {string.Join(", ", healthy)}");
+        _logger.LogDebug("All vault providers are healthy: {Providers}", healthyList);
+        return (status: HealthStatus.Healthy, message: $"All providers healthy: {healthyList}");
     }
 
     private readonly record struct HealthBuckets(HashSet<string> Healthy, HashSet<string> Unhealthy);

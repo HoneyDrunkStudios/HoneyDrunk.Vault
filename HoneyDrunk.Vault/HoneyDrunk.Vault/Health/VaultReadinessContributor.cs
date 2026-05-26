@@ -77,11 +77,17 @@ public sealed class VaultReadinessContributor(
         IReadOnlyCollection<string> notReady,
         IReadOnlyCollection<string> requiredNotReady)
     {
+        // HashSet enumeration order is unspecified — sort ordinally so readiness messages and
+        // log output are stable across runs.
+        var readyList = string.Join(", ", ready.OrderBy(name => name, StringComparer.Ordinal));
+        var notReadyList = string.Join(", ", notReady.OrderBy(name => name, StringComparer.Ordinal));
+        var requiredNotReadyList = string.Join(", ", requiredNotReady.OrderBy(name => name, StringComparer.Ordinal));
+
         // Not ready if any required provider is not reachable
         if (requiredNotReady.Count > 0)
         {
-            _logger.LogError("Vault not ready: required providers unavailable: {Providers}", string.Join(", ", requiredNotReady));
-            return (isReady: false, message: $"Required providers not ready: {string.Join(", ", requiredNotReady)}");
+            _logger.LogError("Vault not ready: required providers unavailable: {Providers}", requiredNotReadyList);
+            return (isReady: false, message: $"Required providers not ready: {requiredNotReadyList}");
         }
 
         // Ready if no providers are configured (degenerate case)
@@ -95,8 +101,8 @@ public sealed class VaultReadinessContributor(
         if (ready.Count > 0)
         {
             var summary = notReady.Count > 0
-                ? $"Ready: {string.Join(", ", ready)}; Unavailable: {string.Join(", ", notReady)}"
-                : $"Ready: {string.Join(", ", ready)}";
+                ? $"Ready: {readyList}; Unavailable: {notReadyList}"
+                : $"Ready: {readyList}";
 
             _logger.LogDebug("Vault readiness check passed: {Message}", summary);
             return (isReady: true, message: summary);

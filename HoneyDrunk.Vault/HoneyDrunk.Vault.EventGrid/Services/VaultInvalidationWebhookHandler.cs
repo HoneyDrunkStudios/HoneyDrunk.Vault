@@ -103,9 +103,9 @@ public sealed class VaultInvalidationWebhookHandler(
         string key,
         out string? value)
     {
-        // Manual case-insensitive lookup: callers (Azure Functions handler, tests) pass
-        // plain Dictionary<string, string?> without a comparer, so direct TryGetValue
-        // would miss case-variant keys. LINQ Where filters the matching entry up front.
+        // Case-insensitive enumeration via LINQ: callers (Azure Functions handler, tests)
+        // pass plain Dictionary<string, string?> without an OrdinalIgnoreCase comparer,
+        // so direct TryGetValue would miss case-variant header keys.
         foreach (var pair in headers.Where(p => string.Equals(p.Key, key, StringComparison.OrdinalIgnoreCase)))
         {
             value = pair.Value;

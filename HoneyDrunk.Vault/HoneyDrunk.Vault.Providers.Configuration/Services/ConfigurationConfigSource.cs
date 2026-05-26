@@ -48,23 +48,23 @@ public sealed class ConfigurationConfigSource(
 
         _logger.LogDebug("Getting typed configuration value for key '{Key}' as type '{Type}' from configuration", key, typeof(T).Name);
 
+        // Presence is decided via IConfigurationSection.Exists() / Value so that legitimately
+        // configured value-type defaults (0, false, DateTime.MinValue) are returned instead of
+        // being mistaken for "not found". A `default(T)` comparison would conflate the two.
+        var section = _configuration.GetSection(key);
+        if (!section.Exists() || string.IsNullOrEmpty(section.Value))
+        {
+            _logger.LogWarning("Configuration key '{Key}' not found", key);
+            throw new ConfigurationNotFoundException(key);
+        }
+
         try
         {
-            var value = _configuration.GetValue<T>(key);
-
-            // Use EqualityComparer<T>.Default so value-type generics
-            // (e.g. int returning 0) don't incorrectly satisfy a null check.
-            if (EqualityComparer<T>.Default.Equals(value!, default!))
-            {
-                _logger.LogWarning("Configuration key '{Key}' not found", key);
-                throw new ConfigurationNotFoundException(key);
-            }
-
+            var value = section.Get<T>()!;
             _logger.LogDebug("Successfully retrieved typed configuration value for key '{Key}'", key);
-
-            return Task.FromResult(value!);
+            return Task.FromResult(value);
         }
-        catch (Exception ex) when (ex is not ConfigurationNotFoundException)
+        catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving typed configuration value for key '{Key}' as type '{Type}'", key, typeof(T).Name);
             throw new VaultOperationException($"Failed to retrieve configuration value for key '{key}' as type '{typeof(T).Name}'", ex);

@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release.
 - Restored SDK-generated `AssemblyVersion` (removed `GenerateAssemblyInfo=false` and `CA1016` `NoWarn`).
-- Switched `ConfigurationConfigSource.GetConfigValueAsync<T>` null-check to `EqualityComparer<T>.Default.Equals(value!, default!)` so value-type generics return correctly (Sonar).
+- Switched `ConfigurationConfigSource.GetConfigValueAsync<T>` to detect presence via `IConfigurationSection.Exists()` / `.Value` instead of comparing the bound result to `default(T)`. The previous `value == null` check was wrong for value types (Sonar's original complaint); a `default(T)` comparison would have over-rotated the other way and treated legitimate configured `0` / `false` / `DateTime.MinValue` as "not found". Tests cover both cases.
 - Reordered `GetConfigValueAsync` / `TryGetConfigValueAsync` overloads to be adjacent (Sonar S4136).
 - Bumped `Microsoft.Extensions.Configuration.Abstractions` and `Microsoft.Extensions.Configuration.Binder` to `10.0.8`.
 

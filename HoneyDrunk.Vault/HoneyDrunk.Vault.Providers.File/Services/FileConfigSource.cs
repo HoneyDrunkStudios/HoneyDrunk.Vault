@@ -66,6 +66,9 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
+        // FileConfigSource historically did not log on TryGet (only the throwing
+        // overload did). Pass logger: null so the helper stays silent here and
+        // preserves the legacy behavior.
         return DictionaryConfigLookup.TryGetConfigValueAsync(_configValues, key);
     }
 

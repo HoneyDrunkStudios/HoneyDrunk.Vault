@@ -211,8 +211,17 @@ public sealed class AwsSecretsManagerSecretStoreTests
         var client = Substitute.For<IAmazonSecretsManager>();
         var store = CreateStore(client);
 
-        store.Dispose();
-        store.Dispose();
+        try
+        {
+            store.Dispose();
+        }
+        finally
+        {
+            // Second call must not throw — that is the property under test.
+            // Wrapping in try/finally guarantees the resource is still released
+            // if the first Dispose somehow throws (CodeQL cs/dispose-not-called-on-throw).
+            store.Dispose();
+        }
     }
 
     private static AwsSecretsManagerSecretStore CreateStore(

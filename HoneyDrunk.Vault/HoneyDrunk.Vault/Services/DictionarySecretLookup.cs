@@ -80,7 +80,7 @@ public static class DictionarySecretLookup
             new("latest", DateTimeOffset.UtcNow),
         };
 
-        logger.LogDebug("Listed {Count} version for secret '{SecretName}'", versions.Count, secretName);
+        logger.LogDebug("Listed {Count} version(s) for secret '{SecretName}' from {StoreName}", versions.Count, secretName, storeName);
 
         return Task.FromResult<IReadOnlyList<SecretVersion>>(versions);
     }

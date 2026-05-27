@@ -53,7 +53,7 @@ public sealed class InMemoryConfigSource(
     /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        return DictionaryConfigLookup.TryGetConfigValueAsync(_configValues, key);
+        return DictionaryConfigLookup.TryGetConfigValueAsync(_configValues, key, _logger, StoreName);
     }
 
     /// <summary>

@@ -16,7 +16,7 @@ public sealed class FileVaultServiceCollectionExtensionsTests : IDisposable
     /// </summary>
     public FileVaultServiceCollectionExtensionsTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"vault-file-ext-{Guid.NewGuid():N}");
+        _tempDir = Path.Join(Path.GetTempPath(), $"vault-file-ext-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -46,8 +46,8 @@ public sealed class FileVaultServiceCollectionExtensionsTests : IDisposable
 
         services.AddVaultWithFile(options =>
         {
-            options.SecretsFilePath = Path.Combine(_tempDir, "secrets.json");
-            options.ConfigFilePath = Path.Combine(_tempDir, "config.json");
+            options.SecretsFilePath = Path.Join(_tempDir, "secrets.json");
+            options.ConfigFilePath = Path.Join(_tempDir, "config.json");
             options.CreateIfNotExists = true;
         });
 

@@ -39,8 +39,11 @@ public static class VaultServiceCollectionExtensions
 
         // Ensure VaultOptions is always resolvable so providers calling AddVaultCore
         // standalone (without HoneyDrunkBuilder.AddVault) don't blow up on the cache
-        // factory below. AddVault still owns the user-configured registration.
-        services.TryAddSingleton<IOptions<VaultOptions>>(_ => Options.Create(new VaultOptions()));
+        // factory below. AddOptions<T>() wires the standard options pipeline (via
+        // TryAdd), so a later services.Configure<VaultOptions>(...) is still honored —
+        // unlike a pre-baked Options.Create(...) singleton, which would make the
+        // configuration order-dependent.
+        services.AddOptions<VaultOptions>();
 
         // Register composite secret store via a factory so the nullable VaultTelemetry
         // parameter resolves to null when the kernel-level AddVault didn't register it

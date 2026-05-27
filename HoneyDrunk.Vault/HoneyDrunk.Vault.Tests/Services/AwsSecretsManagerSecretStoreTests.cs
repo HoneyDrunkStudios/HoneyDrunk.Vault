@@ -29,7 +29,7 @@ public sealed class AwsSecretsManagerSecretStoreTests
             .Returns(new GetSecretValueResponse
             {
                 SecretString = "secret-value",
-                VersionStages = new List<string> { "AWSCURRENT" },
+                VersionStages = ["AWSCURRENT"],
             });
 
         // UseVersionId = false → the secret store reports the version stage instead of the GUID.
@@ -53,7 +53,7 @@ public sealed class AwsSecretsManagerSecretStoreTests
             {
                 SecretString = "value",
                 VersionId = "00000000000000000000000000000001",
-                VersionStages = new List<string> { "AWSCURRENT" },
+                VersionStages = ["AWSCURRENT"],
             });
 
         using var store = CreateStore(client, new AwsSecretsManagerOptions { UseVersionId = true });
@@ -103,7 +103,7 @@ public sealed class AwsSecretsManagerSecretStoreTests
     {
         var client = Substitute.For<IAmazonSecretsManager>();
         client.GetSecretValueAsync(Arg.Any<GetSecretValueRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new GetSecretValueResponse { SecretString = "v", VersionStages = new List<string> { "AWSCURRENT" } });
+            .Returns(new GetSecretValueResponse { SecretString = "v", VersionStages = ["AWSCURRENT"] });
 
         using var store = CreateStore(client, new AwsSecretsManagerOptions { SecretPrefix = "prod/" });
         await store.GetSecretAsync(new SecretIdentifier("api-key"));
@@ -124,14 +124,14 @@ public sealed class AwsSecretsManagerSecretStoreTests
         client.ListSecretVersionIdsAsync(Arg.Any<ListSecretVersionIdsRequest>(), Arg.Any<CancellationToken>())
             .Returns(new ListSecretVersionIdsResponse
             {
-                Versions = new List<SecretVersionsListEntry>
-                {
-                    new SecretVersionsListEntry
+                Versions =
+                [
+                    new()
                     {
-                        VersionStages = new List<string> { "AWSCURRENT" },
+                        VersionStages = ["AWSCURRENT"],
                         CreatedDate = DateTime.UtcNow,
                     },
-                },
+                ],
             });
 
         using var store = CreateStore(client, new AwsSecretsManagerOptions { UseVersionId = false });
@@ -210,12 +210,17 @@ public sealed class AwsSecretsManagerSecretStoreTests
     {
         var client = Substitute.For<IAmazonSecretsManager>();
 
-        // The `using` block's automatic Dispose IS the second call. If the
-        // explicit store.Dispose() below throws, the using cleanup still runs
-        // (CodeQL cs/dispose-not-called-on-throw); if the explicit Dispose
-        // succeeds, the using cleanup then verifies the idempotent path.
-        using var store = CreateStore(client);
-        store.Dispose();
+        // The `using` declaration calls Dispose at scope exit (second call);
+        // the explicit store.Dispose() inside is the first call. Record.Exception
+        // captures any throw from either call, and the Assert.Null gives Sonar
+        // its mandatory assertion (S2699).
+        var exception = Record.Exception(() =>
+        {
+            using var store = CreateStore(client);
+            store.Dispose();
+        });
+
+        Assert.Null(exception);
     }
 
     private static AwsSecretsManagerSecretStore CreateStore(

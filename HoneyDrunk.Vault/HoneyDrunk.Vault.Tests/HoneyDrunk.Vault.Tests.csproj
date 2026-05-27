@@ -25,6 +25,7 @@
     <ProjectReference Include="..\HoneyDrunk.Vault.Providers.File\HoneyDrunk.Vault.Providers.File.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault.Providers.AppConfiguration\HoneyDrunk.Vault.Providers.AppConfiguration.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault.Providers.AzureKeyVault\HoneyDrunk.Vault.Providers.AzureKeyVault.csproj" />
+    <ProjectReference Include="..\HoneyDrunk.Vault.Providers.Aws\HoneyDrunk.Vault.Providers.Aws.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault.EventGrid\HoneyDrunk.Vault.EventGrid.csproj" />
     <ProjectReference Include="..\HoneyDrunk.Vault\HoneyDrunk.Vault.csproj" />
   </ItemGroup>

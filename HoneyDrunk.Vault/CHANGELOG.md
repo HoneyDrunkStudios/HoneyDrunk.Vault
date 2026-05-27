@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-27
+
+### Changed (breaking)
+
+- **`ISecretProvider` now extends `ISecretStore`** and exposes `FetchSecretAsync` / `TryFetchSecretAsync` / `ListVersionsAsync` as default interface methods that delegate to `SecretStoreFacade` against the inherited `ISecretStore` members. `ISecretStore.TryGetSecretAsync` is also a default interface method now. All in-repo provider stores (`InMemorySecretStore`, `FileSecretStore`, `AzureKeyVaultSecretStore`, `AwsSecretsManagerSecretStore`, `ConfigurationSecretStore`) drop the redundant per-provider overrides. **Migration:** callers that previously invoked these methods on the concrete provider class must now reach them through the `ISecretStore` / `ISecretProvider` interface (cast or DI).
+- **Package versions bumped** to `HoneyDrunk.Vault* 0.7.0` per pre-1.0 semver (`0.x.0 → 0.(x+1).0` for breaks).
+
+### Changed
+
+- New `DictionarySecretLookup` and `DictionaryConfigLookup` static helpers in `HoneyDrunk.Vault.Services` consolidate the dictionary-backed validate/lookup/throw pattern shared by the InMemory and File providers (both secret stores and config sources). Each provider's affected method collapses to a one-line delegation.
+- `AddVaultCore` now resolves `CompositeSecretStore` via a factory that calls `sp.GetService<VaultTelemetry>()` so the optional telemetry parameter binds to `null` when standalone provider extensions are used (without `HoneyDrunkBuilder.AddVault`). Also pre-registers a default `IOptions<VaultOptions>` so the caching factory does not blow up in that flow. Unblocks the standalone DI surface for `services.AddVaultInMemory()` etc.
+
+### Internal
+
+- Sonar duplication reduction (ADR-0011 D11). The "Duplicated Lines on New Code" findings on the nine secret-store / config-source files are addressed by the DIM promotion + helper extraction above.
+- 53 new tests across `VaultScope`, `InMemoryVaultOptions`, `AzureKeyVaultOptions`, the five provider `*ServiceCollectionExtensions`, `VaultEventGridServiceCollectionExtensions`, `AzureKeyVaultConfigSource`, `AwsSecretsManagerSecretStore`, and `VaultInvalidationFunctionHandler`. Total test count 248 → 301.
+- Test project now references `HoneyDrunk.Vault.Providers.Aws` directly so the AWS NSubstitute tests can wire `IAmazonSecretsManager`.
+
 ## [0.6.0] - 2026-05-26
 
 ### Changed (breaking)

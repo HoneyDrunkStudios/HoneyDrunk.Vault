@@ -1,3 +1,4 @@
+using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Providers.Configuration.Services;
@@ -171,7 +172,7 @@ public sealed class ConfigurationProviderTests
         var store = CreateSecretStore([]);
 
         // Act
-        var result = await store.TryGetSecretAsync(new SecretIdentifier("missing"));
+        var result = await ((ISecretStore)store).TryGetSecretAsync(new SecretIdentifier("missing"));
 
         // Assert
         Assert.False(result.IsSuccess);

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-27
+
+### Changed (breaking)
+- `ISecretProvider` now extends `ISecretStore`. Implementations must also satisfy the `GetSecretAsync` / `ListSecretVersionsAsync` shape (Configuration is the only secret store that intentionally remains an `ISecretStore`-only). The `FetchSecretAsync`, `TryFetchSecretAsync`, and `ListVersionsAsync` overloads on `ISecretProvider` are now **default interface methods** that delegate to `SecretStoreFacade` against the inherited `ISecretStore` members — implementations should drop their redundant overrides. Callers that previously invoked these methods on the concrete provider class must now reach them through the `ISecretProvider` interface (or the new `((ISecretProvider)store).Fetch*` cast pattern).
+- `ISecretStore.TryGetSecretAsync` is also a default interface method now (delegating to `GetSecretAsync` via `SecretStoreFacade` with `logger: null`). Concrete implementers may drop the redundant override; callers must hit `ISecretStore.TryGetSecretAsync` through the interface (cast or DI). The previous per-class overrides logged a richer "Attempting to get…" debug line and the catch-path debug/error lines — same behavioral nit acknowledged for `IConfigSource.GetConfigValueAsync<T>` in 0.6.0.
+
+### Changed
+- New `DictionarySecretLookup` and `DictionaryConfigLookup` static helpers in `HoneyDrunk.Vault.Services` consolidate the validate-and-log-and-throw pattern used by every dictionary-backed provider (`InMemorySecretStore`, `FileSecretStore`, `InMemoryConfigSource`, `FileConfigSource`). Each provider's `GetSecretAsync` / `ListSecretVersionsAsync` / `GetConfigValueAsync` / `TryGetConfigValueAsync` is now a one-liner delegating to the helper.
+- `AddVaultCore` now resolves `CompositeSecretStore` via a factory that calls `sp.GetService<VaultTelemetry>()` so the optional telemetry parameter binds to `null` when `EnableTelemetry: false` (or when standalone provider extension methods are used without `HoneyDrunkBuilder.AddVault`). It also pre-registers a default `IOptions<VaultOptions>` so the caching factory does not blow up in that standalone flow. Unblocks the standalone DI surface for `services.AddVaultInMemory()` / `services.AddVaultWithFile()` / `services.AddVaultWithConfiguration()` / `services.AddVaultWithAzureKeyVault()` / `services.AddVaultWithAwsSecretsManager()`.
+
+### Internal
+- Sonar duplication reduction (ADR-0011 D11). The "Duplicated Lines on New Code" findings on `InMemorySecretStore` (35.5%), `ConfigurationSecretStore` (25.8%), `FileSecretStore` (21.6%), `InMemoryConfigSource` (18.8%), `AzureKeyVaultSecretStore` (16.0%), `FileConfigSource` (13.7%), `AwsSecretsManagerSecretStore` (10.6%), `CompositeConfigSource` (7.5%), and `CompositeSecretStore` (6.5%) are addressed by the DIM promotion and helper extraction above.
+- Coverage backfill — 53 new tests across `VaultScope`, `InMemoryVaultOptions`, `AzureKeyVaultOptions`, the five `*ServiceCollectionExtensions` for provider packages, `VaultEventGridServiceCollectionExtensions`, `AzureKeyVaultConfigSource`, `AwsSecretsManagerSecretStore`, and `VaultInvalidationFunctionHandler`. Test project now references `HoneyDrunk.Vault.Providers.Aws` directly so the AWS NSubstitute tests can wire `IAmazonSecretsManager`.
+
 ## [0.6.0] - 2026-05-26
 
 ### Changed (breaking)

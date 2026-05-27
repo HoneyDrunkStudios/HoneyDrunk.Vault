@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-27
+
+### Changed (breaking)
+- `ConfigurationSecretStore` drops the redundant `TryGetSecretAsync` override now that `ISecretStore` supplies it as a default interface method delegating to `SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, logger: null, …)`. The store remains `ISecretStore`-only (it is intentionally not part of the composite provider chain). Callers that previously invoked `TryGetSecretAsync` on the concrete class must now reach it through the `ISecretStore` interface.
+
 ## [0.6.0] - 2026-05-26
 
 ### Changed

@@ -1,5 +1,4 @@
 using HoneyDrunk.Vault.Abstractions;
-using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
@@ -18,6 +17,8 @@ public sealed class InMemoryConfigSource(
     ConcurrentDictionary<string, string> configValues,
     ILogger<InMemoryConfigSource> logger) : IConfigSourceProvider
 {
+    private const string StoreName = "in-memory store";
+
     private readonly ConcurrentDictionary<string, string> _configValues = configValues ?? throw new ArgumentNullException(nameof(configValues));
     private readonly ILogger<InMemoryConfigSource> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -46,40 +47,13 @@ public sealed class InMemoryConfigSource(
     /// <inheritdoc/>
     public Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        ConfigSourceFacade.ValidateKey(key);
-
-        _logger.LogDebug("Getting configuration value for key '{Key}' from in-memory store", key);
-
-        if (!_configValues.TryGetValue(key, out var value))
-        {
-            _logger.LogWarning("Configuration key '{Key}' not found in in-memory store", key);
-            throw new ConfigurationNotFoundException(key);
-        }
-
-        _logger.LogDebug("Successfully retrieved configuration value for key '{Key}'", key);
-
-        return Task.FromResult(value);
+        return DictionaryConfigLookup.GetConfigValueAsync(_configValues, key, _logger, StoreName);
     }
 
     /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        ConfigSourceFacade.ValidateKey(key);
-
-        _logger.LogDebug("Attempting to get configuration value for key '{Key}' from in-memory store", key);
-
-        _configValues.TryGetValue(key, out var value);
-
-        if (value != null)
-        {
-            _logger.LogDebug("Successfully retrieved configuration value for key '{Key}'", key);
-        }
-        else
-        {
-            _logger.LogDebug("Configuration value for key '{Key}' not found", key);
-        }
-
-        return Task.FromResult(value);
+        return DictionaryConfigLookup.TryGetConfigValueAsync(_configValues, key);
     }
 
     /// <summary>

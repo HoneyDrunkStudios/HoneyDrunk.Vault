@@ -1,5 +1,4 @@
 using HoneyDrunk.Vault.Abstractions;
-using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Providers.File.Configuration;
 using HoneyDrunk.Vault.Services;
@@ -13,8 +12,10 @@ namespace HoneyDrunk.Vault.Providers.File.Services;
 /// <summary>
 /// File-based implementation of the secret store for development and local testing.
 /// </summary>
-public sealed class FileSecretStore : ISecretStore, ISecretProvider, IDisposable
+public sealed class FileSecretStore : ISecretProvider, IDisposable
 {
+    private const string StoreName = "file store";
+
     private readonly FileVaultOptions _options;
     private readonly ILogger<FileSecretStore> _logger;
     private readonly ConcurrentDictionary<string, string> _secrets = new(StringComparer.OrdinalIgnoreCase);
@@ -64,68 +65,13 @@ public sealed class FileSecretStore : ISecretStore, ISecretProvider, IDisposable
     /// <inheritdoc/>
     public Task<SecretValue> GetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(identifier);
-
-        _logger.LogDebug("Getting secret '{SecretName}' from file store", identifier.Name);
-
-        if (!_secrets.TryGetValue(identifier.Name, out var value))
-        {
-            _logger.LogWarning("Secret '{SecretName}' not found in file store", identifier.Name);
-            throw new SecretNotFoundException(identifier.Name);
-        }
-
-        var secretValue = new SecretValue(identifier, value, "latest");
-        _logger.LogDebug("Successfully retrieved secret '{SecretName}' from file store", identifier.Name);
-
-        return Task.FromResult(secretValue);
-    }
-
-    /// <inheritdoc/>
-    public async Task<VaultResult<SecretValue>> TryGetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(identifier);
-
-        return await SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, _logger, "file store", cancellationToken).ConfigureAwait(false);
+        return DictionarySecretLookup.GetSecretAsync(_secrets, identifier, _logger, StoreName);
     }
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<SecretVersion>> ListSecretVersionsAsync(string secretName, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(secretName))
-        {
-            throw new ArgumentException("Secret name cannot be null or whitespace.", nameof(secretName));
-        }
-
-        if (!_secrets.ContainsKey(secretName))
-        {
-            throw new SecretNotFoundException(secretName);
-        }
-
-        // File store only supports single version
-        var versions = new List<SecretVersion>
-        {
-            new("latest", DateTimeOffset.UtcNow),
-        };
-
-        return Task.FromResult<IReadOnlyList<SecretVersion>>(versions);
-    }
-
-    /// <inheritdoc/>
-    public Task<SecretValue> FetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
-    {
-        return SecretStoreFacade.FetchSecretAsync(GetSecretAsync, key, version, cancellationToken);
-    }
-
-    /// <inheritdoc/>
-    public async Task<VaultResult<SecretValue>> TryFetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
-    {
-        return await SecretStoreFacade.TryFetchSecretAsync(TryGetSecretAsync, key, version, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
-    public Task<IReadOnlyList<SecretVersion>> ListVersionsAsync(string key, CancellationToken cancellationToken = default)
-    {
-        return SecretStoreFacade.ListVersionsAsync(ListSecretVersionsAsync, key, cancellationToken);
+        return DictionarySecretLookup.ListSecretVersionsAsync(_secrets, secretName, _logger, StoreName);
     }
 
     /// <inheritdoc/>

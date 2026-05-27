@@ -5,7 +5,6 @@ using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Providers.Aws.Configuration;
-using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -14,7 +13,7 @@ namespace HoneyDrunk.Vault.Providers.Aws.Services;
 /// <summary>
 /// AWS Secrets Manager implementation of the secret store.
 /// </summary>
-public sealed class AwsSecretsManagerSecretStore : ISecretStore, ISecretProvider, IDisposable
+public sealed class AwsSecretsManagerSecretStore : ISecretProvider, IDisposable
 {
     private readonly AwsSecretsManagerOptions _options;
     private readonly IAmazonSecretsManager _client;
@@ -109,14 +108,6 @@ public sealed class AwsSecretsManagerSecretStore : ISecretStore, ISecretProvider
     }
 
     /// <inheritdoc/>
-    public async Task<VaultResult<SecretValue>> TryGetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(identifier);
-
-        return await SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, _logger, "AWS Secrets Manager", cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public async Task<IReadOnlyList<SecretVersion>> ListSecretVersionsAsync(string secretName, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(secretName))
@@ -169,24 +160,6 @@ public sealed class AwsSecretsManagerSecretStore : ISecretStore, ISecretProvider
             _logger.LogError(ex, "Error listing versions for secret '{SecretId}' in AWS Secrets Manager", secretId);
             throw new VaultOperationException($"Failed to list versions for secret '{secretName}' from AWS Secrets Manager", ex);
         }
-    }
-
-    /// <inheritdoc/>
-    public Task<SecretValue> FetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
-    {
-        return SecretStoreFacade.FetchSecretAsync(GetSecretAsync, key, version, cancellationToken);
-    }
-
-    /// <inheritdoc/>
-    public async Task<VaultResult<SecretValue>> TryFetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
-    {
-        return await SecretStoreFacade.TryFetchSecretAsync(TryGetSecretAsync, key, version, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
-    public Task<IReadOnlyList<SecretVersion>> ListVersionsAsync(string key, CancellationToken cancellationToken = default)
-    {
-        return SecretStoreFacade.ListVersionsAsync(ListSecretVersionsAsync, key, cancellationToken);
     }
 
     /// <inheritdoc/>

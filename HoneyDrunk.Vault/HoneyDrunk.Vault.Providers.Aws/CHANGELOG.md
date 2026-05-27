@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-27
+
+### Changed (breaking)
+- `AwsSecretsManagerSecretStore` now implements `ISecretProvider` directly (which extends `ISecretStore` per the 0.7.0 abstractions change). The `TryGetSecretAsync`, `FetchSecretAsync`, `TryFetchSecretAsync`, and `ListVersionsAsync` methods are now supplied as default interface methods on `ISecretStore` / `ISecretProvider` delegating to `SecretStoreFacade` — the redundant per-provider overrides have been removed. Callers that previously invoked these on the concrete store class must now reach them through the interface (cast or DI).
+
+### Internal
+- First test coverage added (`AwsSecretsManagerSecretStoreTests`). Uses NSubstitute against `IAmazonSecretsManager` and covers happy-path `GetSecretAsync`, `UseVersionId` toggle, `ResourceNotFoundException` → `SecretNotFoundException` wrapping, `AmazonSecretsManagerException` → `VaultOperationException` wrapping, secret-prefix application, `ListSecretVersionsAsync` pagination shape and 404 wrap, `CheckHealthAsync` success/failure, ctor null-options guard, and `Dispose` idempotence.
+
 ## [0.6.0] - 2026-05-26
 
 ### Changed

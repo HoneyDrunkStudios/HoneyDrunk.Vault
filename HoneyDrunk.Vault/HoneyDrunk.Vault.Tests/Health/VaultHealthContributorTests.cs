@@ -168,17 +168,12 @@ public sealed class VaultHealthContributorTests
             return exception is null ? Task.FromResult(isHealthy) : Task.FromException<bool>(exception);
         }
 
-        public Task<SecretValue> FetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
+        public Task<SecretValue> GetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();
         }
 
-        public Task<VaultResult<SecretValue>> TryFetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<IReadOnlyList<SecretVersion>> ListVersionsAsync(string key, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<SecretVersion>> ListSecretVersionsAsync(string secretName, CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();
         }

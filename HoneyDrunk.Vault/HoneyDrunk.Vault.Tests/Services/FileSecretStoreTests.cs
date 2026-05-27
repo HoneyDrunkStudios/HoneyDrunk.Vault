@@ -1,3 +1,4 @@
+using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Providers.File.Configuration;
@@ -98,7 +99,7 @@ public sealed class FileSecretStoreTests : IDisposable
         var identifier = new SecretIdentifier("non-existent");
 
         // Act
-        var result = await _store.TryGetSecretAsync(identifier);
+        var result = await ((ISecretStore)_store).TryGetSecretAsync(identifier);
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -112,7 +113,7 @@ public sealed class FileSecretStoreTests : IDisposable
     public async Task TryGetSecretAsync_ThrowsForNullIdentifier()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentNullException>(() => _store.TryGetSecretAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => ((ISecretStore)_store).TryGetSecretAsync(null!));
     }
 
     /// <summary>
@@ -149,7 +150,7 @@ public sealed class FileSecretStoreTests : IDisposable
     public async Task FetchSecretAsync_ThrowsSecretNotFoundException_ForNonExistentSecret()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<SecretNotFoundException>(() => _store.FetchSecretAsync("non-existent"));
+        await Assert.ThrowsAsync<SecretNotFoundException>(() => ((ISecretProvider)_store).FetchSecretAsync("non-existent"));
     }
 
     /// <summary>
@@ -160,7 +161,7 @@ public sealed class FileSecretStoreTests : IDisposable
     public async Task TryFetchSecretAsync_ReturnsFailure_ForNonExistentSecret()
     {
         // Act
-        var result = await _store.TryFetchSecretAsync("non-existent");
+        var result = await ((ISecretProvider)_store).TryFetchSecretAsync("non-existent");
 
         // Assert
         Assert.False(result.IsSuccess);

@@ -8,10 +8,10 @@
     <NoWarn>$(NoWarn);CA1873</NoWarn>
 
     <PackageId>HoneyDrunk.Vault.EventGrid</PackageId>
-    <Version>0.6.0</Version>
+    <Version>0.7.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Event Grid webhook helpers for HoneyDrunk.Vault cache invalidation.</Description>
-    <PackageReleaseNotes>v0.6.0: Version alignment with the Vault Sonar gate-cleanup (ADR-0011 D11) release. EventGrid webhook helper now uses headers.FirstOrDefault(...) with a case-insensitive predicate for header lookup (satisfies Sonar S3267 + S1751). See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.7.0: Version alignment with the HoneyDrunk.Vault 0.7.0 dedupe/coverage release (ADR-0011 D11). First test coverage added for VaultInvalidationFunctionHandler and the AddVaultEventGridInvalidation service-collection extension. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;eventgrid;azure;webhook;secrets;cache;rotation</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

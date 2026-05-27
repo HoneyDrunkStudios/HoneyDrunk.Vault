@@ -1,5 +1,4 @@
 using HoneyDrunk.Vault.Abstractions;
-using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
@@ -17,8 +16,10 @@ namespace HoneyDrunk.Vault.Providers.InMemory.Services;
 /// <param name="logger">The logger.</param>
 public sealed class InMemorySecretStore(
     ConcurrentDictionary<string, string> secrets,
-    ILogger<InMemorySecretStore> logger) : ISecretStore, ISecretProvider
+    ILogger<InMemorySecretStore> logger) : ISecretProvider
 {
+    private const string StoreName = "in-memory store";
+
     private readonly ConcurrentDictionary<string, string> _secrets = secrets ?? throw new ArgumentNullException(nameof(secrets));
     private readonly ILogger<InMemorySecretStore> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -40,57 +41,13 @@ public sealed class InMemorySecretStore(
     /// <inheritdoc/>
     public Task<SecretValue> GetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(identifier);
-
-        _logger.LogDebug("Getting secret '{SecretName}' from in-memory store", identifier.Name);
-
-        if (!_secrets.TryGetValue(identifier.Name, out var value))
-        {
-            _logger.LogWarning("Secret '{SecretName}' not found in in-memory store", identifier.Name);
-            throw new SecretNotFoundException(identifier.Name);
-        }
-
-        var secretValue = new SecretValue(identifier, value, "latest");
-        _logger.LogDebug("Successfully retrieved secret '{SecretName}' from in-memory store", identifier.Name);
-
-        return Task.FromResult(secretValue);
-    }
-
-    /// <inheritdoc/>
-    public async Task<VaultResult<SecretValue>> TryGetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(identifier);
-
-        _logger.LogDebug("Attempting to get secret '{SecretName}' from in-memory store", identifier.Name);
-
-        return await SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, _logger, "in-memory store", cancellationToken).ConfigureAwait(false);
+        return DictionarySecretLookup.GetSecretAsync(_secrets, identifier, _logger, StoreName);
     }
 
     /// <inheritdoc/>
     public Task<IReadOnlyList<SecretVersion>> ListSecretVersionsAsync(string secretName, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(secretName))
-        {
-            throw new ArgumentException("Secret name cannot be null or whitespace.", nameof(secretName));
-        }
-
-        _logger.LogDebug("Listing versions for secret '{SecretName}' from in-memory store", secretName);
-
-        if (!_secrets.ContainsKey(secretName))
-        {
-            _logger.LogWarning("Secret '{SecretName}' not found in in-memory store", secretName);
-            throw new SecretNotFoundException(secretName);
-        }
-
-        // In-memory store only supports a single version
-        var versions = new List<SecretVersion>
-        {
-            new("latest", DateTimeOffset.UtcNow),
-        };
-
-        _logger.LogDebug("Listed {Count} version for secret '{SecretName}'", versions.Count, secretName);
-
-        return Task.FromResult<IReadOnlyList<SecretVersion>>(versions);
+        return DictionarySecretLookup.ListSecretVersionsAsync(_secrets, secretName, _logger, StoreName);
     }
 
     /// <summary>
@@ -139,24 +96,6 @@ public sealed class InMemorySecretStore(
     {
         _secrets.Clear();
         _logger.LogDebug("All secrets cleared from in-memory store");
-    }
-
-    /// <inheritdoc/>
-    public Task<SecretValue> FetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
-    {
-        return SecretStoreFacade.FetchSecretAsync(GetSecretAsync, key, version, cancellationToken);
-    }
-
-    /// <inheritdoc/>
-    public async Task<VaultResult<SecretValue>> TryFetchSecretAsync(string key, string? version = null, CancellationToken cancellationToken = default)
-    {
-        return await SecretStoreFacade.TryFetchSecretAsync(TryGetSecretAsync, key, version, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
-    public Task<IReadOnlyList<SecretVersion>> ListVersionsAsync(string key, CancellationToken cancellationToken = default)
-    {
-        return SecretStoreFacade.ListVersionsAsync(ListSecretVersionsAsync, key, cancellationToken);
     }
 
     /// <inheritdoc/>

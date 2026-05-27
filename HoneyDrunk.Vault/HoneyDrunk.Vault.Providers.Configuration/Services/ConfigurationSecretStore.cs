@@ -1,7 +1,6 @@
 using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
-using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -45,16 +44,6 @@ public sealed class ConfigurationSecretStore(
     }
 
     /// <inheritdoc/>
-    public async Task<VaultResult<SecretValue>> TryGetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(identifier);
-
-        _logger.LogDebug("Attempting to get secret '{SecretName}' from configuration", identifier.Name);
-
-        return await SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, _logger, "configuration", cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
     public Task<IReadOnlyList<SecretVersion>> ListSecretVersionsAsync(string secretName, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(secretName))
@@ -64,7 +53,6 @@ public sealed class ConfigurationSecretStore(
 
         _logger.LogDebug("Listing versions for secret '{SecretName}' from configuration", secretName);
 
-        // Configuration provider only supports a single version
         var key = BuildConfigurationKey(secretName);
         var value = _configuration[key];
 
@@ -74,6 +62,7 @@ public sealed class ConfigurationSecretStore(
             throw new SecretNotFoundException(secretName);
         }
 
+        // Configuration provider only supports a single version
         var versions = new List<SecretVersion>
         {
             new("latest", DateTimeOffset.UtcNow),

@@ -1,3 +1,4 @@
+using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Providers.File.Configuration;
 using HoneyDrunk.Vault.Providers.File.Services;
@@ -75,7 +76,7 @@ public sealed class FileSecretStoreWithSecretsTests : IDisposable
         var identifier = new SecretIdentifier("connection-string");
 
         // Act
-        var result = await _store.TryGetSecretAsync(identifier);
+        var result = await ((ISecretStore)_store).TryGetSecretAsync(identifier);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -106,7 +107,7 @@ public sealed class FileSecretStoreWithSecretsTests : IDisposable
     public async Task FetchSecretAsync_ReturnsSecret()
     {
         // Act
-        var result = await _store.FetchSecretAsync("api-key");
+        var result = await ((ISecretProvider)_store).FetchSecretAsync("api-key");
 
         // Assert
         Assert.Equal("secret-value", result.Value);
@@ -120,7 +121,7 @@ public sealed class FileSecretStoreWithSecretsTests : IDisposable
     public async Task TryFetchSecretAsync_ReturnsSuccess_ForExistingSecret()
     {
         // Act
-        var result = await _store.TryFetchSecretAsync("api-key");
+        var result = await ((ISecretProvider)_store).TryFetchSecretAsync("api-key");
 
         // Assert
         Assert.True(result.IsSuccess);

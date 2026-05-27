@@ -1,3 +1,4 @@
+using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Providers.InMemory.Services;
@@ -72,7 +73,7 @@ public sealed class InMemorySecretStoreTests
         _secrets[secretName] = secretValue;
 
         // Act
-        var result = await _store.TryGetSecretAsync(new SecretIdentifier(secretName));
+        var result = await ((ISecretStore)_store).TryGetSecretAsync(new SecretIdentifier(secretName));
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -87,7 +88,7 @@ public sealed class InMemorySecretStoreTests
     public async Task TryGetSecretAsync_ReturnsFailure_WhenSecretNotExists()
     {
         // Act
-        var result = await _store.TryGetSecretAsync(new SecretIdentifier("missing"));
+        var result = await ((ISecretStore)_store).TryGetSecretAsync(new SecretIdentifier("missing"));
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -241,7 +242,7 @@ public sealed class InMemorySecretStoreTests
         _secrets[secretName] = secretValue;
 
         // Act
-        var result = await _store.FetchSecretAsync(secretName);
+        var result = await ((ISecretProvider)_store).FetchSecretAsync(secretName);
 
         // Assert
         Assert.Equal(secretValue, result.Value);

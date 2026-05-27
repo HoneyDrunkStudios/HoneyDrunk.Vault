@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-27
+
+### Changed
+- Version alignment with the HoneyDrunk.Vault 0.7.0 dedupe/coverage release (ADR-0011 D11).
+
+### Internal
+- First test coverage added for `VaultInvalidationFunctionHandler` (null-handler ctor guard, null-headers ctor guard, and a forwarding smoke test that proves the `IReadOnlyDictionary<string, string?>` headers bridge into the webhook handler).
+- First test coverage added for `VaultEventGridServiceCollectionExtensions.AddVaultEventGridInvalidation` (resolves both handlers + null-services guard).
+
 ## [0.6.0] - 2026-05-26
 
 ### Changed

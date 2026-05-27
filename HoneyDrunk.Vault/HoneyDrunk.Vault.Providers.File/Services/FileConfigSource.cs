@@ -1,5 +1,4 @@
 using HoneyDrunk.Vault.Abstractions;
-using HoneyDrunk.Vault.Exceptions;
 using HoneyDrunk.Vault.Providers.File.Configuration;
 using HoneyDrunk.Vault.Services;
 using Microsoft.Extensions.Logging;
@@ -14,6 +13,8 @@ namespace HoneyDrunk.Vault.Providers.File.Services;
 /// </summary>
 public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposable
 {
+    private const string StoreName = "file store";
+
     private readonly FileVaultOptions _options;
     private readonly ILogger<FileConfigSource> _logger;
     private readonly ConcurrentDictionary<string, string> _configValues = new(StringComparer.OrdinalIgnoreCase);
@@ -59,27 +60,16 @@ public sealed class FileConfigSource : IConfigSource, IConfigProvider, IDisposab
     /// <inheritdoc/>
     public Task<string> GetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        ConfigSourceFacade.ValidateKey(key);
-
-        _logger.LogDebug("Getting configuration value for key '{Key}' from file store", key);
-
-        if (!_configValues.TryGetValue(key, out var value))
-        {
-            _logger.LogWarning("Configuration key '{Key}' not found in file store", key);
-            throw new ConfigurationNotFoundException(key);
-        }
-
-        _logger.LogDebug("Successfully retrieved configuration value for key '{Key}'", key);
-        return Task.FromResult(value);
+        return DictionaryConfigLookup.GetConfigValueAsync(_configValues, key, _logger, StoreName);
     }
 
     /// <inheritdoc/>
     public Task<string?> TryGetConfigValueAsync(string key, CancellationToken cancellationToken = default)
     {
-        ConfigSourceFacade.ValidateKey(key);
-
-        _configValues.TryGetValue(key, out var value);
-        return Task.FromResult(value);
+        // FileConfigSource historically did not log on TryGet (only the throwing
+        // overload did). Pass logger: null so the helper stays silent here and
+        // preserves the legacy behavior.
+        return DictionaryConfigLookup.TryGetConfigValueAsync(_configValues, key);
     }
 
     // IConfigProvider implementation — generic typed overloads come from the IConfigSource default interface methods.

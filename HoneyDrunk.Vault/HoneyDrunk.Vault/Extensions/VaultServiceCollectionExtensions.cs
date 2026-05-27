@@ -2,6 +2,7 @@ using HoneyDrunk.Vault.Abstractions;
 using HoneyDrunk.Vault.Configuration;
 using HoneyDrunk.Vault.Resilience;
 using HoneyDrunk.Vault.Services;
+using HoneyDrunk.Vault.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -36,8 +37,22 @@ public static class VaultServiceCollectionExtensions
         services.TryAddSingleton<SecretCache>();
         services.TryAddSingleton<ISecretCacheInvalidator>(sp => sp.GetRequiredService<SecretCache>());
 
-        // Register composite secret store (wraps all registered providers)
-        services.TryAddSingleton<CompositeSecretStore>();
+        // Ensure VaultOptions is always resolvable so providers calling AddVaultCore
+        // standalone (without HoneyDrunkBuilder.AddVault) don't blow up on the cache
+        // factory below. AddOptions<T>() wires the standard options pipeline (via
+        // TryAdd), so a later services.Configure<VaultOptions>(...) is still honored —
+        // unlike a pre-baked Options.Create(...) singleton, which would make the
+        // configuration order-dependent.
+        services.AddOptions<VaultOptions>();
+
+        // Register composite secret store via a factory so the nullable VaultTelemetry
+        // parameter resolves to null when the kernel-level AddVault didn't register it
+        // (e.g., EnableTelemetry: false or provider extensions used standalone).
+        services.TryAddSingleton(sp => new CompositeSecretStore(
+            sp.GetRequiredService<IEnumerable<RegisteredSecretProvider>>(),
+            sp.GetRequiredService<ResiliencePipelineFactory>(),
+            sp.GetService<VaultTelemetry>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CompositeSecretStore>>()));
 
         // Register composite config source (wraps all registered providers)
         services.TryAddSingleton<CompositeConfigSource>();

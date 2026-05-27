@@ -34,7 +34,7 @@ public interface ISecretStore
     /// <returns>A result containing the secret value if found, or a failure result.</returns>
     async Task<VaultResult<SecretValue>> TryGetSecretAsync(SecretIdentifier identifier, CancellationToken cancellationToken = default)
     {
-        return await SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, logger: null, storeName: null, cancellationToken).ConfigureAwait(false);
+        return await SecretStoreFacade.TryGetSecretAsync(identifier, GetSecretAsync, logger: null, storeName: null, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

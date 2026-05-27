@@ -11,40 +11,45 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: write
-  packages: write
-  id-token: write
+permissions: {}
 
 jobs:
   prepare:
     name: Prepare Release
     runs-on: ubuntu-latest
+    permissions: {}
     outputs:
       version: ${{ steps.get_version.outputs.version }}
-      version-tag: ${{ steps.get_version.outputs.version-tag }}
+      version_tag: ${{ steps.get_version.outputs.version_tag }}
     steps:
       - name: Determine version
         id: get_version
         shell: bash
+        env:
+          WORKFLOW_DISPATCH_VERSION: ${{ github.event.inputs.version }}
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
+            VERSION="$WORKFLOW_DISPATCH_VERSION"
             VERSION_TAG="v${VERSION}"
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
             VERSION_TAG="${GITHUB_REF#refs/tags/}"
           fi
-          echo "version=$VERSION" >>"$GITHUB_OUTPUT"
-          echo "version-tag=$VERSION_TAG" >>"$GITHUB_OUTPUT"
+          if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)(-((0|[1-9][0-9]*)|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)([.]((0|[1-9][0-9]*)|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$ ]]; then
+            echo "::error::Version must be a NuGet package version without build metadata (for example 1.2.3 or 1.2.3-preview.1)."
+            exit 1
+          fi
+          printf 'version=%s\n' "$VERSION" >>"$GITHUB_OUTPUT"
+          printf 'version_tag=%s\n' "$VERSION_TAG" >>"$GITHUB_OUTPUT"
           echo "Publishing version: $VERSION"
           echo "Publishing tag: $VERSION_TAG"
 
   release:
     name: Build, Pack & Publish
     needs: prepare
+    # Reusable workflow permissions are the maximum allowed set; release.yml narrows permissions per internal job.
     permissions:
-      contents: read
+      contents: write
       packages: write
       id-token: write
       security-events: write
@@ -56,51 +61,21 @@ jobs:
       project-path: 'HoneyDrunk.Vault/HoneyDrunk.Vault.slnx'
       enable-nuget-publish: true
       nuget-source: 'https://api.nuget.org/v3/index.json'
+      package-version: ${{ needs.prepare.outputs.version }}
+      create-github-release: true
+      github-release-tag: ${{ needs.prepare.outputs.version_tag }}
+      release-product-name: HoneyDrunk.Vault
+      release-product-description: 'Secrets and configuration management for .NET 10 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory, App Configuration).'
+      release-nuget-packages: |
+        HoneyDrunk.Vault
+        HoneyDrunk.Vault.Providers.File
+        HoneyDrunk.Vault.Providers.AzureKeyVault
+        HoneyDrunk.Vault.Providers.Aws
+        HoneyDrunk.Vault.Providers.Configuration
+        HoneyDrunk.Vault.Providers.InMemory
+        HoneyDrunk.Vault.Providers.AppConfiguration
+        HoneyDrunk.Vault.EventGrid
+      release-docs-url: 'https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault#readme'
       actions-ref: 'main'
     secrets:
       nuget-api-key: ${{ secrets.NUGET_API_KEY }}
-
-  github-release:
-    name: Create GitHub Release
-    needs: [prepare, release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Checkout Actions
-        uses: actions/checkout@v5
-        with:
-          repository: HoneyDrunkStudios/HoneyDrunk.Actions
-          ref: main
-          path: .actions
-
-      - name: Generate Release Notes
-        id: notes
-        uses: ./.actions/.github/actions/release/generate-notes
-        with:
-          version: ${{ needs.prepare.outputs.version }}
-          product-name: HoneyDrunk.Vault
-          product-description: 'Secrets and configuration management for .NET 10 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory, App Configuration).'
-          nuget-packages: |
-            HoneyDrunk.Vault
-            HoneyDrunk.Vault.Providers.File
-            HoneyDrunk.Vault.Providers.AzureKeyVault
-            HoneyDrunk.Vault.Providers.Aws
-            HoneyDrunk.Vault.Providers.Configuration
-            HoneyDrunk.Vault.Providers.InMemory
-            HoneyDrunk.Vault.Providers.AppConfiguration
-            HoneyDrunk.Vault.EventGrid
-          docs-url: 'https://github.com/HoneyDrunkStudios/HoneyDrunk.Vault#readme'
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ needs.prepare.outputs.version-tag }}
-          name: HoneyDrunk.Vault ${{ needs.prepare.outputs.version-tag }}
-          body: ${{ steps.notes.outputs.body }}
-          generate_release_notes: ${{ steps.notes.outputs['has-changelog'] == 'false' }}
-          draft: false
-          prerelease: false

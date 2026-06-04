@@ -9,7 +9,7 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.Configuration</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>.NET Configuration provider for HoneyDrunk.Vault. Enables reading secrets and configuration from standard .NET configuration sources (appsettings.json, environment variables, user secrets).</Description>
     <PackageReleaseNotes>v0.7.0: ConfigurationSecretStore drops the redundant TryGetSecretAsync override now that ISecretStore supplies it as a default interface method (breaking — see HoneyDrunk.Vault 0.7.0 notes). See CHANGELOG.md for details.</PackageReleaseNotes>

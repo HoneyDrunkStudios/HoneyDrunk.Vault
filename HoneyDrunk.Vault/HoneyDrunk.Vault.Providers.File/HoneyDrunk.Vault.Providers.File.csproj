@@ -9,7 +9,7 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.File</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>File-based secrets and configuration provider for HoneyDrunk.Vault. Ideal for local development and testing with support for file watching and optional encryption.</Description>
     <PackageReleaseNotes>v0.7.0: FileSecretStore drops the redundant TryGetSecretAsync / FetchSecretAsync / TryFetchSecretAsync / ListVersionsAsync overrides now that ISecretStore / ISecretProvider supply them as default interface methods (breaking — see HoneyDrunk.Vault 0.7.0 notes). FileSecretStore and FileConfigSource now share new DictionarySecretLookup / DictionaryConfigLookup helpers in HoneyDrunk.Vault. See CHANGELOG.md for details.</PackageReleaseNotes>

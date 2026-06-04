@@ -8,7 +8,7 @@
     <NoWarn>$(NoWarn);CA1873</NoWarn>
 
     <PackageId>HoneyDrunk.Vault.EventGrid</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Event Grid webhook helpers for HoneyDrunk.Vault cache invalidation.</Description>
     <PackageReleaseNotes>v0.7.0: Version alignment with the HoneyDrunk.Vault 0.7.0 dedupe/coverage release (ADR-0011 D11). First test coverage added for VaultInvalidationFunctionHandler and the AddVaultEventGridInvalidation service-collection extension. See CHANGELOG.md for details.</PackageReleaseNotes>

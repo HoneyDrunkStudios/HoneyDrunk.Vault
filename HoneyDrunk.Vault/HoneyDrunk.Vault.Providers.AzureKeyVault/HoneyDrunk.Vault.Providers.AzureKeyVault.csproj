@@ -9,7 +9,7 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.AzureKeyVault</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Azure Key Vault provider for HoneyDrunk.Vault. Provides enterprise-grade secret management using Azure Key Vault with support for Managed Identity and Service Principal authentication.</Description>
     <PackageReleaseNotes>v0.7.0: AzureKeyVaultSecretStore drops the redundant TryGetSecretAsync / FetchSecretAsync / TryFetchSecretAsync / ListVersionsAsync overrides now that ISecretStore / ISecretProvider supply them as default interface methods (breaking — see HoneyDrunk.Vault 0.7.0 notes). First test coverage added for AzureKeyVaultConfigSource. See CHANGELOG.md for details.</PackageReleaseNotes>

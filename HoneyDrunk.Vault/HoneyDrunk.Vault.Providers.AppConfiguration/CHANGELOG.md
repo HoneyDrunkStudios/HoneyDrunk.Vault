@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-04
+
+### Added
+- `AddAppConfiguration(IHoneyDrunkBuilder, IConfigurationManager, Action<AppConfigurationOptions>?)` overload that takes the host builder's `IConfigurationManager` directly. Hosts that do not register their `ConfigurationManager` as an `IConfiguration` instance on the service collection — Azure Functions (`FunctionsApplication.CreateBuilder`) and the generic `Host.CreateApplicationBuilder` — must use this overload (pass `builder.Configuration`); the parameterless overload's service-collection lookup falls back to an immutable env-vars-only configuration on those hosts and cannot append the App Configuration source, aborting the worker at startup.
+
+### Changed
+- The parameterless `AddAppConfiguration` overload now throws an actionable error naming the new overload when no mutable `IConfigurationManager` is registered. `WebApplication.CreateBuilder` consumers are unaffected.
+
 ## [0.7.0] - 2026-05-27
 
 ### Changed

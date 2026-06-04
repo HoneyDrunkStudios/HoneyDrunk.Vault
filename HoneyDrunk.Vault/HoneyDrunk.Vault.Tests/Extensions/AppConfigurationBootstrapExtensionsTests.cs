@@ -73,6 +73,49 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         Assert.Throws<InvalidOperationException>(() => builder.AddAppConfiguration());
     }
 
+    /// <summary>
+    /// Verifies the explicit-manager overload registers the Azure source even when the service collection has
+    /// no <see cref="IConfiguration"/> registered — the Azure Functions / generic-host case the parameterless
+    /// overload cannot serve.
+    /// </summary>
+    [Fact]
+    public void AddAppConfiguration_WithExplicitManager_RegistersAzureSource_WhenServicesHaveNoConfiguration()
+    {
+        var services = new ServiceCollection();
+        using var configuration = new ConfigurationManager();
+        configuration["AZURE_APPCONFIG_ENDPOINT"] = "https://appcs-test.azconfig.io";
+        configuration["HONEYDRUNK_NODE_ID"] = "orders";
+
+        // configuration is deliberately NOT registered on `services` — this mimics
+        // FunctionsApplication.CreateBuilder, which does not register its ConfigurationManager instance.
+        var builder = CreateBuilder(services);
+
+        var result = builder.AddAppConfiguration(configuration, o =>
+        {
+            o.Optional = true;
+            o.Credential = new StaticTokenCredential();
+            o.StartupTimeout = TimeSpan.FromMilliseconds(1);
+        });
+
+        Assert.Same(builder, result);
+        Assert.Contains(configuration.Sources, s => s.GetType().Name.Contains("AzureAppConfiguration", StringComparison.Ordinal));
+        Assert.Contains(services, d => d.ServiceType.FullName == "Microsoft.FeatureManagement.IFeatureManager");
+    }
+
+    /// <summary>
+    /// Verifies the parameterless overload throws actionable guidance (pointing to the manager overload) when
+    /// the host builder did not register a mutable <see cref="IConfigurationManager"/> on the service collection.
+    /// </summary>
+    [Fact]
+    public void AddAppConfiguration_Throws_WithOverloadGuidance_WhenServicesHaveNoConfigurationManager()
+    {
+        var services = new ServiceCollection();
+        var builder = CreateBuilder(services);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => builder.AddAppConfiguration());
+        Assert.Contains("AddAppConfiguration(IConfigurationManager)", ex.Message, StringComparison.Ordinal);
+    }
+
     private static IHoneyDrunkBuilder CreateBuilder(IServiceCollection services)
     {
         var builder = Substitute.For<IHoneyDrunkBuilder>();

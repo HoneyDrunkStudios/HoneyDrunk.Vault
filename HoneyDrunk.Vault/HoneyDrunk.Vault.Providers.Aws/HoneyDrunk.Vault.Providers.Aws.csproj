@@ -9,7 +9,7 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.Aws</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.8.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>AWS Secrets Manager provider for HoneyDrunk.Vault. Provides secure secret management using AWS Secrets Manager with support for IAM roles, access keys, and EC2 instance profiles.</Description>
     <PackageReleaseNotes>v0.7.0: AwsSecretsManagerSecretStore drops the redundant TryGetSecretAsync / FetchSecretAsync / TryFetchSecretAsync / ListVersionsAsync overrides now that ISecretStore / ISecretProvider supply them as default interface methods (breaking — see HoneyDrunk.Vault 0.7.0 notes). First test coverage added (NSubstitute against IAmazonSecretsManager). See CHANGELOG.md for details.</PackageReleaseNotes>

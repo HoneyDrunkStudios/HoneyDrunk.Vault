@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-04
+
+### Changed
+- Version alignment with the HoneyDrunk.Vault 0.8.0 release. No Event Grid-specific behavior change.
+
 ## [0.7.0] - 2026-05-27
 
 ### Changed

@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-04
+
+### Added
+- `HoneyDrunk.Vault.Providers.AppConfiguration`: `AddAppConfiguration(IConfigurationManager)` overload so Azure Functions and generic-host consumers can bootstrap App Configuration without a workaround `IConfiguration` registration. See the package CHANGELOG.
+
+### Changed
+- All Vault packages aligned to 0.8.0 (invariant 27 lockstep). Only `HoneyDrunk.Vault.Providers.AppConfiguration` changes behavior; the rest are alignment bumps.
+
 ## [0.7.0] - 2026-05-27
 
 ### Changed (breaking)

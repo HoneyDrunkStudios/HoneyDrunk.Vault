@@ -26,7 +26,6 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         services.AddSingleton<IConfiguration>(configuration);
 
         var builder = CreateBuilder(services);
-        var sourceCountBefore = configuration.Sources.Count;
 
         var result = builder.AddAppConfiguration(o =>
         {
@@ -36,7 +35,8 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         });
 
         Assert.Same(builder, result);
-        Assert.True(configuration.Sources.Count > sourceCountBefore, "An Azure App Configuration source should be appended to the manager.");
+        var azureAppConfigAssembly = typeof(Microsoft.Extensions.Configuration.AzureAppConfiguration.AzureAppConfigurationOptions).Assembly;
+        Assert.Contains(configuration.Sources, s => s.GetType().Assembly == azureAppConfigAssembly);
         Assert.Contains(services, d => d.ServiceType == typeof(Microsoft.FeatureManagement.IFeatureManager));
     }
 
@@ -90,7 +90,6 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         // configuration is deliberately NOT registered on `services` — this mimics
         // FunctionsApplication.CreateBuilder, which does not register its ConfigurationManager instance.
         var builder = CreateBuilder(services);
-        var sourceCountBefore = configuration.Sources.Count;
 
         var result = builder.AddAppConfiguration(configuration, o =>
         {
@@ -100,7 +99,8 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         });
 
         Assert.Same(builder, result);
-        Assert.True(configuration.Sources.Count > sourceCountBefore, "An Azure App Configuration source should be appended to the explicitly supplied manager.");
+        var azureAppConfigAssembly = typeof(Microsoft.Extensions.Configuration.AzureAppConfiguration.AzureAppConfigurationOptions).Assembly;
+        Assert.Contains(configuration.Sources, s => s.GetType().Assembly == azureAppConfigAssembly);
         Assert.Contains(services, d => d.ServiceType == typeof(Microsoft.FeatureManagement.IFeatureManager));
     }
 

@@ -37,7 +37,7 @@ public sealed class AppConfigurationBootstrapExtensionsTests
 
         Assert.Same(builder, result);
         Assert.True(configuration.Sources.Count > sourceCountBefore, "An Azure App Configuration source should be appended to the manager.");
-        Assert.Contains(services, d => d.ServiceType.FullName == "Microsoft.FeatureManagement.IFeatureManager");
+        Assert.Contains(services, d => d.ServiceType == typeof(Microsoft.FeatureManagement.IFeatureManager));
     }
 
     /// <summary>
@@ -101,7 +101,7 @@ public sealed class AppConfigurationBootstrapExtensionsTests
 
         Assert.Same(builder, result);
         Assert.True(configuration.Sources.Count > sourceCountBefore, "An Azure App Configuration source should be appended to the explicitly supplied manager.");
-        Assert.Contains(services, d => d.ServiceType.FullName == "Microsoft.FeatureManagement.IFeatureManager");
+        Assert.Contains(services, d => d.ServiceType == typeof(Microsoft.FeatureManagement.IFeatureManager));
     }
 
     /// <summary>

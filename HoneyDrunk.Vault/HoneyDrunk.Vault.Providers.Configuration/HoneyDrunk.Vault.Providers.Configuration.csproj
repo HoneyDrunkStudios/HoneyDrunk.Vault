@@ -12,7 +12,7 @@
     <Version>0.8.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>.NET Configuration provider for HoneyDrunk.Vault. Enables reading secrets and configuration from standard .NET configuration sources (appsettings.json, environment variables, user secrets).</Description>
-    <PackageReleaseNotes>v0.7.0: ConfigurationSecretStore drops the redundant TryGetSecretAsync override now that ISecretStore supplies it as a default interface method (breaking — see HoneyDrunk.Vault 0.7.0 notes). See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.8.0: Version alignment with the HoneyDrunk.Vault 0.8.0 release. No behavior change. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;configuration;secrets;appsettings;environment-variables;user-secrets;dotnet-config</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

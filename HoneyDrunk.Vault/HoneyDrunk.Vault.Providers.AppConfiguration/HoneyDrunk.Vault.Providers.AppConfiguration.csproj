@@ -11,7 +11,7 @@
     <Version>0.8.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Azure App Configuration bootstrap extensions for HoneyDrunk.Vault using environment variable discovery.</Description>
-    <PackageReleaseNotes>v0.7.0: Version alignment with the HoneyDrunk.Vault 0.7.0 dedupe/coverage release (ADR-0011 D11). See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.8.0: Adds an AddAppConfiguration(IConfigurationManager) overload so Azure Functions and generic-host consumers can bootstrap App Configuration without a workaround registration. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;provider;app-configuration;azure;feature-flags;configuration;bootstrap</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

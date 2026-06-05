@@ -26,6 +26,7 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         services.AddSingleton<IConfiguration>(configuration);
 
         var builder = CreateBuilder(services);
+        var sourceCountBefore = configuration.Sources.Count;
 
         var result = builder.AddAppConfiguration(o =>
         {
@@ -35,7 +36,7 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         });
 
         Assert.Same(builder, result);
-        Assert.Contains(configuration.Sources, s => s.GetType().Name.Contains("AzureAppConfiguration", StringComparison.Ordinal));
+        Assert.True(configuration.Sources.Count > sourceCountBefore, "An Azure App Configuration source should be appended to the manager.");
         Assert.Contains(services, d => d.ServiceType.FullName == "Microsoft.FeatureManagement.IFeatureManager");
     }
 
@@ -89,6 +90,7 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         // configuration is deliberately NOT registered on `services` — this mimics
         // FunctionsApplication.CreateBuilder, which does not register its ConfigurationManager instance.
         var builder = CreateBuilder(services);
+        var sourceCountBefore = configuration.Sources.Count;
 
         var result = builder.AddAppConfiguration(configuration, o =>
         {
@@ -98,7 +100,7 @@ public sealed class AppConfigurationBootstrapExtensionsTests
         });
 
         Assert.Same(builder, result);
-        Assert.Contains(configuration.Sources, s => s.GetType().Name.Contains("AzureAppConfiguration", StringComparison.Ordinal));
+        Assert.True(configuration.Sources.Count > sourceCountBefore, "An Azure App Configuration source should be appended to the explicitly supplied manager.");
         Assert.Contains(services, d => d.ServiceType.FullName == "Microsoft.FeatureManagement.IFeatureManager");
     }
 

@@ -12,7 +12,7 @@
     <Version>0.8.0</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Secrets and configuration management library for .NET. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel v0.8.0 for lifecycle management, health reporting, and distributed telemetry.</Description>
-    <PackageReleaseNotes>v0.7.0: Sonar duplication reduction (ADR-0011 D11) + coverage backfill. ISecretProvider now extends ISecretStore and exposes the FetchSecretAsync / TryFetchSecretAsync / ListVersionsAsync trio as default interface methods delegating to SecretStoreFacade; ISecretStore.TryGetSecretAsync is similarly a DIM (breaking — existing implementers may no longer need the redundant overrides). New DictionarySecretLookup / DictionaryConfigLookup helpers consolidate the in-memory/file-store lookup pattern. AddVaultCore now resolves the composite via a factory so the optional VaultTelemetry parameter binds to null when telemetry is disabled. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.8.0: Version alignment with the HoneyDrunk.Vault 0.8.0 release. No behavior change. See CHANGELOG.md for details.</PackageReleaseNotes>
     <PackageTags>vault;secrets;configuration;provider;cache;resilience;circuit-breaker;retry;azure-keyvault;aws;kernel;grid;distributed-tracing</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

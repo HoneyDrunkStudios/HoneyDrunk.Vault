@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] - 2026-09-26
+
+### Changed
+
+- Refresh dependency and shared build-tooling versions; preserve target frameworks and existing public contracts. See the [repository dependency changes](../CHANGELOG.md).
+
 ## [Unreleased]
 
 ## [0.8.0] - 2026-06-04

@@ -9,10 +9,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault.Providers.AzureKeyVault</PackageId>
-    <Version>0.8.0</Version>
+    <Version>0.8.1</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Azure Key Vault provider for HoneyDrunk.Vault. Provides enterprise-grade secret management using Azure Key Vault with support for Managed Identity and Service Principal authentication.</Description>
-    <PackageReleaseNotes>v0.8.0: Version alignment with the HoneyDrunk.Vault 0.8.0 release. No behavior change. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.8.1: Refresh stable dependencies while preserving target frameworks and HoneyDrunk public contracts.</PackageReleaseNotes>
     <PackageTags>vault;provider;secrets;azure;key-vault;managed-identity;service-principal;authentication;enterprise</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,8 +27,8 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
-    <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.11.0" />
-    <PackageReference Include="HoneyDrunk.Standards" Version="0.2.9">
+    <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.11.1" />
+    <PackageReference Include="HoneyDrunk.Standards" Version="0.3.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -40,7 +40,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.201" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.401" />
   </ItemGroup>
 
   <ItemGroup>

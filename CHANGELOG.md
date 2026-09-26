@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.8.1] - 2026-09-26
+
+### Changed
+
+- Refresh stable NuGet dependencies; preserve target frameworks and HoneyDrunk public contracts.
+
+| Dependency | Previous | Updated |
+| --- | --- | --- |
+| AWSSDK.SSO | 4.0.2.31 | 4.0.100.16 |
+| AWSSDK.SSOOIDC | 4.0.4 | 4.0.100.15 |
+| AWSSDK.SecretsManager | 4.0.4.24 | 4.0.100.14 |
+| Azure.Security.KeyVault.Secrets | 4.11.0 | 4.11.1 |
+| Microsoft.Azure.AppConfiguration.AspNetCore | 8.5.0 | 8.6.0 |
+| Microsoft.CodeAnalysis.NetAnalyzers | 10.0.201 | 10.0.401 |
+| Microsoft.Extensions.Caching.Memory | 10.0.8 | 10.0.12 |
+| Microsoft.Extensions.Configuration.Abstractions | 10.0.8 | 10.0.12 |
+| Microsoft.Extensions.Configuration.AzureAppConfiguration | 8.5.0 | 8.6.0 |
+| Microsoft.Extensions.Configuration.Binder | 10.0.8 | 10.0.12 |
+| Microsoft.Extensions.Configuration.Json | 10.0.8 | 10.0.12 |
+| Microsoft.Extensions.DependencyInjection | 10.0.8 | 10.0.12 |
+| Microsoft.Extensions.Options | 10.0.8 | 10.0.12 |
+| Microsoft.Extensions.Resilience | 10.6.0 | 10.10.0 |
+| Microsoft.FeatureManagement.AspNetCore | 4.5.0 | 4.8.0 |
+
+
 All notable changes to the HoneyDrunk.Vault repository are summarized here. The
 format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,6 +33,14 @@ This is the repository-level summary. For the full, detailed repository changelo
 and per-package CHANGELOGs, see
 [HoneyDrunk.Vault/CHANGELOG.md](HoneyDrunk.Vault/CHANGELOG.md). All Vault packages
 are versioned in lockstep.
+
+
+### Verified HoneyDrunk dependencies
+
+- HoneyDrunk.Kernel: 0.8.0 -> 0.8.1 (verified on NuGet.org).
+- HoneyDrunk.Kernel.Abstractions: 0.8.0 -> 0.8.1 (verified on NuGet.org).
+- HoneyDrunk.Standards: 0.2.9 -> 0.3.0 (verified on NuGet.org).
+- HoneyDrunk.Standards.Tests: 0.2.9 -> 0.3.0 (verified on NuGet.org).
 
 ## [Unreleased]
 

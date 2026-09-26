@@ -8,10 +8,10 @@
     <NoWarn>$(NoWarn);CA1873</NoWarn>
 
     <PackageId>HoneyDrunk.Vault.EventGrid</PackageId>
-    <Version>0.8.0</Version>
+    <Version>0.8.1</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Event Grid webhook helpers for HoneyDrunk.Vault cache invalidation.</Description>
-    <PackageReleaseNotes>v0.8.0: Version alignment with the HoneyDrunk.Vault 0.8.0 release. No behavior change. See CHANGELOG.md for details.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.8.1: Refresh stable dependencies while preserving target frameworks and HoneyDrunk public contracts.</PackageReleaseNotes>
     <PackageTags>vault;eventgrid;azure;webhook;secrets;cache;rotation</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -24,7 +24,7 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Messaging.EventGrid" Version="5.0.0" />
-    <PackageReference Include="HoneyDrunk.Standards" Version="0.2.9">
+    <PackageReference Include="HoneyDrunk.Standards" Version="0.3.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -39,7 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.201" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.401" />
   </ItemGroup>
 
   <ItemGroup>

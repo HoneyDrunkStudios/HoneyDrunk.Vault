@@ -21,3 +21,11 @@ dotnet test HoneyDrunk.Vault/HoneyDrunk.Vault.slnx -c Release --no-build
 Use the checked-in workflow and relevant test documentation for additional integration prerequisites, coverage and consumer checks. Do not use live resources or credentials merely to make a local check pass.
 
 Read the [engineering guide](docs/engineering-guide.md) for repository-specific contracts and patterns.
+
+## Code Review Rules
+
+Apply the [shared review criteria](https://github.com/HoneyDrunkStudios/HoneyDrunk.Standards/blob/main/HoneyDrunk.Standards/docs/CONVENTIONS.md#code-review) to changed behavior, using the repository boundaries above. Report actionable findings with the failing path, concrete impact and a small corrective action; disclose unavailable evidence. These rules grant no cross-repository access or merge authority.
+
+- Keep exported secrets/configuration contracts provider-neutral and SDK behavior inside the owning adapter. Check concrete existing access/cache helpers before accepting duplicate behavior or bypasses.
+- Trace cache keys, expiry, refresh and provider failure across tenant/environment boundaries and concurrent requests. Flag stale-secret success, credential exposure, unbounded retries or a fallback that broadens access; preserve cancellation and disposal.
+- Require contract and isolation/failure tests for changed providers and caches, including concurrent refresh where affected. Doubles prove their tested contract only; never request or log real secret values to establish review coverage.

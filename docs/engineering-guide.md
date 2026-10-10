@@ -1,4 +1,4 @@
-# HoneyDrunk.Vault - Copilot Instructions
+# HoneyDrunk.Vault engineering guide
 
 ## Node Identity
 
@@ -97,11 +97,11 @@ secretStore.SetSecret("api-key", "test-value");
 // Pass secretStore to your SUT
 ```
 
-### Mocking with ISecretStore
+### Substituting ISecretStore
 ```csharp
-var mockStore = new Mock<ISecretStore>();
-mockStore.Setup(s => s.GetSecretAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
-    .ReturnsAsync(new SecretValue(new SecretIdentifier("key"), "value", "v1"));
+var secretStore = Substitute.For<ISecretStore>();
+secretStore.GetSecretAsync(Arg.Any<SecretIdentifier>(), Arg.Any<CancellationToken>())
+    .Returns(new SecretValue(new SecretIdentifier("key"), "value", "v1"));
 ```
 
 ## Important Implementation Details
@@ -125,7 +125,7 @@ public sealed class MyService(ISecretStore secretStore, ILogger<MyService> logge
 - **`/docs/`** - Comprehensive documentation by domain (start with `FILE_GUIDE.md`)
 - **`/HoneyDrunk.Vault/HoneyDrunk.Vault/`** - Core library with abstractions
 - **`/HoneyDrunk.Vault/HoneyDrunk.Vault.Providers.*/`** - Provider implementations
-- **`/HoneyDrunk.Vault/HoneyDrunk.Vault.Tests/`** - Unit tests using xUnit + Moq
+- **`/HoneyDrunk.Vault/HoneyDrunk.Vault.Tests/`** - Unit tests using HoneyDrunk.Standards.Tests (xUnit, NSubstitute, AwesomeAssertions)
 
 ## Dependencies
 - **HoneyDrunk.Kernel** - Lifecycle, health, and telemetry integration (external)

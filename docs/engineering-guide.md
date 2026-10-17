@@ -16,7 +16,7 @@ Vault is the Grid's canonical source of secrets and configuration. Other Nodes c
 
 ## Architecture Quick Reference
 
-### Core Abstractions (`HoneyDrunk.Vault/Abstractions/`)
+### Core Abstractions (`src/HoneyDrunk.Vault/Abstractions/`)
 
 **Exported Contracts** (cross-Node consumption):
 - **`ISecretStore`** - Primary interface for secret access. Inject this in business logic.
@@ -30,7 +30,7 @@ Vault is the Grid's canonical source of secrets and configuration. Other Nodes c
 ### Provider Slot Pattern
 Vault is a **provider slot Node**—provider packages implement `ISecretProvider` / `IConfigSource` and plug into the slot:
 ```
-HoneyDrunk.Vault.Providers.{Name}/
+src/HoneyDrunk.Vault.Providers.{Name}/
 ├── Configuration/     # {Name}Options class (provider-specific)
 ├── Extensions/        # AddVaultWith{Name}() or AddVault{Name}() extension method
 └── Services/          # {Name}SecretStore implementing ISecretStore + ISecretProvider
@@ -124,7 +124,7 @@ public sealed class MyService(ISecretStore secretStore, ILogger<MyService> logge
 ## File Structure Reference
 - **`/docs/`** - Comprehensive documentation by domain (start with `FILE_GUIDE.md`)
 - **`/src/HoneyDrunk.Vault/`** - Core library with abstractions
-- **`/HoneyDrunk.Vault/HoneyDrunk.Vault.Providers.*/`** - Provider implementations
+- **`/src/HoneyDrunk.Vault.Providers.*/`** - Provider implementations
 - **`/tests/HoneyDrunk.Vault.Tests/`** - Unit tests using HoneyDrunk.Standards.Tests (xUnit, NSubstitute, AwesomeAssertions)
 
 ## Dependencies

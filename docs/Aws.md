@@ -20,7 +20,7 @@
 
 AWS Secrets Manager provider for secure secret management in AWS-hosted applications. Integrates with AWS Secrets Manager for centralized secret storage with IAM-based access control.
 
-**Location:** `HoneyDrunk.Vault.Providers.Aws/`
+**Location:** `src/HoneyDrunk.Vault.Providers.Aws/`
 
 **Provider Contract:** The AWS provider implements `ISecretProvider` (backend primitive). `ISecretStore` is provided by Vault core and composes all configured providers. Application code should inject `ISecretStore`, not the provider directly. This provider does not implement `IConfigSource`; use another provider (File, Configuration, Azure KV) for typed configuration access.
 

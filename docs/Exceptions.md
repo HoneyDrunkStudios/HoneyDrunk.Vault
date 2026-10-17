@@ -17,7 +17,7 @@
 
 Custom exception types for vault operations. These exceptions provide structured error information for handling vault-specific failures.
 
-**Location:** `HoneyDrunk.Vault/Exceptions/`
+**Location:** `src/HoneyDrunk.Vault/Exceptions/`
 
 **Design Philosophy:** Vault does not define a common `VaultException` base type. This is intentional to avoid overly broad catch patterns and encourage precise error handling.
 

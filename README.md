@@ -1,5 +1,10 @@
 # HoneyDrunk.Vault
 
+## Repository layout
+
+Open `HoneyDrunk.Vault.slnx` from the repository root and run `dotnet build`, `dotnet test` and `dotnet pack` from there. Production projects live in `src/` (`HoneyDrunk.Vault`, `HoneyDrunk.Vault.Providers.*` and `HoneyDrunk.Vault.EventGrid`); unit, integration and canary tests live in `tests/HoneyDrunk.Vault.Tests/`. Shared build configuration stays at the root; project names, namespaces and package identities are unchanged. Component guides stay in `docs/`, each package keeps its `CHANGELOG.md` beside its project under `src/`, and the repository changelog remains at `HoneyDrunk.Vault/CHANGELOG.md`.
+
+
 A secrets and configuration management library designed as a first-class Kernel-aware node for the HoneyDrunk.OS ecosystem.
 
 **Vault is the Grid-facing abstraction for secrets and configuration.** Applications depend on Vault, Vault depends on providers.

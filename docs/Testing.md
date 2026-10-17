@@ -19,7 +19,7 @@
 
 Testing strategies for applications using HoneyDrunk.Vault. This guide covers unit testing, integration testing, and mocking patterns.
 
-**Location:** `HoneyDrunk.Vault.Tests/`
+**Location:** `tests/HoneyDrunk.Vault.Tests/`
 
 ---
 
@@ -620,7 +620,7 @@ public async Task VaultReadiness_AfterWarmup_ReturnsReady()
 
 Vault includes canary tests that enforce architectural invariants. These tests run in CI to ensure Vault respects its boundaries with Kernel and provider packages remain isolated.
 
-**Location:** `HoneyDrunk.Vault.Tests/Canary/`
+**Location:** `tests/HoneyDrunk.Vault.Tests/Canary/`
 
 ### Invariants Enforced
 

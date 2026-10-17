@@ -16,7 +16,7 @@
 
 Health monitoring integration for the vault system. Integrates with Kernel health aggregation for Kubernetes readiness/liveness probes.
 
-**Location:** `HoneyDrunk.Vault/Health/`
+**Location:** `src/HoneyDrunk.Vault/Health/`
 
 **Exception Semantics:** `VaultHealthContributor` distinguishes between configuration errors (`SecretNotFoundException`) and operational failures (`VaultOperationException`). Only operational failures mark Vault as Unhealthy.
 

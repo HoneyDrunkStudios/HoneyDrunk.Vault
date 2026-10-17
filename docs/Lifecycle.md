@@ -15,7 +15,7 @@
 
 Startup integration for the vault system. Validates configuration and warms caches during application startup.
 
-**Location:** `HoneyDrunk.Vault/Lifecycle/`
+**Location:** `src/HoneyDrunk.Vault/Lifecycle/`
 
 **Kernel Integration:** `VaultStartupHook` runs in a fully initialized Kernel environment. Telemetry and `GridContext` are active, ensuring all warmup operations produce structured traces.
 

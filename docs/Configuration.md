@@ -20,7 +20,7 @@
 
 Configuration classes for the vault system. These options control caching, resilience, and provider behavior.
 
-**Location:** `HoneyDrunk.Vault/Configuration/`
+**Location:** `src/HoneyDrunk.Vault/Configuration/`
 
 ---
 

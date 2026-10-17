@@ -374,96 +374,106 @@ public class InfrastructureHelper(IVaultClient vaultClient)
 ## 📦 Project Structure
 
 ```
-HoneyDrunk.Vault/
-├── HoneyDrunk.Vault/                  # Core abstractions and orchestrator
-│   ├── Abstractions/                  # Contracts and interfaces
-│   │   ├── IConfigProvider.cs         # EXPORTED: Typed configuration access
-│   │   ├── IConfigSource.cs           # INTERNAL: Raw configuration source
-│   │   ├── ISecretProvider.cs         # INTERNAL: Backend-specific provider
-│   │   ├── ISecretStore.cs            # EXPORTED: Primary secret access
-│   │   └── IVaultClient.cs            # INTERNAL: Unified orchestrator
-│   ├── Configuration/                 # Core settings (provider-agnostic)
-│   │   ├── VaultOptions.cs            # Main vault options
-│   │   ├── VaultCacheOptions.cs       # Cache configuration
-│   │   ├── VaultResilienceOptions.cs  # Retry/circuit breaker config
-│   │   ├── ProviderRegistration.cs    # Generic provider registration
-│   │   └── ProviderType.cs            # Provider type enumeration
-│   ├── Exceptions/                    # Custom exceptions
-│   │   ├── ConfigurationNotFoundException.cs
-│   │   ├── SecretNotFoundException.cs
-│   │   └── VaultOperationException.cs
-│   ├── Extensions/                    # DI extensions
-│   │   ├── HoneyDrunkBuilderExtensions.cs # AddVault() on IHoneyDrunkBuilder
-│   │   └── VaultServiceCollectionExtensions.cs # AddVaultCore()
-│   ├── Health/                        # Implements Kernel health contracts
-│   │   ├── VaultHealthContributor.cs  # Implements IHealthContributor
-│   │   └── VaultReadinessContributor.cs # Implements IReadinessContributor
-│   ├── Lifecycle/                     # Implements Kernel lifecycle contracts
-│   │   └── VaultStartupHook.cs        # Implements IStartupHook
-│   ├── Models/                        # Domain models
-│   │   ├── SecretIdentifier.cs        # Secret lookup key
-│   │   ├── SecretValue.cs             # Retrieved secret
-│   │   ├── SecretVersion.cs           # Version metadata
-│   │   ├── VaultResult.cs             # Factory methods
-│   │   ├── VaultResult{T}.cs          # Success/failure result
-│   │   └── VaultScope.cs              # Environment/tenant scope
-│   ├── Services/                      # Internal services
-│   │   ├── CompositeConfigSource.cs   # Provider orchestration for config
-│   │   ├── CompositeSecretStore.cs    # Provider orchestration for secrets
-│   │   ├── SecretCache.cs             # In-memory caching with TTL
-│   │   └── VaultClient.cs             # Internal orchestrator
-│   └── Telemetry/                     # Observability (Pulse-compatible)
-│       ├── VaultTelemetry.cs          # ActivitySource spans
-│       └── VaultTelemetryTags.cs      # Standard tag names
+HoneyDrunk.Vault/                          # Repository root
+├── HoneyDrunk.Vault.slnx                  # Solution; build, test and pack from here
+├── docs/                                  # Documentation by domain (this guide)
+├── HoneyDrunk.Vault/
+│   └── CHANGELOG.md                       # Repository changelog (retained location)
+├── src/
+│   ├── HoneyDrunk.Vault/                  # Core abstractions and orchestrator
+│   │   ├── Abstractions/                  # Contracts and interfaces
+│   │   │   ├── IConfigProvider.cs         # EXPORTED: Typed configuration access
+│   │   │   ├── IConfigSource.cs           # INTERNAL: Raw configuration source
+│   │   │   ├── ISecretProvider.cs         # INTERNAL: Backend-specific provider
+│   │   │   ├── ISecretStore.cs            # EXPORTED: Primary secret access
+│   │   │   └── IVaultClient.cs            # INTERNAL: Unified orchestrator
+│   │   ├── Configuration/                 # Core settings (provider-agnostic)
+│   │   │   ├── VaultOptions.cs            # Main vault options
+│   │   │   ├── VaultCacheOptions.cs       # Cache configuration
+│   │   │   ├── VaultResilienceOptions.cs  # Retry/circuit breaker config
+│   │   │   ├── ProviderRegistration.cs    # Generic provider registration
+│   │   │   └── ProviderType.cs            # Provider type enumeration
+│   │   ├── Exceptions/                    # Custom exceptions
+│   │   │   ├── ConfigurationNotFoundException.cs
+│   │   │   ├── SecretNotFoundException.cs
+│   │   │   └── VaultOperationException.cs
+│   │   ├── Extensions/                    # DI extensions
+│   │   │   ├── HoneyDrunkBuilderExtensions.cs # AddVault() on IHoneyDrunkBuilder
+│   │   │   └── VaultServiceCollectionExtensions.cs # AddVaultCore()
+│   │   ├── Health/                        # Implements Kernel health contracts
+│   │   │   ├── VaultHealthContributor.cs  # Implements IHealthContributor
+│   │   │   └── VaultReadinessContributor.cs # Implements IReadinessContributor
+│   │   ├── Lifecycle/                     # Implements Kernel lifecycle contracts
+│   │   │   └── VaultStartupHook.cs        # Implements IStartupHook
+│   │   ├── Models/                        # Domain models
+│   │   │   ├── SecretIdentifier.cs        # Secret lookup key
+│   │   │   ├── SecretValue.cs             # Retrieved secret
+│   │   │   ├── SecretVersion.cs           # Version metadata
+│   │   │   ├── VaultResult.cs             # Factory methods
+│   │   │   ├── VaultResult{T}.cs          # Success/failure result
+│   │   │   └── VaultScope.cs              # Environment/tenant scope
+│   │   ├── Services/                      # Internal services
+│   │   │   ├── CompositeConfigSource.cs   # Provider orchestration for config
+│   │   │   ├── CompositeSecretStore.cs    # Provider orchestration for secrets
+│   │   │   ├── SecretCache.cs             # In-memory caching with TTL
+│   │   │   └── VaultClient.cs             # Internal orchestrator
+│   │   └── Telemetry/                     # Observability (Pulse-compatible)
+│   │       ├── VaultTelemetry.cs          # ActivitySource spans
+│   │       └── VaultTelemetryTags.cs      # Standard tag names
+│   │
+│   ├── HoneyDrunk.Vault.Providers.File/   # Provider slot: File-based
+│   │   ├── Configuration/
+│   │   │   └── FileVaultOptions.cs        # Provider-specific options
+│   │   ├── Extensions/
+│   │   │   └── ServiceCollectionExtensions.cs # AddVaultWithFile()
+│   │   └── Services/
+│   │       ├── FileConfigSource.cs        # Implements IConfigSource
+│   │       └── FileSecretStore.cs         # Implements ISecretStore + ISecretProvider (dual role for off-grid usage)
+│   │
+│   ├── HoneyDrunk.Vault.Providers.AzureKeyVault/ # Provider slot: Azure Key Vault
+│   │   ├── Configuration/
+│   │   │   └── AzureKeyVaultOptions.cs    # Provider-specific options
+│   │   ├── Extensions/
+│   │   │   └── ServiceCollectionExtensions.cs # AddVaultWithAzureKeyVault()
+│   │   └── Services/
+│   │       ├── AzureKeyVaultConfigSource.cs # Implements IConfigSource
+│   │       └── AzureKeyVaultSecretStore.cs  # Implements ISecretStore + ISecretProvider
+│   │
+│   ├── HoneyDrunk.Vault.Providers.Aws/    # Provider slot: AWS Secrets Manager
+│   │   ├── Configuration/
+│   │   │   └── AwsSecretsManagerOptions.cs # Provider-specific options
+│   │   ├── Extensions/
+│   │   │   └── ServiceCollectionExtensions.cs # AddVaultWithAwsSecretsManager()
+│   │   └── Services/
+│   │       └── AwsSecretsManagerSecretStore.cs # Implements ISecretStore + ISecretProvider
+│   │
+│   ├── HoneyDrunk.Vault.Providers.InMemory/ # Provider slot: In-memory (testing)
+│   │   ├── Configuration/
+│   │   │   └── InMemoryVaultOptions.cs    # Provider-specific options
+│   │   ├── Extensions/
+│   │   │   └── ServiceCollectionExtensions.cs # AddVaultInMemory()
+│   │   └── Services/
+│   │       ├── InMemoryConfigSource.cs    # Implements IConfigSource
+│   │       └── InMemorySecretStore.cs     # Implements ISecretStore + ISecretProvider
+│   │
+│   ├── HoneyDrunk.Vault.Providers.Configuration/ # Provider slot: IConfiguration bridge
+│   │   ├── Extensions/
+│   │   │   └── ServiceCollectionExtensions.cs # AddVaultWithConfiguration()
+│   │   └── Services/
+│   │       ├── ConfigurationConfigSource.cs # Implements IConfigSource
+│   │       └── ConfigurationSecretStore.cs  # Implements ISecretStore + ISecretProvider
+│   │
+│   ├── HoneyDrunk.Vault.Providers.AppConfiguration/ # Provider slot: Azure App Configuration
+│   └── HoneyDrunk.Vault.EventGrid/        # Azure Event Grid cache-invalidation webhook
 │
-├── HoneyDrunk.Vault.Providers.File/   # Provider slot: File-based
-│   ├── Configuration/
-│   │   └── FileVaultOptions.cs        # Provider-specific options
-│   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithFile()
-│   └── Services/
-│       ├── FileConfigSource.cs        # Implements IConfigSource
-│       └── FileSecretStore.cs         # Implements ISecretStore + ISecretProvider (dual role for off-grid usage)
-│
-├── HoneyDrunk.Vault.Providers.AzureKeyVault/ # Provider slot: Azure Key Vault
-│   ├── Configuration/
-│   │   └── AzureKeyVaultOptions.cs    # Provider-specific options
-│   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithAzureKeyVault()
-│   └── Services/
-│       ├── AzureKeyVaultConfigSource.cs # Implements IConfigSource
-│       └── AzureKeyVaultSecretStore.cs  # Implements ISecretStore + ISecretProvider
-│
-├── HoneyDrunk.Vault.Providers.Aws/    # Provider slot: AWS Secrets Manager
-│   ├── Configuration/
-│   │   └── AwsSecretsManagerOptions.cs # Provider-specific options
-│   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithAwsSecretsManager()
-│   └── Services/
-│       └── AwsSecretsManagerSecretStore.cs # Implements ISecretStore + ISecretProvider
-│
-├── HoneyDrunk.Vault.Providers.InMemory/ # Provider slot: In-memory (testing)
-│   ├── Configuration/
-│   │   └── InMemoryVaultOptions.cs    # Provider-specific options
-│   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultInMemory()
-│   └── Services/
-│       ├── InMemoryConfigSource.cs    # Implements IConfigSource
-│       └── InMemorySecretStore.cs     # Implements ISecretStore + ISecretProvider
-│
-├── HoneyDrunk.Vault.Providers.Configuration/ # Provider slot: IConfiguration bridge
-│   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs # AddVaultWithConfiguration()
-│   └── Services/
-│       ├── ConfigurationConfigSource.cs # Implements IConfigSource
-│       └── ConfigurationSecretStore.cs  # Implements ISecretStore + ISecretProvider
-│
-└── HoneyDrunk.Vault.Tests/            # Unit and integration tests
-    ├── Configuration/                 # Configuration tests
-    ├── Services/
-    │   ├── InMemorySecretStoreTests.cs
-    │   └── SecretCacheTests.cs
-    └── Telemetry/                     # Telemetry tests
+└── tests/
+    └── HoneyDrunk.Vault.Tests/            # Unit and integration tests
+        ├── Canary/                        # Architecture canary tests
+        ├── Configuration/                 # Configuration tests
+        ├── Services/
+        │   ├── InMemorySecretStoreTests.cs
+        │   └── SecretCacheTests.cs
+        └── Telemetry/                     # Telemetry tests
 ```
 
 ---
@@ -554,7 +564,7 @@ Typical app-level usage patterns:
 
 ### Official Documentation
 - [README.md](../README.md) - Project overview and quick start
-- [CHANGELOG.md](../HoneyDrunk.Vault/HoneyDrunk.Vault/CHANGELOG.md) - Version history and migration guides
+- [CHANGELOG.md](../src/HoneyDrunk.Vault/CHANGELOG.md) - Version history and migration guides
 
 ### Related Projects
 - [HoneyDrunk.Kernel](https://github.com/HoneyDrunkStudios/HoneyDrunk.Kernel) - Core Grid primitives

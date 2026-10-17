@@ -28,7 +28,7 @@ Core contracts for Vault, split into exported and internal:
 - **`IConfigSource`** — Raw configuration source
 - **`IVaultClient`** — Internal orchestrator
 
-**Location:** `HoneyDrunk.Vault/Abstractions/`
+**Location:** `src/HoneyDrunk.Vault/Abstractions/`
 
 Providers implement the internal interfaces. Applications and other Nodes depend only on the exported ones.
 

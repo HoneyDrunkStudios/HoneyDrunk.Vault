@@ -16,7 +16,7 @@
 
 Telemetry integration for vault operations. Creates activities for distributed tracing and enriches logs with context information.
 
-**Location:** `HoneyDrunk.Vault/Telemetry/`
+**Location:** `src/HoneyDrunk.Vault/Telemetry/`
 
 **Pipeline Placement:** `VaultTelemetry` is invoked inside the runtime store pipeline (a decorator around provider operations). `VaultClient` does not invoke telemetry directly—telemetry wraps the composed `ISecretStore` pipeline:
 

@@ -20,7 +20,7 @@
 
 Azure Key Vault provider for enterprise-grade secret management. Integrates with Azure Key Vault for centralized, secure secret storage with access control and auditing.
 
-**Location:** `HoneyDrunk.Vault.Providers.AzureKeyVault/`
+**Location:** `src/HoneyDrunk.Vault.Providers.AzureKeyVault/`
 
 **Provider Contract:** The Azure Key Vault provider implements `ISecretProvider` (backend secret access) and `IConfigSource` (string-based config retrieval). `ISecretStore` and `IConfigProvider` are Vault core facades that compose all providers. Application code should inject `ISecretStore` or `IConfigProvider`, not the provider directly.
 

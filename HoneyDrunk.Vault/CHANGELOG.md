@@ -6,14 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 **Note:** See individual package CHANGELOGs for detailed changes:
-- [HoneyDrunk.Vault CHANGELOG](HoneyDrunk.Vault/CHANGELOG.md)
-- [HoneyDrunk.Vault.Providers.AzureKeyVault CHANGELOG](HoneyDrunk.Vault.Providers.AzureKeyVault/CHANGELOG.md)
-- [HoneyDrunk.Vault.Providers.Aws CHANGELOG](HoneyDrunk.Vault.Providers.Aws/CHANGELOG.md)
-- [HoneyDrunk.Vault.Providers.Configuration CHANGELOG](HoneyDrunk.Vault.Providers.Configuration/CHANGELOG.md)
-- [HoneyDrunk.Vault.Providers.File CHANGELOG](HoneyDrunk.Vault.Providers.File/CHANGELOG.md)
-- [HoneyDrunk.Vault.Providers.InMemory CHANGELOG](HoneyDrunk.Vault.Providers.InMemory/CHANGELOG.md)
-- [HoneyDrunk.Vault.Providers.AppConfiguration CHANGELOG](HoneyDrunk.Vault.Providers.AppConfiguration/CHANGELOG.md)
-- [HoneyDrunk.Vault.EventGrid CHANGELOG](HoneyDrunk.Vault.EventGrid/CHANGELOG.md)
+- [HoneyDrunk.Vault CHANGELOG](../src/HoneyDrunk.Vault/CHANGELOG.md)
+- [HoneyDrunk.Vault.Providers.AzureKeyVault CHANGELOG](../src/HoneyDrunk.Vault.Providers.AzureKeyVault/CHANGELOG.md)
+- [HoneyDrunk.Vault.Providers.Aws CHANGELOG](../src/HoneyDrunk.Vault.Providers.Aws/CHANGELOG.md)
+- [HoneyDrunk.Vault.Providers.Configuration CHANGELOG](../src/HoneyDrunk.Vault.Providers.Configuration/CHANGELOG.md)
+- [HoneyDrunk.Vault.Providers.File CHANGELOG](../src/HoneyDrunk.Vault.Providers.File/CHANGELOG.md)
+- [HoneyDrunk.Vault.Providers.InMemory CHANGELOG](../src/HoneyDrunk.Vault.Providers.InMemory/CHANGELOG.md)
+- [HoneyDrunk.Vault.Providers.AppConfiguration CHANGELOG](../src/HoneyDrunk.Vault.Providers.AppConfiguration/CHANGELOG.md)
+- [HoneyDrunk.Vault.EventGrid CHANGELOG](../src/HoneyDrunk.Vault.EventGrid/CHANGELOG.md)
 
 ---
 

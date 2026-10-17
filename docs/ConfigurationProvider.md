@@ -19,7 +19,7 @@
 
 IConfiguration-based provider that bridges ASP.NET Core's configuration system to the vault abstractions. Allows secrets and configuration from `appsettings.json`, environment variables, or any `IConfiguration` source to be accessed through the vault interface.
 
-**Location:** `HoneyDrunk.Vault.Providers.Configuration/`
+**Location:** `src/HoneyDrunk.Vault.Providers.Configuration/`
 
 **Use Cases:**
 - Bridging existing configuration to vault interface

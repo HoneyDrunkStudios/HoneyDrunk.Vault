@@ -75,7 +75,7 @@ builder.Services.AddVaultWithAwsSecretsManager(options => { ... });
 ## Development Commands
 
 ```powershell
-# Build solution from HoneyDrunk.Vault/ directory
+# Build the solution from the repository root
 dotnet build HoneyDrunk.Vault.slnx
 
 # Run all tests

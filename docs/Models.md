@@ -20,7 +20,7 @@
 
 Domain models that represent secrets, configuration, and operation results. These are immutable records for thread-safety and testability.
 
-**Location:** `HoneyDrunk.Vault/Models/`
+**Location:** `src/HoneyDrunk.Vault/Models/`
 
 **Pure Models:** None of these models perform validation, provider resolution, access control, or caching. Those responsibilities belong to `VaultClient` and provider implementations.
 

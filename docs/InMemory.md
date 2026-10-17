@@ -19,7 +19,7 @@
 
 In-memory provider for unit testing and integration testing. Stores secrets and configuration entirely in memory with no external dependencies.
 
-**Location:** `HoneyDrunk.Vault.Providers.InMemory/`
+**Location:** `src/HoneyDrunk.Vault.Providers.InMemory/`
 
 **Use Cases:**
 - Unit tests

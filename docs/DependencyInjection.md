@@ -16,7 +16,7 @@
 
 Extension methods for registering vault services with the dependency injection container.
 
-**Location:** `HoneyDrunk.Vault/Extensions/`
+**Location:** `src/HoneyDrunk.Vault/Extensions/`
 
 ---
 

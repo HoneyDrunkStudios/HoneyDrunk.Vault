@@ -374,7 +374,11 @@ public class InfrastructureHelper(IVaultClient vaultClient)
 ## 📦 Project Structure
 
 ```
-HoneyDrunk.Vault/
+HoneyDrunk.Vault/                          # Repository root
+├── HoneyDrunk.Vault.slnx                  # Solution; build, test and pack from here
+├── docs/                                  # Documentation by domain (this guide)
+├── HoneyDrunk.Vault/
+│   └── CHANGELOG.md                       # Repository changelog (retained location)
 ├── src/
 │   ├── HoneyDrunk.Vault/                  # Core abstractions and orchestrator
 │   │   ├── Abstractions/                  # Contracts and interfaces
@@ -459,8 +463,12 @@ HoneyDrunk.Vault/
 │   │       ├── ConfigurationConfigSource.cs # Implements IConfigSource
 │   │       └── ConfigurationSecretStore.cs  # Implements ISecretStore + ISecretProvider
 │   │
+│   ├── HoneyDrunk.Vault.Providers.AppConfiguration/ # Provider slot: Azure App Configuration
+│   └── HoneyDrunk.Vault.EventGrid/        # Azure Event Grid cache-invalidation webhook
+│
 └── tests/
     └── HoneyDrunk.Vault.Tests/            # Unit and integration tests
+        ├── Canary/                        # Architecture canary tests
         ├── Configuration/                 # Configuration tests
         ├── Services/
         │   ├── InMemorySecretStoreTests.cs

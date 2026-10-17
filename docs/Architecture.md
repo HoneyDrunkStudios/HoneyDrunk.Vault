@@ -19,7 +19,7 @@
 
 HoneyDrunk.Vault follows a layered architecture that separates abstractions from implementations, enabling provider-agnostic secret and configuration access.
 
-**Location:** `HoneyDrunk.Vault/docs/Architecture.md`
+**Location:** `docs/Architecture.md`
 
 **Scope:** Node-level architecture for HoneyDrunk.Vault and its provider packages
 

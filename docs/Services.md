@@ -17,7 +17,7 @@
 
 Core service implementations that orchestrate vault operations. These services coordinate caching, provider resolution, and error handling.
 
-**Location:** `HoneyDrunk.Vault/Services/`
+**Location:** `src/HoneyDrunk.Vault/Services/`
 
 **Orchestration Pipeline:**
 ```

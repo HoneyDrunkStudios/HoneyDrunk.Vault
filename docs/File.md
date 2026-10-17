@@ -20,7 +20,7 @@
 
 File-based secret and configuration provider designed for local development and testing. Stores secrets and configuration in JSON files on the local filesystem.
 
-**Location:** `HoneyDrunk.Vault.Providers.File/`
+**Location:** `src/HoneyDrunk.Vault.Providers.File/`
 
 **Use Cases:**
 - Local development without cloud dependencies

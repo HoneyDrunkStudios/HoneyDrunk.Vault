@@ -91,9 +91,9 @@ public sealed class AzureKeyVaultSecretStoreTests
         disabled.Enabled = false;
         var withoutTimestamp = SecretModelFactory.SecretProperties(version: "fallback");
         withoutTimestamp.Enabled = true;
-        var page = Page<SecretProperties>.FromValues(new[] { enabled, disabled, withoutTimestamp }, null, Substitute.For<Response>());
-        client.GetPropertiesOfSecretVersionsAsync("example", Arg.Any<CancellationToken>()).Returns(AsyncPageable<SecretProperties>.FromPages(new[] { page }));
-        client.GetPropertiesOfSecretsAsync(Arg.Any<CancellationToken>()).Returns(AsyncPageable<SecretProperties>.FromPages(Array.Empty<Page<SecretProperties>>()));
+        var page = Page<SecretProperties>.FromValues([enabled, disabled, withoutTimestamp], null, Substitute.For<Response>());
+        client.GetPropertiesOfSecretVersionsAsync("example", Arg.Any<CancellationToken>()).Returns(AsyncPageable<SecretProperties>.FromPages([page]));
+        client.GetPropertiesOfSecretsAsync(Arg.Any<CancellationToken>()).Returns(AsyncPageable<SecretProperties>.FromPages([]));
         var store = CreateStore(client);
         var before = DateTimeOffset.UtcNow;
 

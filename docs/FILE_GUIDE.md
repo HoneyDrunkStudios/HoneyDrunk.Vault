@@ -554,7 +554,7 @@ Typical app-level usage patterns:
 
 ### Official Documentation
 - [README.md](../README.md) - Project overview and quick start
-- [CHANGELOG.md](../HoneyDrunk.Vault/HoneyDrunk.Vault/CHANGELOG.md) - Version history and migration guides
+- [CHANGELOG.md](../src/HoneyDrunk.Vault/CHANGELOG.md) - Version history and migration guides
 
 ### Related Projects
 - [HoneyDrunk.Kernel](https://github.com/HoneyDrunkStudios/HoneyDrunk.Kernel) - Core Grid primitives

@@ -24,7 +24,7 @@ jobs:
       dotnet-version: '10.0.x'
       configuration: 'Release'
       runs-on: 'ubuntu-latest'
-      working-directory: 'HoneyDrunk.Vault'
+      working-directory: '.'
       project-path: 'HoneyDrunk.Vault.slnx'
       enable-secret-scan: true
       enable-accessibility-check: false
@@ -57,7 +57,7 @@ jobs:
     with:
       dotnet-version: '10.0.x'
       runs-on: 'ubuntu-latest'
-      working-directory: 'HoneyDrunk.Vault'
+      working-directory: '.'
       project-path: 'HoneyDrunk.Vault.slnx'
       sonar-organization: 'honeydrunkstudios'
       sonar-project-key: 'honeydrunkstudios_HoneyDrunk.Vault'
@@ -124,7 +124,7 @@ jobs:
       dotnet-version: '10.0.x'
       configuration: 'Release'
       runs-on: 'ubuntu-latest'
-      working-directory: 'HoneyDrunk.Vault'
+      working-directory: '.'
       project-path: 'HoneyDrunk.Vault.slnx'
       actions-ref: 'main'
     secrets:

@@ -123,9 +123,9 @@ public sealed class MyService(ISecretStore secretStore, ILogger<MyService> logge
 
 ## File Structure Reference
 - **`/docs/`** - Comprehensive documentation by domain (start with `FILE_GUIDE.md`)
-- **`/HoneyDrunk.Vault/HoneyDrunk.Vault/`** - Core library with abstractions
+- **`/src/HoneyDrunk.Vault/`** - Core library with abstractions
 - **`/HoneyDrunk.Vault/HoneyDrunk.Vault.Providers.*/`** - Provider implementations
-- **`/HoneyDrunk.Vault/HoneyDrunk.Vault.Tests/`** - Unit tests using HoneyDrunk.Standards.Tests (xUnit, NSubstitute, AwesomeAssertions)
+- **`/tests/HoneyDrunk.Vault.Tests/`** - Unit tests using HoneyDrunk.Standards.Tests (xUnit, NSubstitute, AwesomeAssertions)
 
 ## Dependencies
 - **HoneyDrunk.Kernel** - Lifecycle, health, and telemetry integration (external)

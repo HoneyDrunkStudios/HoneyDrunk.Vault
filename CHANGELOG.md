@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.8.2] - 2026-11-05
+
+### Changed
+
+- Refresh NuGet dependencies and adopt upstream package releases in dependency order. Preserve target frameworks and public contracts.
+
+| Dependency | Previous | Updated |
+| --- | --- | --- |
+| AWSSDK.SSO | 4.0.100.16 | 4.0.100.25 |
+| AWSSDK.SSOOIDC | 4.0.100.15 | 4.0.100.24 |
+| AWSSDK.SecretsManager | 4.0.100.14 | 4.0.100.24 |
+| Azure.Security.KeyVault.Secrets | 4.11.1 | 4.12.0 |
+| HoneyDrunk.Kernel | 0.8.1 | 0.8.2 |
+| HoneyDrunk.Kernel.Abstractions | 0.8.1 | 0.8.2 |
+| HoneyDrunk.Standards | 0.3.0 | 0.4.3 |
+| HoneyDrunk.Standards.Tests | 0.3.0 | 0.4.3 |
+| Microsoft.Azure.AppConfiguration.AspNetCore | 8.6.0 | 8.6.1 |
+| Microsoft.CodeAnalysis.NetAnalyzers | 10.0.401 | 10.0.403 |
+| Microsoft.Extensions.Caching.Memory | 10.0.12 | 10.0.14 |
+| Microsoft.Extensions.Configuration.Abstractions | 10.0.12 | 10.0.14 |
+| Microsoft.Extensions.Configuration.AzureAppConfiguration | 8.6.0 | 8.6.1 |
+| Microsoft.Extensions.Configuration.Binder | 10.0.12 | 10.0.14 |
+| Microsoft.Extensions.Configuration.Json | 10.0.12 | 10.0.14 |
+| Microsoft.Extensions.DependencyInjection | 10.0.12 | 10.0.14 |
+| Microsoft.Extensions.Options | 10.0.12 | 10.0.14 |
+| Microsoft.Extensions.Resilience | 10.10.0 | 10.11.0 |
+
 ## [0.8.1] - 2026-09-26
 
 ### Changed

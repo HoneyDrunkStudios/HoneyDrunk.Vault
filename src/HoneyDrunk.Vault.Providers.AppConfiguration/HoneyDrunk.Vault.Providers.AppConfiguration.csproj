@@ -8,10 +8,10 @@
     <NoWarn>$(NoWarn);CA1873</NoWarn>
 
     <PackageId>HoneyDrunk.Vault.Providers.AppConfiguration</PackageId>
-    <Version>0.8.1</Version>
+    <Version>0.8.2</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Azure App Configuration bootstrap extensions for HoneyDrunk.Vault using environment variable discovery.</Description>
-    <PackageReleaseNotes>v0.8.1: Refresh stable dependencies while preserving target frameworks and HoneyDrunk public contracts.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.8.2: Refresh NuGet dependencies and adopt published upstream packages; preserve target frameworks and public contracts.</PackageReleaseNotes>
     <PackageTags>vault;provider;app-configuration;azure;feature-flags;configuration;bootstrap</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -25,13 +25,13 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
-    <PackageReference Include="HoneyDrunk.Standards" Version="0.3.0">
+    <PackageReference Include="HoneyDrunk.Standards" Version="0.4.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Azure.AppConfiguration.AspNetCore" Version="8.6.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="8.6.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Azure.AppConfiguration.AspNetCore" Version="8.6.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.AzureAppConfiguration" Version="8.6.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
     <PackageReference Include="Microsoft.FeatureManagement.AspNetCore" Version="4.8.0" />
   </ItemGroup>
 
@@ -40,7 +40,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.401" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.403" />
   </ItemGroup>
 
   <ItemGroup>

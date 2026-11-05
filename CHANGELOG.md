@@ -44,6 +44,8 @@ are versioned in lockstep.
 
 ## [Unreleased]
 
+- Update HoneyDrunk.Standards and HoneyDrunk.Standards.Tests to 0.4.1 to consume the architecture analyzer and TODO issue-link fixes.
+
 ## [0.8.0] - 2026-06-04
 
 ### Added

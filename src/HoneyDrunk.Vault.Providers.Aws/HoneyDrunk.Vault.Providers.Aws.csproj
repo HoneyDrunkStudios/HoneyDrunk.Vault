@@ -29,7 +29,7 @@
     <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.14" />
     <PackageReference Include="AWSSDK.SSO" Version="4.0.100.16" />
     <PackageReference Include="AWSSDK.SSOOIDC" Version="4.0.100.15" />
-    <PackageReference Include="HoneyDrunk.Standards" Version="0.3.0">
+    <PackageReference Include="HoneyDrunk.Standards" Version="0.4.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

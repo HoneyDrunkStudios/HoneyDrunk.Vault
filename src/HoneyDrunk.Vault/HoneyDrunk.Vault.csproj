@@ -9,10 +9,10 @@
 
     <!-- Package Metadata -->
     <PackageId>HoneyDrunk.Vault</PackageId>
-    <Version>0.8.1</Version>
+    <Version>0.8.2</Version>
     <Authors>HoneyDrunk Studios</Authors>
     <Description>Secrets and configuration management library for .NET. Provides a unified abstraction for accessing secrets from multiple providers (File, Azure Key Vault, AWS Secrets Manager, Configuration, In-Memory). Integrated with HoneyDrunk.Kernel v0.8.0 for lifecycle management, health reporting, and distributed telemetry.</Description>
-    <PackageReleaseNotes>v0.8.1: Refresh stable dependencies while preserving target frameworks and HoneyDrunk public contracts.</PackageReleaseNotes>
+    <PackageReleaseNotes>v0.8.2: Refresh NuGet dependencies and adopt published upstream packages; preserve target frameworks and public contracts.</PackageReleaseNotes>
     <PackageTags>vault;secrets;configuration;provider;cache;resilience;circuit-breaker;retry;azure-keyvault;aws;kernel;grid;distributed-tracing</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -26,19 +26,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HoneyDrunk.Kernel" Version="0.8.1" />
-    <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.8.1" />
-    <PackageReference Include="HoneyDrunk.Standards" Version="0.3.0">
+    <PackageReference Include="HoneyDrunk.Kernel" Version="0.8.2" />
+    <PackageReference Include="HoneyDrunk.Kernel.Abstractions" Version="0.8.2" />
+    <PackageReference Include="HoneyDrunk.Standards" Version="0.4.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Resilience" Version="10.10.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Resilience" Version="10.11.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.401" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.403" />
   </ItemGroup>
 
   <ItemGroup>

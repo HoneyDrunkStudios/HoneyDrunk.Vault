@@ -32,12 +32,7 @@ public sealed class CompositeConfigSource : IConfigSource, IConfigProvider
         _logger = logger;
 
         // Order providers by priority (ascending - lower number = higher priority)
-        Providers =
-        [
-            .. providers
-            .Where(p => p.Registration.IsEnabled && p.Provider.IsAvailable)
-            .OrderBy(p => p.Registration.Priority),
-        ];
+        Providers = [.. providers.Where(p => p.Registration.IsEnabled && p.Provider.IsAvailable).OrderBy(p => p.Registration.Priority)];
 
         if (Providers.Count == 0)
         {

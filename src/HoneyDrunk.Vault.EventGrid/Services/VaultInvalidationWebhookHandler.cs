@@ -16,6 +16,9 @@ namespace HoneyDrunk.Vault.EventGrid.Services;
 /// Handles Event Grid webhook requests that invalidate <see cref="ISecretCacheInvalidator"/> entries.
 /// This supports ADR-0006 Tier 3 and preserves invariant 21 by forcing the next read to resolve latest.
 /// </summary>
+/// <param name="secretStore">The secret store whose cached values are invalidated.</param>
+/// <param name="cacheInvalidator">The provider cache invalidator.</param>
+/// <param name="logger">The logger for this component.</param>
 public sealed class VaultInvalidationWebhookHandler(
     ISecretStore secretStore,
     ISecretCacheInvalidator cacheInvalidator,

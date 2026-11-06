@@ -42,9 +42,12 @@ public sealed class CompositeSecretStore : ISecretStore
         _logger = logger;
 
         // Order providers by priority (ascending - lower number = higher priority)
-        Providers = [.. providers
+        Providers =
+        [
+            .. providers
             .Where(p => p.Registration.IsEnabled && p.Provider.IsAvailable)
-            .OrderBy(p => p.Registration.Priority)];
+            .OrderBy(p => p.Registration.Priority),
+        ];
 
         if (Providers.Count == 0)
         {

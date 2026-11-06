@@ -5,6 +5,7 @@ namespace HoneyDrunk.Vault.EventGrid.Services;
 /// <summary>
 /// Functions-friendly wrapper around <see cref="VaultInvalidationWebhookHandler"/>.
 /// </summary>
+/// <param name="handler">The shared invalidation webhook handler.</param>
 public sealed class VaultInvalidationFunctionHandler(VaultInvalidationWebhookHandler handler)
 {
     private readonly VaultInvalidationWebhookHandler _handler = handler ?? throw new ArgumentNullException(nameof(handler));

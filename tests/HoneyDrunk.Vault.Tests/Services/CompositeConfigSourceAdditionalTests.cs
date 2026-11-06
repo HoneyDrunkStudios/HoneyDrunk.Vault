@@ -29,7 +29,8 @@ public sealed class CompositeConfigSourceAdditionalTests
             Register(low, priority: 100),
             Register(high, priority: 1),
             Register(disabled, enabled: false),
-            Register(unavailable)]);
+            Register(unavailable)
+        ]);
 
         // Assert
         Assert.Equal(["high", "low"], source.Providers.Select(p => p.Provider.ProviderName));
@@ -45,7 +46,8 @@ public sealed class CompositeConfigSourceAdditionalTests
         // Arrange
         var source = CreateSource([
             Register(new TestConfigProvider("low", "low-value"), priority: 100),
-            Register(new TestConfigProvider("high", "high-value"), priority: 1)]);
+            Register(new TestConfigProvider("high", "high-value"), priority: 1)
+        ]);
 
         // Act
         var value = await source.GetConfigValueAsync("feature:name");
@@ -68,7 +70,8 @@ public sealed class CompositeConfigSourceAdditionalTests
         var source = CreateSource([
             Register(missing, priority: 1),
             Register(transient, priority: 2),
-            Register(fallback, priority: 3)]);
+            Register(fallback, priority: 3)
+        ]);
 
         // Act
         var value = await source.TryGetConfigValueAsync("setting");
@@ -92,7 +95,8 @@ public sealed class CompositeConfigSourceAdditionalTests
         var fallback = new TestConfigProvider("fallback", "fallback-value");
         var source = CreateSource([
             Register(required, priority: 1, required: true),
-            Register(fallback, priority: 2)]);
+            Register(fallback, priority: 2)
+        ]);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<VaultOperationException>(() => source.GetConfigValueAsync("setting"));
@@ -113,7 +117,8 @@ public sealed class CompositeConfigSourceAdditionalTests
         var fallback = new TestConfigProvider("fallback", "fallback-value");
         var source = CreateSource([
             Register(fatal, priority: 1),
-            Register(fallback, priority: 2)]);
+            Register(fallback, priority: 2)
+        ]);
 
         // Act & Assert
         await Assert.ThrowsAsync<VaultOperationException>(() => source.GetConfigValueAsync("setting"));
@@ -130,7 +135,8 @@ public sealed class CompositeConfigSourceAdditionalTests
     {
         // Arrange
         var source = CreateSource([
-            Register(new TestConfigProvider("missing", value: null), priority: 1)]);
+            Register(new TestConfigProvider("missing", value: null), priority: 1)
+        ]);
 
         // Act
         var value = await source.TryGetConfigValueAsync("setting");

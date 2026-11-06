@@ -320,13 +320,15 @@ public sealed class VaultArchitectureCanaryTests
     private static List<Assembly> GetVaultAssemblies()
     {
         // Get all loaded assemblies that are part of HoneyDrunk.Vault
-        return [.. AppDomain.CurrentDomain
+        return [
+            .. AppDomain.CurrentDomain
             .GetAssemblies()
             .Where(a =>
             {
                 var name = a.GetName().Name ?? string.Empty;
                 return name.StartsWith("HoneyDrunk.Vault", StringComparison.OrdinalIgnoreCase) &&
                        !name.Contains("Tests", StringComparison.OrdinalIgnoreCase);
-            })];
+            })
+        ];
     }
 }

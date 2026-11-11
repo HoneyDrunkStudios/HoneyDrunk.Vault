@@ -65,7 +65,7 @@ jobs:
       security-events: write
     uses: HoneyDrunkStudios/HoneyDrunk.Actions/.github/workflows/release.yml@e3aa37c20dffe55155d95793465bcb6d94f280a2
     with:
-      dotnet-version: '10.0.x'
+      dotnet-version: '11.0.100'
       configuration: 'Release'
       runs-on: 'ubuntu-latest'
       project-path: 'HoneyDrunk.Vault.slnx'
@@ -76,7 +76,7 @@ jobs:
       create-github-release: false
       github-release-tag: ${{ needs.prepare.outputs.version_tag }}
       release-product-name: HoneyDrunk.Vault
-      release-product-description: 'Secrets and configuration management for .NET 10 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory, App Configuration).'
+      release-product-description: 'Secrets and configuration management for .NET 11 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory, App Configuration).'
       release-nuget-packages: |
         HoneyDrunk.Vault
         HoneyDrunk.Vault.Providers.File
@@ -114,7 +114,7 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
       with:
-        dotnet-version: 10.0.x
+        dotnet-version: 11.0.100
     - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
       with:
         name: nuget-packages
@@ -139,7 +139,7 @@ jobs:
       with:
         version: ${{ needs.prepare.outputs.version }}
         product-name: HoneyDrunk.Vault
-        product-description: Secrets and configuration management for .NET 10 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory, App Configuration).
+        product-description: Secrets and configuration management for .NET 11 with multi-provider support (Azure Key Vault, AWS, File, Configuration, InMemory, App Configuration).
         nuget-packages: |
           HoneyDrunk.Vault
           HoneyDrunk.Vault.Providers.File

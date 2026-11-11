@@ -21,7 +21,7 @@ jobs:
       security-events: write  # CodeQL SARIF upload
     uses: HoneyDrunkStudios/HoneyDrunk.Actions/.github/workflows/pr-core.yml@main
     with:
-      dotnet-version: '10.0.x'
+      dotnet-version: '11.0.100'
       configuration: 'Release'
       runs-on: 'ubuntu-latest'
       working-directory: '.'
@@ -55,7 +55,7 @@ jobs:
       pull-requests: write
     uses: HoneyDrunkStudios/HoneyDrunk.Actions/.github/workflows/job-sonarcloud.yml@20166f0d62b7027ad46130ec2c8f4eb652e0ffa5
     with:
-      dotnet-version: '10.0.x'
+      dotnet-version: '11.0.100'
       runs-on: 'ubuntu-latest'
       working-directory: '.'
       project-path: 'HoneyDrunk.Vault.slnx'
@@ -121,7 +121,7 @@ jobs:
       checks: write
     uses: HoneyDrunkStudios/HoneyDrunk.Actions/.github/workflows/coverage-baseline-ratchet.yml@main
     with:
-      dotnet-version: '10.0.x'
+      dotnet-version: '11.0.100'
       configuration: 'Release'
       runs-on: 'ubuntu-latest'
       working-directory: '.'

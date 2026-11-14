@@ -321,6 +321,8 @@ All vault operations emit telemetry traces with:
 
 **Important**: Secret values are NEVER included in telemetry or logs.
 
+When caching and `VaultOptions.EnableTelemetry` are enabled, Vault exposes .NET 11's built-in `MemoryCache` metrics. Subscribe to `Microsoft.Extensions.Caching.Memory.MemoryCache` in the host's OpenTelemetry metrics configuration and filter by `dotnet.cache.name=HoneyDrunk.Vault.SecretCache`. Hosts using `HoneyDrunk.Telemetry.OpenTelemetry` can add the meter to `HoneyDrunkOpenTelemetryOptions.AdditionalMeters`. The instruments report cache lookups, evictions, entries, and estimated size. Lookups count each cache access, including the recheck after acquiring the lock. The `dotnet.cache.request.result` tag distinguishes hits from misses. Estimated size counts entry units. Metric tags contain no secret keys or values.
+
 **OpenTelemetry Integration**: To capture Vault traces, register the `honeydrunk.vault` activity source in your OpenTelemetry tracing configuration. See [Telemetry.md](docs/Telemetry.md) for details.
 
 ## Architecture

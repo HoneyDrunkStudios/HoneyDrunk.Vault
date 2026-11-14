@@ -4,6 +4,7 @@ using HoneyDrunk.Vault.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Diagnostics.Metrics;
 
 namespace HoneyDrunk.Vault.Services;
 
@@ -28,16 +29,27 @@ public sealed class SecretCache : ISecretCacheInvalidator, IDisposable
     public SecretCache(
         IOptions<VaultOptions> options,
         ILogger<SecretCache> logger)
+        : this(options, logger, null)
+    {
+    }
+
+    internal SecretCache(
+        IOptions<VaultOptions> options,
+        ILogger<SecretCache> logger,
+        IMeterFactory? meterFactory)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         _options = options.Value.Cache;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        _cache = new MemoryCache(new MemoryCacheOptions
+        var cacheOptions = new MemoryCacheOptions
         {
+            Name = "HoneyDrunk.Vault.SecretCache",
             SizeLimit = _options.MaxSize,
-        });
+            TrackStatistics = _options.Enabled && options.Value.EnableTelemetry,
+        };
+        _cache = new MemoryCache(cacheOptions, loggerFactory: null, meterFactory: meterFactory);
     }
 
     /// <summary>

@@ -33,11 +33,11 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="11.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Resilience" Version="10.11.0" />
+    <PackageReference Include="Microsoft.Extensions.Resilience" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.403" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="11.0.100" />
   </ItemGroup>
 
   <ItemGroup>

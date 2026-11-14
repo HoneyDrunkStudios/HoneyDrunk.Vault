@@ -26,9 +26,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.24" />
-    <PackageReference Include="AWSSDK.SSO" Version="4.0.100.25" />
-    <PackageReference Include="AWSSDK.SSOOIDC" Version="4.0.100.24" />
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.1.1" />
+    <PackageReference Include="AWSSDK.SSO" Version="4.1.0" />
+    <PackageReference Include="AWSSDK.SSOOIDC" Version="4.1.0" />
     <PackageReference Include="HoneyDrunk.Standards" Version="0.4.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -40,7 +40,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.403" />
+    <PackageReference Update="Microsoft.CodeAnalysis.NetAnalyzers" Version="11.0.100" />
   </ItemGroup>
 
   <ItemGroup>

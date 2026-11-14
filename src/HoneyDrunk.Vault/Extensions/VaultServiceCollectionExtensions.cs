@@ -5,7 +5,9 @@ using HoneyDrunk.Vault.Services;
 using HoneyDrunk.Vault.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Diagnostics.Metrics;
 
 namespace HoneyDrunk.Vault.Extensions;
 
@@ -34,7 +36,10 @@ public static class VaultServiceCollectionExtensions
         });
 
         // Register cache + invalidation contract so webhook hosts can resolve explicit invalidation without cache internals.
-        services.TryAddSingleton<SecretCache>();
+        services.TryAddSingleton(sp => new SecretCache(
+            sp.GetRequiredService<IOptions<VaultOptions>>(),
+            sp.GetRequiredService<ILogger<SecretCache>>(),
+            sp.GetService<IMeterFactory>()));
         services.TryAddSingleton<ISecretCacheInvalidator>(sp => sp.GetRequiredService<SecretCache>());
 
         // Ensure VaultOptions is always resolvable so providers calling AddVaultCore

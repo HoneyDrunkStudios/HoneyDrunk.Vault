@@ -1,8 +1,11 @@
 using HoneyDrunk.Vault.Configuration;
+using HoneyDrunk.Vault.Extensions;
 using HoneyDrunk.Vault.Models;
 using HoneyDrunk.Vault.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using System.Diagnostics.Metrics;
 
 namespace HoneyDrunk.Vault.Tests.Services;
 
@@ -62,6 +65,67 @@ public sealed class SecretCacheTests : IDisposable
         Assert.True(result);
         Assert.NotNull(cachedValue);
         Assert.Equal("test-value", cachedValue.Value);
+    }
+
+    /// <summary>
+    /// Verifies the host meter reports real cache lookups only when caching and telemetry are enabled.
+    /// </summary>
+    /// <param name="cacheEnabled">Whether the secret cache is enabled.</param>
+    /// <param name="telemetryEnabled">Whether Vault telemetry is enabled.</param>
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void CacheMetrics_ReportOnlyAggregateLookups_WhenEnabled(bool cacheEnabled, bool telemetryEnabled)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddMetrics();
+        services.AddVaultCore();
+        services.Configure<VaultOptions>(options =>
+        {
+            options.Cache.Enabled = cacheEnabled;
+            options.EnableTelemetry = telemetryEnabled;
+        });
+        using var provider = services.BuildServiceProvider();
+        var meterFactory = provider.GetRequiredService<IMeterFactory>();
+        using var listener = new MeterListener();
+        var measurements = new List<(long count, KeyValuePair<string, object?>[] tags)>();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (ReferenceEquals(instrument.Meter.Scope, meterFactory) &&
+                instrument.Meter.Name == "Microsoft.Extensions.Caching.Memory.MemoryCache" &&
+                instrument.Name == "dotnet.cache.requests")
+            {
+                meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, count, tags, _) => measurements.Add((count, tags.ToArray())));
+        listener.Start();
+
+        var cache = provider.GetRequiredService<SecretCache>();
+        const string key = "test-secret-key";
+        Assert.False(cache.TryGet(key, out _));
+        cache.Set(key, new SecretValue(new SecretIdentifier(key), "test-secret-value", "v1"));
+        Assert.Equal(cacheEnabled, cache.TryGet(key, out _));
+        listener.RecordObservableInstruments();
+
+        if (!cacheEnabled || !telemetryEnabled)
+        {
+            Assert.Empty(measurements);
+            return;
+        }
+
+        Assert.Equal(2, measurements.Count);
+        foreach (var (count, tags) in measurements)
+        {
+            Assert.Equal(1L, count);
+            Assert.Equal(2, tags.Length);
+            Assert.Contains(new KeyValuePair<string, object?>("dotnet.cache.name", "HoneyDrunk.Vault.SecretCache"), tags);
+        }
+
+        Assert.Contains(measurements, item => item.tags.Contains(new("dotnet.cache.request.result", "hit")));
+        Assert.Contains(measurements, item => item.tags.Contains(new("dotnet.cache.request.result", "miss")));
     }
 
     /// <summary>

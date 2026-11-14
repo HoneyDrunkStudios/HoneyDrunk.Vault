@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Expose .NET 11 secret-cache lookup, eviction, entry count and size metrics for hosts that subscribe to the built-in `MemoryCache` meter.
+
 ## [0.8.2] - 2026-11-05
 
 ### Changed
